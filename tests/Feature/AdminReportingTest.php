@@ -1,0 +1,151 @@
+<?php
+
+use App\Models\Appointment;
+use App\Models\Barangay;
+use App\Models\Invoice;
+use App\Models\Payment;
+use App\Models\Service;
+use App\Models\Shop;
+use App\Models\User;
+use App\Models\Vehicle;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+uses(RefreshDatabase::class);
+
+it('shows the administrative dashboard and reports to an administrator', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+
+    $this->actingAs($admin)->get(route('admin.dashboard'))
+        ->assertOk()
+        ->assertSee('System overview');
+
+    $this->actingAs($admin)->get(route('admin.reports.index'))
+        ->assertOk()
+        ->assertSee('System reports')
+        ->assertSee('Confirmed payments');
+});
+
+it('does not allow a customer to view administrative reports', function () {
+    $customer = User::factory()->create(['role' => 'customer']);
+
+    $this->actingAs($customer)->get(route('admin.reports.index'))->assertForbidden();
+});
+
+it('filters administrative report activity by the requested date range', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $fixture = reportingFixture();
+    $service = Service::factory()->create();
+
+    Appointment::query()->create([
+        'customer_id' => $fixture['customer']->id,
+        'shop_id' => $fixture['shop']->id,
+        'vehicle_id' => $fixture['vehicle']->id,
+        'service_id' => $service->id,
+        'appointment_date' => '2026-10-03',
+        'appointment_time' => '10:00',
+        'status' => 'confirmed',
+    ]);
+    Payment::query()->create([
+        'invoice_id' => $fixture['invoice']->id,
+        'customer_id' => $fixture['customer']->id,
+        'shop_id' => $fixture['shop']->id,
+        'amount' => 1500,
+        'payment_method' => 'cash',
+        'payment_date' => '2026-10-03 10:00:00',
+        'status' => 'confirmed',
+    ]);
+
+    $response = $this->actingAs($admin)->get(route('admin.reports.index', ['from' => '2026-10-01', 'to' => '2026-10-05']));
+
+    $response->assertOk()
+        ->assertSee('Oct 1, 2026')
+        ->assertViewHas('metrics', fn (array $metrics): bool => $metrics['Appointments'] === 1 && (float) $metrics['Confirmed payments'] === 1500.0);
+});
+
+it('rejects invalid report date ranges', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+
+    $this->actingAs($admin)
+        ->get(route('admin.reports.index', ['from' => 'invalid-date', 'to' => '2026-10-05']))
+        ->assertSessionHasErrors('from');
+});
+
+it('limits shop reports to the authenticated owners shop', function () {
+    $fixture = reportingFixture();
+    $otherOwner = User::factory()->create(['role' => 'shop_owner']);
+    $otherShop = Shop::query()->create([
+        'owner_id' => $otherOwner->id,
+        'barangay_id' => $fixture['shop']->barangay_id,
+        'name' => 'Other reporting shop',
+        'phone' => '09170000002',
+        'email' => 'other-reporting@example.test',
+        'address' => 'Other Street',
+    ]);
+
+    Payment::query()->create([
+        'invoice_id' => $fixture['invoice']->id,
+        'customer_id' => $fixture['customer']->id,
+        'shop_id' => $fixture['shop']->id,
+        'amount' => 800,
+        'payment_method' => 'cash',
+        'payment_date' => now(),
+        'status' => 'confirmed',
+    ]);
+
+    $response = $this->actingAs($otherOwner)->get(route('shop.reports.index'));
+
+    $response->assertOk()
+        ->assertViewHas('shop', fn (Shop $shop): bool => $shop->is($otherShop))
+        ->assertViewHas('metrics', fn (array $metrics): bool => (float) $metrics['Confirmed revenue'] === 0.0);
+});
+
+it('lets an administrator suspend a non-admin account and records the action', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $customer = User::factory()->create(['role' => 'customer', 'status' => 'active']);
+
+    $this->actingAs($admin)
+        ->patch(route('admin.users.update', $customer), ['status' => 'suspended'])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('users', ['id' => $customer->id, 'status' => 'suspended']);
+    $this->assertDatabaseHas('activity_logs', [
+        'user_id' => $admin->id,
+        'action' => 'updated_account_status',
+        'module' => 'user_management',
+    ]);
+});
+
+it('does not authenticate a suspended account', function () {
+    $suspendedUser = User::factory()->create(['status' => 'suspended']);
+
+    $this->post(route('login'), ['email' => $suspendedUser->email, 'password' => 'password'])
+        ->assertRedirect()
+        ->assertSessionHasErrors('email');
+
+    $this->assertGuest();
+});
+
+/** @return array{customer: User, shop: Shop, invoice: Invoice, vehicle: Vehicle} */
+function reportingFixture(): array
+{
+    $customer = User::factory()->create(['role' => 'customer']);
+    $owner = User::factory()->create(['role' => 'shop_owner']);
+    $shop = Shop::query()->create([
+        'owner_id' => $owner->id,
+        'barangay_id' => Barangay::factory()->create()->id,
+        'name' => 'Reporting Shop',
+        'phone' => '09170000001',
+        'email' => 'reporting@example.test',
+        'address' => 'Report Street',
+    ]);
+    $invoice = Invoice::query()->create([
+        'customer_id' => $customer->id,
+        'shop_id' => $shop->id,
+        'invoice_number' => 'INV-REPORT-001',
+        'subtotal' => 1500,
+        'total' => 1500,
+    ]);
+    $vehicle = Vehicle::factory()->create(['customer_id' => $customer->id]);
+
+    return compact('customer', 'shop', 'invoice', 'vehicle');
+}

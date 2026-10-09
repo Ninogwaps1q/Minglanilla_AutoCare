@@ -1,0 +1,50 @@
+<?php
+
+use App\Models\Barangay;
+use App\Models\RepairJob;
+use App\Models\Shop;
+use App\Models\User;
+use App\Models\Vehicle;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+uses(RefreshDatabase::class);
+
+it('manages technicians and assigns them to a shop repair job', function () {
+    $fixture = technicianFixture();
+    $this->actingAs($fixture['owner'])->get(route('shop.technicians.index'))->assertOk();
+    $this->post(route('shop.technicians.store'), ['name' => 'Ana Cruz', 'phone' => '09170000000', 'specialization' => 'Brakes', 'experience_years' => 5, 'status' => 'active'])->assertRedirect()->assertSessionHas('status', 'Technician added.');
+    $technician = $fixture['shop']->technicians()->where('name', 'Ana Cruz')->firstOrFail();
+    $this->post(route('shop.technicians.assign', $fixture['job']), ['technician_id' => $technician->id, 'notes' => 'Brake inspection'])->assertRedirect()->assertSessionHas('status', 'Ana Cruz assigned to '.$fixture['job']->job_number.'.');
+    $this->assertDatabaseHas('technician_assignments', ['repair_job_id' => $fixture['job']->id, 'technician_id' => $technician->id, 'notes' => 'Brake inspection']);
+    expect($technician->fresh()->activeAssignments()->count())->toBe(1);
+    $this->delete(route('shop.technicians.unassign', [$fixture['job'], $technician]))->assertRedirect()->assertSessionHas('status', 'Technician assignment closed.');
+    expect($technician->fresh()->activeAssignments()->count())->toBe(0);
+});
+
+it('isolates technicians and repair jobs between shops', function () {
+    $fixture = technicianFixture();
+    $otherOwner = User::factory()->create(['role' => 'shop_owner']);
+    $this->actingAs($otherOwner)->get(route('shop.technicians.index'))->assertNotFound();
+    $otherShop = Shop::query()->create(['owner_id' => $otherOwner->id, 'barangay_id' => $fixture['shop']->barangay_id, 'name' => 'Other Shop', 'phone' => '09170000001', 'email' => 'other-tech@example.test', 'address' => 'Other Street']);
+    $otherTechnician = $otherShop->technicians()->create(['name' => 'Other tech', 'experience_years' => 1, 'status' => 'active']);
+    $this->actingAs($otherOwner)->post(route('shop.technicians.assign', $fixture['job']), ['technician_id' => $otherTechnician->id])->assertNotFound();
+});
+
+it('rejects inactive or invalid technicians for assignment', function () {
+    $fixture = technicianFixture();
+    $inactive = $fixture['shop']->technicians()->create(['name' => 'Inactive tech', 'experience_years' => 2, 'status' => 'inactive']);
+    $this->actingAs($fixture['owner'])->post(route('shop.technicians.assign', $fixture['job']), ['technician_id' => $inactive->id])->assertNotFound();
+    $this->actingAs($fixture['owner'])->post(route('shop.technicians.store'), ['name' => '', 'experience_years' => 81, 'status' => 'unknown'])->assertSessionHasErrors(['name', 'experience_years', 'status']);
+});
+
+/** @return array{owner: User, shop: Shop, job: RepairJob} */
+function technicianFixture(): array
+{
+    $owner = User::factory()->create(['role' => 'shop_owner']);
+    $customer = User::factory()->create(['role' => 'customer']);
+    $shop = Shop::query()->create(['owner_id' => $owner->id, 'barangay_id' => Barangay::factory()->create()->id, 'name' => 'Technician Shop', 'phone' => '09170000000', 'email' => 'tech@example.test', 'address' => 'Demo Street']);
+    $vehicle = Vehicle::factory()->create(['customer_id' => $customer->id]);
+    $job = RepairJob::query()->create(['shop_id' => $shop->id, 'customer_id' => $customer->id, 'vehicle_id' => $vehicle->id, 'job_number' => 'RJ-TECH-001', 'description' => 'Inspection', 'status' => 'repairing']);
+
+    return compact('owner', 'shop', 'job');
+}

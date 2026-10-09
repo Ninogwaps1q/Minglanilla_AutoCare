@@ -1,0 +1,62 @@
+<x-layouts.app title="User management">
+    <div class="page-heading">
+        <h1>User management</h1>
+        <p>Search accounts and control customer or shop-owner access.</p>
+    </div>
+    <div class="surface p-4 mb-4">
+        <form class="row g-2" method="GET">
+            <div class="col-md-5"><label class="visually-hidden" for="search">Search</label><input id="search"
+                    class="form-control" name="search" value="{{ $filters['search'] ?? '' }}"
+                    placeholder="Name or email"></div>
+            <div class="col-md-3"><select class="form-select" name="role">
+                    <option value="">All roles</option>
+                    @foreach(['customer' => 'Customer', 'shop_owner' => 'Shop owner', 'admin' => 'Administrator'] as $value => $label)
+                        <option value="{{ $value }}" @selected(($filters['role'] ?? '') === $value)>{{ $label }}</option>
+                    @endforeach
+                </select></div>
+            <div class="col-md-2"><select class="form-select" name="status">
+                    <option value="">All statuses</option>
+                    <option value="active" @selected(($filters['status'] ?? '') === 'active')>Active</option>
+                    <option value="suspended" @selected(($filters['status'] ?? '') === 'suspended')>Suspended</option>
+                </select></div>
+            <div class="col-md-2"><button class="btn btn-primary w-100">Filter</button></div>
+        </form>
+    </div>
+    <div class="surface overflow-hidden">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Joined</th>
+                        <th class="text-end">Access</th>
+                    </tr>
+                </thead>
+                <tbody>@forelse($users as $managedUser)
+                    <tr>
+                        <td><strong>{{ $managedUser->name }}</strong><br><span
+                                class="small text-secondary">{{ $managedUser->email }}</span></td>
+                        <td class="text-capitalize">{{ str_replace('_', ' ', $managedUser->role) }}</td>
+                        <td><span
+                                class="badge text-bg-{{ $managedUser->status === 'active' ? 'success' : 'secondary' }} text-capitalize">{{ $managedUser->status }}</span>
+                        </td>
+                        <td>{{ $managedUser->created_at->format('M j, Y') }}</td>
+                        <td class="text-end">@if(!$managedUser->isAdmin())
+                            <form method="POST" action="{{ route('admin.users.update', $managedUser) }}">@csrf
+                                @method('PATCH')<button
+                                    class="btn btn-sm btn-{{ $managedUser->status === 'active' ? 'outline-danger' : 'success' }}"
+                                    name="status"
+                                    value="{{ $managedUser->status === 'active' ? 'suspended' : 'active' }}">{{ $managedUser->status === 'active' ? 'Suspend' : 'Reactivate' }}</button>
+                        </form>@else<span class="text-secondary small">Administrator</span>@endif
+                        </td>
+                </tr>@empty<tr>
+                        <td colspan="5" class="p-4 text-secondary">No users match these filters.</td>
+                    </tr>@endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="mt-3">{{ $users->links() }}</div>
+</x-layouts.app>
