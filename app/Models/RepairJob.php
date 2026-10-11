@@ -68,4 +68,9 @@ class RepairJob extends Model
     {
         return $this->hasMany(TechnicianAssignment::class);
     }
+
+    public function items(): HasMany
+    {
+        return $this->hasMany(RepairJobItem::class);
+    }
 }

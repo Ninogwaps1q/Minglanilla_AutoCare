@@ -15,13 +15,13 @@
 # /node_modules
 # /public/build
 # /public/hot
-/public/storage
+# /public/storage
 # /storage/*.key
 # /storage/pail
 # /vendor
 # Homestead.json
 # Homestead.yaml
 # Thumbs.db
-/test-results/
-/playwright-report/
-/storage/framework/testing/
+# /test-results/
+# /playwright-report/
+# /storage/framework/testing/

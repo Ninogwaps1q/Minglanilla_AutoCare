@@ -16,11 +16,23 @@ class ShopVerificationController extends Controller
 {
     public function index(): View
     {
-        return view('admin.shops.index', ['shops' => Shop::query()->with(['owner', 'barangay'])->latest()->paginate(20)]);
+        return view('admin.shops.index', ['shops' => Shop::query()->with(['owner', 'barangay', 'documents'])->latest()->paginate(20)]);
     }
 
     public function approve(Shop $shop, Request $request): RedirectResponse
     {
+        $requiredDocuments = ['business_permit', 'mayors_permit'];
+        $verifiedDocuments = $shop->documents()
+            ->where('verification_status', 'verified')
+            ->where(fn ($query) => $query->whereNull('expires_at')->orWhereDate('expires_at', '>=', today()))
+            ->pluck('document_type');
+        $missingDocuments = collect($requiredDocuments)->diff($verifiedDocuments);
+        if ($missingDocuments->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'shop' => 'Verify the required current documents before approval: '.$missingDocuments->map(fn (string $type): string => str_replace('_', ' ', $type))->implode(', ').'.',
+            ]);
+        }
+
         $this->changeVerification($shop, $request, 'approved', 'active');
 
         return back()->with('status', 'Shop approval saved. Manage any subsequent suspension through its operational status.');

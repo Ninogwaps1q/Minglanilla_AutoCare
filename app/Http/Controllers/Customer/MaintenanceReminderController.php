@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Customer;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreMaintenanceReminderRequest;
 use App\Models\MaintenanceReminder;
+use App\Models\Service;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -16,6 +17,9 @@ class MaintenanceReminderController extends Controller
         return view('customer.reminders.index', [
             'reminders' => $request->user()->maintenanceReminders()->with('vehicle')->latest('reminder_date')->get(),
             'vehicles' => $request->user()->vehicles()->orderBy('plate_number')->get(),
+            'schedules' => $request->user()->vehicles()->with(['maintenanceSchedules.service'])->get()->pluck('maintenanceSchedules')->flatten()->sortBy('next_service_date'),
+            'recommendations' => $request->user()->maintenanceRecommendations()->with(['vehicle', 'serviceCategory'])->latest('generated_at')->get(),
+            'services' => Service::query()->where('status', 'active')->orderBy('name')->get(),
         ]);
     }
 

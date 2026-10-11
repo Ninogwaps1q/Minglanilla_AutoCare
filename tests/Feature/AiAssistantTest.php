@@ -69,3 +69,61 @@ it('stores and displays assistant replies without raw markdown symbols', functio
         ->assertDontSee('# Recommended steps')
         ->assertDontSee('* Check the oil level.');
 });
+
+it('returns a widget question to the current page with the chat reopened', function () {
+    $customer = User::factory()->create(['role' => 'customer']);
+    $this->app->instance(AiProviderInterface::class, new class implements AiProviderInterface
+    {
+        public function respond(array $messages): string
+        {
+            return 'You can review your booking under My appointments.';
+        }
+    });
+
+    $this->actingAs($customer)
+        ->from(route('dashboard'))
+        ->post(route('customer.ai-assistant.store'), [
+            'message' => 'Where is my booking?',
+            'widget' => true,
+        ])
+        ->assertRedirect(route('dashboard'))
+        ->assertSessionHas('ai_widget_open', true);
+
+    $this->assertDatabaseHas('ai_messages', [
+        'role' => 'assistant',
+        'message' => 'Here are your appointments, including pending and confirmed service visits.',
+    ]);
+});
+
+it('turns a safe customer command into a verified in-app action', function () {
+    $customer = User::factory()->create(['role' => 'customer']);
+    $this->app->instance(AiProviderInterface::class, new class implements AiProviderInterface
+    {
+        public function respond(array $messages): string
+        {
+            throw new LogicException('Navigation commands must not call the external AI provider.');
+        }
+    });
+
+    $this->actingAs($customer)
+        ->from(route('dashboard'))
+        ->post(route('customer.ai-assistant.store'), [
+            'message' => 'Please book a service for my car',
+            'widget' => true,
+        ])
+        ->assertRedirect(route('dashboard'))
+        ->assertSessionHas('ai_widget_open', true);
+
+    $assistantMessage = $customer->aiConversations()->firstOrFail()->messages()->where('role', 'assistant')->firstOrFail();
+    expect($assistantMessage->metadata)->toBe(['action' => 'book_service'])
+        ->and($assistantMessage->suggestedAction())->toMatchArray([
+            'label' => 'Book a service',
+            'url' => route('customer.appointments.create'),
+        ]);
+
+    $this->actingAs($customer)
+        ->withSession(['ai_widget_open' => true])
+        ->get(route('dashboard'))
+        ->assertSee('Book a service')
+        ->assertSee(route('customer.appointments.create'));
+});

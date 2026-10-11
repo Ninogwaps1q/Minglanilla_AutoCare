@@ -18,7 +18,7 @@ class ShopManagementController extends Controller
 {
     public function editProfile(Request $request): View
     {
-        return view('shop.profile.edit', ['shop' => $this->shop($request), 'barangays' => Barangay::query()->where('status', 'active')->orderBy('name')->get()]);
+        return view('shop.profile.edit', ['shop' => $this->shop($request)->load('documents'), 'barangays' => Barangay::query()->where('status', 'active')->orderBy('name')->get()]);
     }
 
     public function updateProfile(UpdateShopProfileRequest $request): RedirectResponse

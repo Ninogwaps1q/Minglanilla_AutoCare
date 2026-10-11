@@ -30,4 +30,16 @@
         <div class="col-md-6"><label for="cover_photo" class="form-label">Cover photo</label><input id="cover_photo" class="form-control @error('cover_photo') is-invalid @enderror" type="file" name="cover_photo" accept="image/png,image/jpeg,image/webp" aria-describedby="cover-help">@error('cover_photo')<div class="invalid-feedback">{{ $message }}</div>@enderror<small id="cover-help" class="form-text">Wide JPG, PNG, or WebP up to 4 MB.</small></div>
         <div class="col-12"><button class="btn btn-primary">Save profile</button></div>
     </form>
+    <section class="surface p-4 mt-4" aria-labelledby="verification-documents-title">
+        <div class="mb-3"><h2 class="h4 mb-1" id="verification-documents-title">Verification documents</h2><p class="text-secondary mb-0">Upload permits securely for administrator review. PDF, JPG, or PNG up to 5 MB.</p></div>
+        <form method="POST" enctype="multipart/form-data" action="{{ route('shop.documents.store') }}" class="row g-3 align-items-end mb-4">@csrf
+            <div class="col-md-4"><label class="form-label" for="document_type">Document type</label><select class="form-select" id="document_type" name="document_type" required><option value="business_permit">Business permit</option><option value="bir_registration">BIR registration</option><option value="dti_registration">DTI registration</option><option value="mayors_permit">Mayor's permit</option><option value="other">Other</option></select></div>
+            <div class="col-md-4"><label class="form-label" for="document">Document file</label><input class="form-control @error('document') is-invalid @enderror" id="document" type="file" name="document" accept="application/pdf,image/jpeg,image/png" required>@error('document')<div class="invalid-feedback">{{ $message }}</div>@enderror</div>
+            <div class="col-md-2"><label class="form-label" for="expires_at">Expiry date <span class="text-secondary">(optional)</span></label><input class="form-control" id="expires_at" type="date" name="expires_at" min="{{ today()->toDateString() }}"></div>
+            <div class="col-md-2 d-grid"><button class="btn btn-primary">Upload</button></div>
+        </form>
+        <div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Type</th><th>Status</th><th>Expiry</th><th>Admin notes</th><th></th></tr></thead><tbody>
+            @forelse ($shop->documents as $document)<tr><td class="text-capitalize">{{ str_replace('_', ' ', $document->document_type) }}</td><td class="text-capitalize">{{ $document->verification_status }}</td><td>{{ $document->expires_at?->format('M j, Y') ?? 'No expiry' }}@if($document->expires_at?->isPast())<br><span class="text-danger small">Expired</span>@endif</td><td>{{ $document->admin_notes ?: '—' }}</td><td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{{ route('shop.documents.download', $document) }}">Download</a>@if ($document->verification_status !== 'verified')<form class="d-inline" method="POST" action="{{ route('shop.documents.destroy', $document) }}">@csrf @method('DELETE')<button class="btn btn-sm btn-outline-danger">Remove</button></form>@endif</td></tr>@empty<tr><td colspan="5" class="text-secondary">No verification documents uploaded.</td></tr>@endforelse
+        </tbody></table></div>
+    </section>
 </x-layouts.app>

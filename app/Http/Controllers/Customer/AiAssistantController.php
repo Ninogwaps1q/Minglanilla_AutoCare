@@ -26,7 +26,11 @@ class AiAssistantController extends Controller
         try {
             $assistant->respond($request->user(), $conversation, $request->string('message')->toString());
         } catch (\RuntimeException $exception) {
-            return back()->withInput()->withErrors(['message' => $exception->getMessage()]);
+            return back()->withInput()->with('ai_widget_open', $request->boolean('widget'))->withErrors(['message' => $exception->getMessage()]);
+        }
+
+        if ($request->boolean('widget')) {
+            return back()->with('status', 'AI response received.')->with('ai_widget_open', true);
         }
 
         return redirect()->route('customer.ai-assistant.index')->with('status', 'AI response received.');

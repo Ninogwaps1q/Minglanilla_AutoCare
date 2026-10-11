@@ -28,13 +28,20 @@ class RepairJobController extends Controller
             if (RepairJob::query()->where('quotation_id', $quotation->id)->exists()) {
                 return;
             }
-            RepairJob::query()->create([
+            $repairJob = RepairJob::query()->create([
                 'customer_id' => $quotation->customer_id, 'shop_id' => $quotation->shop_id,
                 'vehicle_id' => $quotation->vehicle_id, 'quotation_id' => $quotation->id,
                 'job_number' => 'RJ-'.Str::upper(Str::random(10)), 'status' => 'approved',
                 'estimated_cost' => $quotation->total, 'description' => $quotation->items->pluck('description')->implode('; '),
                 'customer_notes' => $quotation->notes,
             ]);
+            $repairJob->items()->createMany($quotation->items->map(fn ($item): array => [
+                'type' => $item->service_id ? 'service' : 'other',
+                'description' => $item->description,
+                'quantity' => $item->quantity,
+                'unit_price' => $item->unit_price,
+                'subtotal' => $item->subtotal,
+            ])->all());
         });
 
         return redirect()->route('shop.repair-jobs.index')->with('status', 'Repair job ready for the accepted quotation.');
@@ -44,7 +51,7 @@ class RepairJobController extends Controller
     {
         return view('shop.repair-jobs.index', [
             'repairJobs' => $this->shop($request)->repairJobs()
-                ->with(['customer', 'vehicle', 'appointment', 'invoice'])
+                ->with(['customer', 'vehicle', 'appointment', 'invoice', 'items'])
                 ->latest()
                 ->get(),
         ]);

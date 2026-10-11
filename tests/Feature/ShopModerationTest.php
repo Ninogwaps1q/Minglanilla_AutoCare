@@ -40,6 +40,10 @@ it('notifies and logs a verification decision once and does not bypass suspensio
     $shop = shopModerationFixture();
     $shop->update(['verification_status' => 'pending', 'shop_status' => 'inactive']);
     $admin = User::factory()->create(['role' => 'admin']);
+    $shop->documents()->createMany([
+        ['document_type' => 'business_permit', 'document_path' => 'documents/business.pdf', 'verification_status' => 'verified'],
+        ['document_type' => 'mayors_permit', 'document_path' => 'documents/mayor.pdf', 'verification_status' => 'verified'],
+    ]);
 
     $this->actingAs($admin)->patch(route('admin.shops.approve', $shop))->assertRedirect();
     $this->patch(route('admin.shops.approve', $shop))->assertRedirect();
@@ -48,6 +52,16 @@ it('notifies and logs a verification decision once and does not bypass suspensio
     $shop->update(['shop_status' => 'suspended']);
     $this->patch(route('admin.shops.approve', $shop))->assertRedirect();
     $this->assertDatabaseHas('shops', ['id' => $shop->id, 'shop_status' => 'suspended']);
+});
+
+it('blocks approval until current required documents are verified', function () {
+    $shop = shopModerationFixture();
+    $shop->update(['verification_status' => 'pending', 'shop_status' => 'inactive']);
+    $shop->documents()->create(['document_type' => 'business_permit', 'document_path' => 'documents/expired.pdf', 'verification_status' => 'verified', 'expires_at' => today()->subDay()]);
+
+    $this->actingAs(User::factory()->create(['role' => 'admin'))->patch(route('admin.shops.approve', $shop))->assertSessionHasErrors('shop');
+
+    $this->assertDatabaseHas('shops', ['id' => $shop->id, 'verification_status' => 'pending']);
 });
 
 it('denies shop moderation to non administrators', function (string $role) {

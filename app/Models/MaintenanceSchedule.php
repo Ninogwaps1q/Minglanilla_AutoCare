@@ -9,6 +9,14 @@ class MaintenanceSchedule extends Model
 {
     protected $guarded = [];
 
+    protected function casts(): array
+    {
+        return [
+            'last_service_date' => 'date',
+            'next_service_date' => 'date',
+        ];
+    }
+
     public function vehicle(): BelongsTo
     {
         return $this->belongsTo(Vehicle::class);

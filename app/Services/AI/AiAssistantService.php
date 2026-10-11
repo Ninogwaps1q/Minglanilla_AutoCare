@@ -5,6 +5,7 @@ namespace App\Services\AI;
 use App\Models\AiConversation;
 use App\Models\AiUsageLog;
 use App\Models\User;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 class AiAssistantService
@@ -14,8 +15,22 @@ class AiAssistantService
     public function respond(User $user, AiConversation $conversation, string $message): string
     {
         $conversation->messages()->create(['role' => 'user', 'message' => $message]);
-        $context = $this->customerContext($user);
         $startedAt = hrtime(true);
+        $action = $this->navigationAction($message);
+
+        if ($action !== null) {
+            $reply = $action['reply'];
+            $conversation->messages()->create([
+                'role' => 'assistant',
+                'message' => $reply,
+                'metadata' => ['action' => $action['name']],
+            ]);
+            $this->log($user, 'assistant_command', 'completed', $startedAt);
+
+            return $reply;
+        }
+
+        $context = $this->customerContext($user);
 
         try {
             $reply = $this->provider->respond([
@@ -33,6 +48,33 @@ class AiAssistantService
         $this->log($user, 'assistant', 'completed', $startedAt);
 
         return $reply;
+    }
+
+    /** @return array{name: string, reply: string}|null */
+    private function navigationAction(string $message): ?array
+    {
+        $command = Str::lower(Str::transliterate($message));
+
+        $actions = [
+            ['terms' => ['roadside', 'emergency', 'nasiraan', 'tabang sa dalan'], 'name' => 'roadside', 'reply' => 'I can take you to Roadside Help. Use the button below to start or review an emergency request.'],
+            ['terms' => ['nearby shop', 'find shop', 'find a shop', 'pangita shop', 'map'], 'name' => 'find_shops', 'reply' => 'I can help you find nearby verified service shops. Open the shop map below.'],
+            ['terms' => ['book service', 'book a service', 'book appointment', 'book an appointment', 'new appointment', 'schedule service', 'schedule an appointment', 'pa book', 'magpa book'], 'name' => 'book_service', 'reply' => 'I can start your service booking. You will still choose the shop, vehicle, service, date, and time before submitting.'],
+            ['terms' => ['my appointment', 'appointments', 'my booking', 'bookings'], 'name' => 'appointments', 'reply' => 'Here are your appointments, including pending and confirmed service visits.'],
+            ['terms' => ['my repair', 'repair status', 'track repair', 'repairs'], 'name' => 'repairs', 'reply' => 'I can take you to your repair tracker so you can review the latest status.'],
+            ['terms' => ['my vehicle', 'my garage', 'vehicles', 'sakyanan'], 'name' => 'vehicles', 'reply' => 'Open My Garage to manage your vehicles and view their service passports.'],
+            ['terms' => ['invoice', 'invoices', 'bill', 'payment', 'bayranan'], 'name' => 'invoices', 'reply' => 'I can take you to your bills and payments. Review the invoice details before making any payment.'],
+            ['terms' => ['maintenance reminder', 'reminders', 'maintenance schedule'], 'name' => 'reminders', 'reply' => 'Open Maintenance Reminders to review or schedule your vehicle care alerts.'],
+            ['terms' => ['message shop', 'messages', 'chat shop'], 'name' => 'messages', 'reply' => 'Open Messages to continue your conversations with service shops.'],
+            ['terms' => ['my profile', 'edit profile', 'account settings'], 'name' => 'profile', 'reply' => 'Open your profile to review or update your customer information.'],
+        ];
+
+        foreach ($actions as $action) {
+            if (Str::contains($command, $action['terms'])) {
+                return ['name' => $action['name'], 'reply' => $action['reply']];
+            }
+        }
+
+        return null;
     }
 
     private function customerContext(User $user): string

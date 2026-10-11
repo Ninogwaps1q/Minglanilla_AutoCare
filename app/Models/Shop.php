@@ -45,6 +45,11 @@ class Shop extends Model
         return $this->hasMany(ShopService::class);
     }
 
+    public function documents(): HasMany
+    {
+        return $this->hasMany(ShopDocument::class);
+    }
+
     public function spareParts(): HasMany
     {
         return $this->hasMany(SparePart::class);

@@ -9,6 +9,14 @@ class Report extends Model
 {
     protected $guarded = [];
 
+    protected function casts(): array
+    {
+        return [
+            'date_from' => 'date',
+            'date_to' => 'date',
+        ];
+    }
+
     public function generatedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'generated_by');

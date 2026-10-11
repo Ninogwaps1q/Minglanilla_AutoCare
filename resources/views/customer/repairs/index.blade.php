@@ -16,6 +16,9 @@
             @if ($repairJob->diagnosis)
                 <p><strong>Diagnosis:</strong> {{ $repairJob->diagnosis }}</p>
             @endif
+            @if ($repairJob->items->isNotEmpty())
+                <div class="table-responsive mb-3"><table class="table table-sm"><caption>Itemized repair work</caption><thead><tr><th>Item</th><th class="text-end">Quantity</th><th class="text-end">Subtotal</th></tr></thead><tbody>@foreach($repairJob->items as $item)<tr><td>{{ $item->description }}</td><td class="text-end">{{ $item->quantity }}</td><td class="text-end">PHP {{ number_format($item->subtotal, 2) }}</td></tr>@endforeach<tr><th colspan="2">Itemized total</th><th class="text-end">PHP {{ number_format($repairJob->items->sum('subtotal'), 2) }}</th></tr></tbody></table></div>
+            @endif
             <dl class="row mb-0">
                 <dt class="col-sm-4">Estimated cost</dt>
                 <dd class="col-sm-8">{{ $repairJob->estimated_cost !== null ? 'PHP '.number_format($repairJob->estimated_cost, 2) : 'Awaiting estimate' }}</dd>

@@ -4,6 +4,7 @@ use App\Models\Appointment;
 use App\Models\Barangay;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\Report;
 use App\Models\Service;
 use App\Models\Shop;
 use App\Models\User;
@@ -60,6 +61,10 @@ it('filters administrative report activity by the requested date range', functio
     $response->assertOk()
         ->assertSee('Oct 1, 2026')
         ->assertViewHas('metrics', fn (array $metrics): bool => $metrics['Appointments'] === 1 && (float) $metrics['Confirmed payments'] === 1500.0);
+    $report = Report::query()->where('generated_by', $admin->id)->sole();
+    expect($report->report_type)->toBe('platform_operations')
+        ->and($report->date_from->toDateString())->toBe('2026-10-01')
+        ->and($report->date_to->toDateString())->toBe('2026-10-05');
 });
 
 it('rejects invalid report date ranges', function () {

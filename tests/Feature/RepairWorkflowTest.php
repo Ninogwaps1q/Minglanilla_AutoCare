@@ -89,6 +89,23 @@ it('does not let a shop owner update another shop repair job', function () {
         ->assertNotFound();
 });
 
+it('itemizes repair work and isolates line items by shop', function () {
+    $fixture = repairFixture();
+
+    $this->actingAs($fixture['owner'])->post(route('shop.repair-job-items.store', $fixture['repairJob']), [
+        'type' => 'part',
+        'description' => 'Brake pad set',
+        'quantity' => 2,
+        'unit_price' => 750,
+    ])->assertRedirect();
+
+    $item = $fixture['repairJob']->items()->sole();
+    expect((float) $item->subtotal)->toBe(1500.0);
+    $otherOwner = User::factory()->create(['role' => 'shop_owner']);
+    $this->actingAs($otherOwner)->delete(route('shop.repair-job-items.destroy', $item))->assertNotFound();
+    $this->assertModelExists($item);
+});
+
 it('records inventory adjustments for the shop that owns the part', function () {
     $fixture = repairFixture();
 

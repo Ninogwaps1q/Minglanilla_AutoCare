@@ -30,6 +30,11 @@ class Vehicle extends Model
         return $this->hasMany(MaintenanceReminder::class);
     }
 
+    public function maintenanceSchedules(): HasMany
+    {
+        return $this->hasMany(MaintenanceSchedule::class);
+    }
+
     public function maintenanceRecommendations(): HasMany
     {
         return $this->hasMany(MaintenanceRecommendation::class);

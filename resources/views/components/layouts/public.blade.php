@@ -14,7 +14,10 @@
     <a class="skip-link" href="#main-content">Skip to content</a>
     <nav class="navbar navbar-expand-lg public-navbar" aria-label="Primary navigation">
         <div class="container">
-            <a class="navbar-brand fw-semibold" href="{{ route('home') }}"><i class="bi bi-wrench-adjustable-circle me-2" aria-hidden="true"></i>Minglanilla AutoCare Hub</a>
+            <a class="navbar-brand fw-semibold" href="{{ route('home') }}">
+                <img class="brand-logo" src="{{ asset('images/Minglanilla AutoCare Hub Logo.png') }}" alt="" width="44" height="44">
+                <span>Minglanilla AutoCare Hub</span>
+            </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#publicNavigation" aria-controls="publicNavigation" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
             <div id="publicNavigation" class="collapse navbar-collapse">
                 <ul class="navbar-nav ms-lg-auto align-items-lg-center gap-lg-2">

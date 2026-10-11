@@ -9,6 +9,14 @@ class RepairJobItem extends Model
 {
     protected $guarded = [];
 
+    protected function casts(): array
+    {
+        return [
+            'unit_price' => 'decimal:2',
+            'subtotal' => 'decimal:2',
+        ];
+    }
+
     public function repairJob(): BelongsTo
     {
         return $this->belongsTo(RepairJob::class);

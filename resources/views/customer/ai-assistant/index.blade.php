@@ -28,6 +28,11 @@
                             <time datetime="{{ $message->created_at->toIso8601String() }}">{{ $message->created_at->format('g:i A') }}</time>
                         </div>
                         <p>{{ $message->displayMessage() }}</p>
+                        @if ($action = $message->suggestedAction())
+                            <a class="ai-command-action" href="{{ $action['url'] }}">
+                                <i class="bi bi-{{ $action['icon'] }}" aria-hidden="true"></i>{{ $action['label'] }}<i class="bi bi-arrow-right ms-auto" aria-hidden="true"></i>
+                            </a>
+                        @endif
                     </div>
                 </article>
             @empty
@@ -59,7 +64,10 @@
 
     @push('scripts')
         <script>
-            document.getElementById('conversation-end')?.scrollIntoView({ block: 'nearest' });
+            const messageList = document.querySelector('.ai-message-list');
+            if (messageList) {
+                messageList.scrollTop = messageList.scrollHeight;
+            }
         </script>
     @endpush
 </x-layouts.app>

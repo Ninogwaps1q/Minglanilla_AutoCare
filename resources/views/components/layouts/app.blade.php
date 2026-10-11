@@ -7,13 +7,16 @@
     @php
         $role = auth()->user()->role;
         $navigation = match ($role) {
-            'customer' => [['Get service', [['dashboard', 'Home', 'house'], ['map.index', 'Find a shop', 'geo-alt'], ['customer.appointments.create', 'Book a service', 'calendar-plus'], ['customer.appointments.index', 'My appointments', 'calendar-check']]], ['My vehicle care', [['customer.vehicles.index', 'My garage', 'car-front'], ['customer.repairs.index', 'Track repairs', 'tools'], ['customer.quotations.index', 'Quotes', 'file-text'], ['customer.invoices.index', 'Bills & payments', 'receipt'], ['customer.service-history.index', 'Service history', 'clock-history'], ['customer.reminders.index', 'Maintenance reminders', 'calendar-event']]], ['Help & more', [['customer.inspections.index', 'Inspections', 'clipboard-check'], ['customer.ai-assistant.index', 'Ask AutoCare AI', 'stars'], ['customer.favorites.index', 'Saved shops', 'heart'], ['customer.messages.index', 'Messages', 'chat-dots'], ['customer.reviews.index', 'My reviews', 'star'], ['customer.emergency-requests.index', 'Roadside help', 'life-preserver']]]],
+            'customer' => [['Start here', [['dashboard', 'Home', 'house'], ['map.index', 'Find nearby shops', 'geo-alt'], ['customer.appointments.create', 'Book a service', 'calendar-plus']]], ['Track my service', [['customer.appointments.index', 'Appointments', 'calendar-check'], ['customer.repairs.index', 'Repair progress', 'tools'], ['customer.quotations.index', 'Estimates', 'file-text'], ['customer.invoices.index', 'Payments', 'receipt']]], ['My vehicle', [['customer.vehicles.index', 'Garage', 'car-front'], ['customer.service-history.index', 'Service history', 'clock-history'], ['customer.reminders.index', 'Maintenance planner', 'calendar-event'], ['customer.inspections.index', 'Inspection reports', 'clipboard-check']]], ['Help & account', [['customer.messages.index', 'Messages', 'chat-dots'], ['customer.favorites.index', 'Saved shops', 'heart'], ['customer.reviews.index', 'My reviews', 'star'], ['customer.emergency-requests.index', 'Roadside assistance', 'life-preserver']]]],
             'shop_owner' => [['Today’s work', [['shop.dashboard', 'Home', 'house'], ['shop.appointments.index', 'Appointments', 'calendar-check'], ['shop.repair-jobs.index', 'Repair jobs', 'tools'], ['shop.quotations.index', 'Estimates', 'file-text'], ['shop.invoices.index', 'Bills & payments', 'receipt']]], ['Run the shop', [['shop.profile.edit', 'Shop profile', 'shop'], ['shop.services.index', 'Services & pricing', 'wrench'], ['shop.inventory.index', 'Parts inventory', 'box-seam'], ['shop.technicians.index', 'Team', 'people'], ['shop.reports.index', 'Business reports', 'bar-chart']]], ['Customer care', [['shop.messages.index', 'Messages', 'chat-dots'], ['shop.reviews.index', 'Customer reviews', 'star'], ['shop.emergency-requests.index', 'Roadside requests', 'life-preserver']]]],
             'admin' => [['Platform', [['admin.dashboard', 'Overview', 'house'], ['admin.shops.index', 'Review shops', 'shop'], ['admin.users.index', 'Manage users', 'people'], ['admin.services.index', 'Service catalog', 'wrench'], ['barangays.index', 'Service areas', 'geo-alt']]], ['Monitor & report', [['admin.monitoring.index', 'Live operations', 'activity'], ['admin.reviews.index', 'Moderate reviews', 'star'], ['admin.reports.index', 'Analytics', 'bar-chart'], ['admin.activity-logs.index', 'Audit trail', 'clock-history']]]],
             default => [],
         };
         $roleLabel = match ($role) { 'shop_owner' => 'Shop owner', 'admin' => 'Administration', default => 'Customer' };
         $dashboardRoute = match ($role) { 'shop_owner' => 'shop.dashboard', 'admin' => 'admin.dashboard', default => 'dashboard' };
+        $navigationLinks = collect($navigation)->flatMap(fn (array $group): array => $group[1]);
+        $currentNavigationItem = $navigationLinks->first(fn (array $link): bool => request()->routeIs($link[0]));
+        $currentPageLabel = $currentNavigationItem[1] ?? $roleLabel.' workspace';
     @endphp
     <!doctype html>
     <html lang="en">
@@ -32,15 +35,24 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" data-bs-target="#portalNavigation" aria-label="Close navigation"></button>
             </div>
             <div class="offcanvas-body">
-                <a class="portal-brand" href="{{ route($dashboardRoute) }}"><i class="bi bi-wrench-adjustable-circle" aria-hidden="true"></i><span>Minglanilla<strong>AutoCare Hub</strong></span></a>
+                <a class="portal-brand" href="{{ route($dashboardRoute) }}">
+                    <img class="brand-logo" src="{{ asset('images/Minglanilla AutoCare Hub Logo.png') }}" alt="" width="48" height="48">
+                    <span>Minglanilla<strong>AutoCare Hub</strong></span>
+                </a>
                 <nav aria-label="{{ $roleLabel }} navigation" class="portal-menu">
                     @foreach ($navigation as [$group, $links])
                         <div class="portal-nav-group">
                             <div class="portal-nav-label">{{ $group }}</div>
                             @foreach ($links as [$route, $label, $icon])
                                 @php
-                                    $pattern = str_ends_with($route, '.index') || str_ends_with($route, '.edit') ? substr($route, 0, strrpos($route, '.')).'.*' : $route;
-                                    $active = request()->routeIs($pattern);
+                                    $routePrefix = substr($route, 0, strrpos($route, '.'));
+                                    $hasSiblingRoute = $navigationLinks->contains(
+                                        fn (array $link): bool => $link[0] !== $route && str_starts_with($link[0], $routePrefix.'.'),
+                                    );
+                                    $active = request()->routeIs($route)
+                                        || (! $hasSiblingRoute
+                                            && (str_ends_with($route, '.index') || str_ends_with($route, '.edit'))
+                                            && request()->routeIs($routePrefix.'.*'));
                                 @endphp
                                 <a class="portal-nav-link {{ $active ? 'active' : '' }}" href="{{ route($route) }}" @if ($active) aria-current="page" @endif><i class="bi bi-{{ $icon }}" aria-hidden="true"></i><span>{{ $label }}</span></a>
                             @endforeach
@@ -53,7 +65,10 @@
         <div class="portal-workspace">
             <header class="portal-topbar">
                 <button class="btn btn-outline-secondary d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#portalNavigation" aria-controls="portalNavigation" aria-label="Open navigation"><i class="bi bi-list" aria-hidden="true"></i></button>
-                <span class="portal-role">{{ $roleLabel }} workspace</span>
+                <div class="portal-context"><i class="bi bi-{{ $role === 'customer' ? 'car-front' : ($role === 'shop_owner' ? 'shop' : 'shield-check') }}" aria-hidden="true"></i><span><small>{{ $roleLabel }} portal</small><strong>{{ $currentPageLabel }}</strong></span></div>
+                @if ($role === 'customer')
+                    <nav class="customer-top-actions d-none d-md-flex" aria-label="Customer quick actions"><a href="{{ route('map.index') }}"><i class="bi bi-geo-alt" aria-hidden="true"></i>Find shop</a><a class="primary" href="{{ route('customer.appointments.create') }}"><i class="bi bi-calendar-plus" aria-hidden="true"></i>Book service</a></nav>
+                @endif
                 <div class="d-flex align-items-center gap-2 ms-auto">
                     @if (in_array($role, ['customer', 'shop_owner']))
                         <a class="btn btn-light" href="{{ route($role === 'customer' ? 'customer.notifications.index' : 'shop.notifications.index') }}" aria-label="Notifications"><i class="bi bi-bell" aria-hidden="true"></i></a>
@@ -96,6 +111,9 @@
                 <a href="{{ route('customer.vehicles.index') }}" class="{{ request()->routeIs('customer.vehicles.*') ? 'active' : '' }}"><i class="bi bi-car-front" aria-hidden="true"></i><span>Garage</span></a>
                 <a href="{{ route('customer.repairs.index') }}" class="{{ request()->routeIs('customer.repairs.*') ? 'active' : '' }}"><i class="bi bi-tools" aria-hidden="true"></i><span>Repairs</span></a>
             </nav>
+            @unless (request()->routeIs('customer.ai-assistant.*'))
+                <x-ai-chat-widget />
+            @endunless
         @elseif ($role === 'shop_owner')
             <nav class="customer-mobile-nav shop-mobile-nav" aria-label="Shop quick navigation">
                 <a href="{{ route('shop.dashboard') }}" class="{{ request()->routeIs('shop.dashboard') ? 'active' : '' }}"><i class="bi bi-house" aria-hidden="true"></i><span>Home</span></a>
