@@ -43,7 +43,30 @@
         @endif
         {{ $slot }}
     </main>
-    <footer class="public-footer mt-auto"><div class="container d-flex flex-column flex-md-row justify-content-between gap-2 py-4"><span>© {{ now()->year }} Minglanilla AutoCare Hub</span><span>Vehicle service discovery for Minglanilla, Cebu.</span></div></footer>
+    <footer class="public-footer mt-auto" aria-label="Site footer">
+        <div class="container public-footer-grid">
+            <div class="public-footer-brand">
+                <img class="brand-logo" src="{{ asset('images/Minglanilla AutoCare Hub Logo.png') }}" alt="" width="48" height="48">
+                <div><strong>Minglanilla AutoCare Hub</strong><span>Trusted local vehicle care, made easier.</span></div>
+            </div>
+            <nav class="public-footer-links" aria-label="Footer navigation">
+                <strong>Explore</strong>
+                <a href="{{ route('shops.index') }}">Shop directory</a>
+                <a href="{{ route('map.index') }}">Find nearby shops</a>
+                <a href="{{ route('home') }}#about">About the platform</a>
+            </nav>
+            <div class="public-footer-action">
+                <strong>Ready to get started?</strong>
+                <span>Manage bookings, repairs, and vehicle records in one place.</span>
+                @auth
+                    <a class="btn btn-accent" href="{{ route(auth()->user()->role === 'shop_owner' ? 'shop.dashboard' : (auth()->user()->role === 'admin' ? 'admin.dashboard' : 'dashboard')) }}">Open dashboard</a>
+                @else
+                    <a class="btn btn-accent" href="{{ route('register') }}">Create an account</a>
+                @endauth
+            </div>
+        </div>
+        <div class="container public-footer-bottom"><span>&copy; {{ now()->year }} Minglanilla AutoCare Hub</span><span>Serving drivers and service shops in Minglanilla, Cebu.</span></div>
+    </footer>
     @stack('scripts')
 </body>
 

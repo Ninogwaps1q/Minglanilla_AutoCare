@@ -19,7 +19,7 @@ class MaintenanceReminderController extends Controller
             'vehicles' => $request->user()->vehicles()->orderBy('plate_number')->get(),
             'schedules' => $request->user()->vehicles()->with(['maintenanceSchedules.service'])->get()->pluck('maintenanceSchedules')->flatten()->sortBy('next_service_date'),
             'recommendations' => $request->user()->maintenanceRecommendations()->with(['vehicle', 'serviceCategory'])->latest('generated_at')->get(),
-            'services' => Service::query()->where('status', 'active')->orderBy('name')->get(),
+            'services' => Service::query()->orderBy('name')->get(),
         ]);
     }
 

@@ -9,14 +9,23 @@ use App\Models\RepairJob;
 use App\Models\Shop;
 use App\Models\User;
 use App\Models\Vehicle;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    public function __invoke(Request $request): View
+    public function __invoke(Request $request): View|RedirectResponse
     {
         $user = $request->user();
+
+        if ($request->routeIs('dashboard') && $user->role === 'shop_owner') {
+            return redirect()->route('shop.dashboard');
+        }
+
+        if ($request->routeIs('dashboard') && $user->role === 'admin') {
+            return redirect()->route('admin.dashboard');
+        }
 
         $viewData = ['user' => $user, 'metrics' => match ($user->role) {
             'admin' => ['Users' => User::query()->count(), 'Shops' => Shop::query()->count(), 'Pending verifications' => Shop::query()->where('verification_status', 'pending')->count(), 'Vehicles' => Vehicle::query()->count()],

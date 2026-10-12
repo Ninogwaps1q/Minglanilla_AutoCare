@@ -1,10 +1,24 @@
 <?php
 
 use App\Models\MaintenanceRecommendation;
+use App\Models\Service;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
+
+it('shows the maintenance planner with the available service catalog', function () {
+    $customer = User::factory()->create(['role' => 'customer']);
+    $customer->vehicles()->create(['plate_number' => 'PLAN-001', 'make' => 'Toyota', 'model' => 'Vios', 'year' => 2022]);
+    Service::factory()->create(['name' => 'Engine oil change']);
+
+    $response = $this->actingAs($customer)->get(route('customer.reminders.index'));
+
+    $response
+        ->assertOk()
+        ->assertSeeText('Maintenance planner')
+        ->assertSeeText('Engine oil change');
+});
 
 it('calculates the next date and mileage for a customer maintenance schedule', function () {
     $customer = User::factory()->create(['role' => 'customer']);

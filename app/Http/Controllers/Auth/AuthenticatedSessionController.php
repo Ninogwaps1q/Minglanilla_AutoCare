@@ -19,12 +19,20 @@ class AuthenticatedSessionController extends Controller
     public function store(LoginRequest $request): RedirectResponse
     {
         if (! Auth::attempt([...$request->safe()->only('email', 'password'), 'status' => 'active'], $request->boolean('remember'))) {
-            return back()->withErrors(['email' => 'The provided credentials do not match our records.'])->onlyInput('email');
+            return back()->withErrors([
+                'email' => 'Incorrect email address or password. Please check your details and try again.',
+            ])->onlyInput('email');
         }
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard'));
+        $dashboardRoute = match ($request->user()->role) {
+            'shop_owner' => 'shop.dashboard',
+            'admin' => 'admin.dashboard',
+            default => 'dashboard',
+        };
+
+        return redirect()->intended(route($dashboardRoute));
     }
 
     public function destroy(Request $request): RedirectResponse

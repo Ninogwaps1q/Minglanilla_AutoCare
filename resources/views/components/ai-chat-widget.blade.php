@@ -29,6 +29,11 @@
                     <p>Ask about bookings, repair updates, or caring for your vehicle.</p>
                 </div>
             @endforelse
+            <article class="ai-widget-message is-assistant ai-widget-typing" role="status" aria-label="AutoCare AI is typing" hidden>
+                <strong>AutoCare AI</strong>
+                <span class="ai-typing-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+                <span class="visually-hidden">AutoCare AI is typing</span>
+            </article>
         </div>
 
         <form class="ai-widget-composer" method="POST" action="{{ route('customer.ai-assistant.store') }}">
@@ -38,8 +43,8 @@
             @error('message')<p class="ai-widget-error" role="alert">{{ $message }}</p>@enderror
             <div>
                 <label class="visually-hidden" for="ai-widget-message">Ask AutoCare AI</label>
-                <textarea id="ai-widget-message" name="message" rows="2" maxlength="2000" placeholder="Type your question…" required>{{ old('message') }}</textarea>
-                <button type="submit" aria-label="Send question"><i class="bi bi-send-fill" aria-hidden="true"></i></button>
+                <textarea id="ai-widget-message" name="message" rows="1" maxlength="2000" placeholder="Type a message" aria-required="true">{{ old('message') }}</textarea>
+                <button type="submit" aria-label="Send question" disabled><i class="bi bi-send-fill" aria-hidden="true"></i></button>
             </div>
             <small>Guidance only. Consult a technician for mechanical concerns.</small>
         </form>
@@ -59,6 +64,15 @@
             const closeButton = widget.querySelector('.ai-widget-close');
             const messages = widget.querySelector('.ai-widget-messages');
             const input = widget.querySelector('textarea');
+            const form = widget.querySelector('.ai-widget-composer');
+            const sendButton = form.querySelector('button[type="submit"]');
+            const typingIndicator = widget.querySelector('.ai-widget-typing');
+
+            const updateComposer = () => {
+                input.style.height = 'auto';
+                input.style.height = `${Math.min(input.scrollHeight, 96)}px`;
+                sendButton.disabled = input.value.trim() === '';
+            };
 
             const setOpen = (open) => {
                 panel.hidden = !open;
@@ -82,6 +96,32 @@
                 }
             });
 
+            input.addEventListener('input', updateComposer);
+            input.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault();
+                    if (!sendButton.disabled) {
+                        form.requestSubmit();
+                    }
+                }
+            });
+
+            form.addEventListener('submit', (event) => {
+                const message = input.value.trim();
+                if (!message) {
+                    event.preventDefault();
+                    input.focus();
+                    return;
+                }
+
+                sendButton.disabled = true;
+                input.readOnly = true;
+                typingIndicator.hidden = false;
+                messages.append(typingIndicator);
+                messages.scrollTo({ top: messages.scrollHeight, behavior: 'smooth' });
+            });
+
+            updateComposer();
             setOpen(widget.dataset.open === 'true');
         });
     </script>

@@ -54,14 +54,16 @@ it('notifies and logs a verification decision once and does not bypass suspensio
     $this->assertDatabaseHas('shops', ['id' => $shop->id, 'shop_status' => 'suspended']);
 });
 
-it('blocks approval until current required documents are verified', function () {
+it('allows an administrator to approve after reviewing incomplete documents', function () {
     $shop = shopModerationFixture();
     $shop->update(['verification_status' => 'pending', 'shop_status' => 'inactive']);
     $shop->documents()->create(['document_type' => 'business_permit', 'document_path' => 'documents/expired.pdf', 'verification_status' => 'verified', 'expires_at' => today()->subDay()]);
 
-    $this->actingAs(User::factory()->create(['role' => 'admin']))->patch(route('admin.shops.approve', $shop))->assertSessionHasErrors('shop');
+    $this->actingAs(User::factory()->create(['role' => 'admin']))->patch(route('admin.shops.approve', $shop))->assertRedirect();
 
-    $this->assertDatabaseHas('shops', ['id' => $shop->id, 'verification_status' => 'pending']);
+    $this->assertDatabaseHas('shops', ['id' => $shop->id, 'verification_status' => 'approved', 'shop_status' => 'active']);
+    $this->assertDatabaseCount('activity_logs', 1);
+    $this->assertDatabaseCount('notifications', 1);
 });
 
 it('denies shop moderation to non administrators', function (string $role) {

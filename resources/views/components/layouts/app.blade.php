@@ -71,7 +71,6 @@
                     <nav class="customer-top-actions d-none d-md-flex" aria-label="Customer quick actions"><a href="{{ route('map.index') }}"><i class="bi bi-geo-alt" aria-hidden="true"></i>Find shop</a><a class="primary" href="{{ route('customer.appointments.create') }}"><i class="bi bi-calendar-plus" aria-hidden="true"></i>Book service</a></nav>
                 @endif
                 <div class="d-flex align-items-center gap-2 ms-auto">
-                    <x-theme-toggle />
                     @if (in_array($role, ['customer', 'shop_owner']))
                         <a class="btn btn-light" href="{{ route($role === 'customer' ? 'customer.notifications.index' : 'shop.notifications.index') }}" aria-label="Notifications"><i class="bi bi-bell" aria-hidden="true"></i></a>
                     @endif
@@ -91,6 +90,7 @@
                                 <li><a class="dropdown-item" href="{{ route('shop.profile.edit') }}">Shop profile</a></li>
                             @endif
                             <li><a class="dropdown-item" href="{{ route('home') }}">Public website</a></li>
+                            <li><x-theme-toggle menu /></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><form method="POST" action="{{ route('logout') }}">@csrf<button class="dropdown-item text-danger" type="submit">Sign out</button></form></li>
                         </ul>

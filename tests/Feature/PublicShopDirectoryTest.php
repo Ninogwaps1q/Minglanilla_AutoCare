@@ -10,6 +10,14 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
+it('renders the branded public footer with useful navigation', function () {
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertSee('Trusted local vehicle care, made easier.')
+        ->assertSee('Shop directory')
+        ->assertSee('Create an account');
+});
+
 it('shows only approved active shops in the directory', function () {
     $barangay = Barangay::factory()->create();
     $owner = User::factory()->create(['role' => 'shop_owner']);
