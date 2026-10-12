@@ -61,10 +61,37 @@ it('filters administrative report activity by the requested date range', functio
     $response->assertOk()
         ->assertSee('Oct 1, 2026')
         ->assertViewHas('metrics', fn (array $metrics): bool => $metrics['Appointments'] === 1 && (float) $metrics['Confirmed payments'] === 1500.0);
+    expect(Report::query()->where('generated_by', $admin->id)->doesntExist())->toBeTrue();
+
+    $download = $this->actingAs($admin)->get(route('admin.reports.download', ['from' => '2026-10-01', 'to' => '2026-10-05']));
+    $download->assertOk()
+        ->assertHeader('content-type', 'application/pdf')
+        ->assertDownload('platform-report-2026-10-01-2026-10-05.pdf');
+
     $report = Report::query()->where('generated_by', $admin->id)->sole();
     expect($report->report_type)->toBe('platform_operations')
         ->and($report->date_from->toDateString())->toBe('2026-10-01')
         ->and($report->date_to->toDateString())->toBe('2026-10-05');
+});
+
+it('lets a shop owner download only their own performance report', function () {
+    $fixture = reportingFixture();
+    $owner = $fixture['shop']->owner;
+
+    $response = $this->actingAs($owner)->get(route('shop.reports.download', [
+        'from' => '2026-10-01',
+        'to' => '2026-10-05',
+    ]));
+
+    $response->assertOk()
+        ->assertHeader('content-type', 'application/pdf')
+        ->assertDownload("shop-report-{$fixture['shop']->id}-2026-10-01-2026-10-05.pdf");
+    $this->assertDatabaseHas('reports', [
+        'generated_by' => $owner->id,
+        'report_type' => 'shop_performance',
+        'date_from' => '2026-10-01 00:00:00',
+        'date_to' => '2026-10-05 00:00:00',
+    ]);
 });
 
 it('rejects invalid report date ranges', function () {

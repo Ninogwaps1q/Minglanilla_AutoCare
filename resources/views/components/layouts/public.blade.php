@@ -6,6 +6,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <x-theme-init />
     <title>{{ $title ? $title.' · ' : '' }}{{ config('app.name', 'Minglanilla AutoCare Hub') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
@@ -18,13 +19,14 @@
                 <img class="brand-logo" src="{{ asset('images/Minglanilla AutoCare Hub Logo.png') }}" alt="" width="44" height="44">
                 <span>Minglanilla AutoCare Hub</span>
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#publicNavigation" aria-controls="publicNavigation" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#publicNavigation" aria-controls="publicNavigation" aria-expanded="false" aria-label="Toggle navigation"><i class="bi bi-list" aria-hidden="true"></i></button>
             <div id="publicNavigation" class="collapse navbar-collapse">
                 <ul class="navbar-nav ms-lg-auto align-items-lg-center gap-lg-2">
                     <li class="nav-item"><a class="nav-link" href="{{ route('home') }}">Home</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ route('shops.index') }}">Shop directory</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ route('map.index') }}">Find nearby</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ route('home') }}#about">About</a></li>
+                    <li class="nav-item d-flex align-items-center"><x-theme-toggle /></li>
                     @auth
                         <li class="nav-item ms-lg-2"><a class="btn btn-primary" href="{{ route(auth()->user()->role === 'shop_owner' ? 'shop.dashboard' : (auth()->user()->role === 'admin' ? 'admin.dashboard' : 'dashboard')) }}">Open dashboard</a></li>
                     @else

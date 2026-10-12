@@ -9,6 +9,7 @@
             <div class="col-sm-5 col-lg-3"><label class="form-label" for="to">To</label><input class="form-control" id="to" name="to" type="date" value="{{ $to->toDateString() }}"></div>
             <div class="col-sm-2 col-lg-auto d-grid"><button class="btn btn-primary" type="submit">Apply range</button></div>
             <div class="col-lg-auto"><a class="btn btn-outline-secondary" href="{{ route('admin.reports.index') }}">Last 30 days</a></div>
+            <div class="col-lg-auto"><a class="btn btn-outline-primary" href="{{ route('admin.reports.download', ['from' => $from->toDateString(), 'to' => $to->toDateString()]) }}"><i class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></i>Download PDF</a></div>
         </form>
         <x-form-errors />
     </div>

@@ -124,6 +124,7 @@ Route::middleware(['auth', 'role:shop_owner'])->prefix('shop')->name('shop.')->g
     Route::patch('technicians/{technician}', [TechnicianController::class, 'update'])->name('technicians.update');
     Route::post('repair-jobs/{repairJob}/technicians', [TechnicianController::class, 'assign'])->name('technicians.assign');
     Route::delete('repair-jobs/{repairJob}/technicians/{technician}', [TechnicianController::class, 'unassign'])->name('technicians.unassign');
+    Route::get('reports/download', [ShopReportController::class, 'download'])->name('reports.download');
     Route::get('reports', [ShopReportController::class, 'index'])->name('reports.index');
     Route::get('emergency-requests', [ShopEmergencyRequestController::class, 'index'])->name('emergency-requests.index');
     Route::patch('emergency-requests/{emergencyRequest}', [ShopEmergencyRequestController::class, 'update'])->name('emergency-requests.update');
@@ -140,6 +141,7 @@ Route::patch('/admin/shops/{shop}/reject', [ShopVerificationController::class, '
 Route::get('/admin/shop-documents/{shopDocument}', [ShopDocumentVerificationController::class, 'download'])->middleware(['auth', 'role:admin'])->name('admin.shop-documents.download');
 Route::patch('/admin/shop-documents/{shopDocument}', [ShopDocumentVerificationController::class, 'update'])->middleware(['auth', 'role:admin'])->name('admin.shop-documents.update');
 Route::get('/admin/reports', [ReportController::class, 'index'])->middleware(['auth', 'role:admin'])->name('admin.reports.index');
+Route::get('/admin/reports/download', [ReportController::class, 'download'])->middleware(['auth', 'role:admin'])->name('admin.reports.download');
 Route::get('/admin/users', [UserManagementController::class, 'index'])->middleware(['auth', 'role:admin'])->name('admin.users.index');
 Route::patch('/admin/users/{user}', [UserManagementController::class, 'update'])->middleware(['auth', 'role:admin'])->name('admin.users.update');
 Route::get('/admin/reviews', [ReviewModerationController::class, 'index'])->middleware(['auth', 'role:admin'])->name('admin.reviews.index');

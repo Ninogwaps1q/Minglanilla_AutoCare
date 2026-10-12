@@ -118,6 +118,25 @@ test('customer dashboard makes primary actions clear', async ({ page }, testInfo
     await page.screenshot({ path: testInfo.outputPath('customer-dashboard.png'), fullPage: true });
 });
 
+test('dark theme keeps customer shop and admin workspaces readable', async ({ page }, testInfo) => {
+    await page.addInitScript(() => localStorage.setItem('autocare-theme', 'dark'));
+
+    for (const [role, path] of [['customer', '/dashboard'], ['shop_owner', '/shop/dashboard'], ['admin', '/admin/dashboard']]) {
+        await signIn(page, role);
+        await page.goto(path);
+        await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+        await expect(page.locator('html')).toHaveAttribute('data-bs-theme', 'dark');
+        expect(await page.locator('.portal-content').evaluate(element => getComputedStyle(element).color)).toBe('rgb(242, 246, 251)');
+        const secondaryText = page.locator('.portal-content .text-secondary').first();
+        if (await secondaryText.count()) {
+            expect(await secondaryText.evaluate(element => getComputedStyle(element).color)).toBe('rgb(194, 206, 222)');
+        }
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => document.documentElement.clientWidth + 1));
+        await page.screenshot({ path: testInfo.outputPath(`${role}-dark.png`), fullPage: true });
+        await page.context().clearCookies();
+    }
+});
+
 test('AI assistant displays clean readable chat bubbles', async ({ page }, testInfo) => {
     await signIn(page, 'customer');
     await page.goto('/customer/ai-assistant');

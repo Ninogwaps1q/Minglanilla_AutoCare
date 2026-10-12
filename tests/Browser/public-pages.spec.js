@@ -26,6 +26,30 @@ test('password visibility control works', async ({ page }) => {
     await expect(page.locator('#password')).toHaveAttribute('type', 'password');
 });
 
+test('color theme can be changed and remains selected across pages', async ({ page }, testInfo) => {
+    await page.goto('/');
+    if (testInfo.project.name !== 'desktop') {
+        await page.getByRole('button', { name: 'Toggle navigation' }).click();
+    }
+
+    await page.getByRole('button', { name: 'Switch to dark mode' }).click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await expect(page.locator('html')).toHaveAttribute('data-bs-theme', 'dark');
+    await expect(page.getByRole('button', { name: 'Switch to light mode' })).toBeVisible();
+    expect(await page.evaluate(() => localStorage.getItem('autocare-theme'))).toBe('dark');
+    await expect.poll(() => page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(13, 23, 40)');
+    expect(await page.evaluate(() => getComputedStyle(document.querySelector('.hero-route-card')).backgroundColor)).toBe('rgb(21, 34, 56)');
+
+    await page.goto('/login');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    if (testInfo.project.name !== 'desktop') {
+        await page.getByRole('button', { name: 'Toggle navigation' }).click();
+    }
+    await page.getByRole('button', { name: 'Switch to light mode' }).click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    expect(await page.evaluate(() => localStorage.getItem('autocare-theme'))).toBe('light');
+});
+
 test('nearby map uses permitted browser coordinates', async ({ page, context }) => {
     await context.grantPermissions(['geolocation']);
     await context.setGeolocation({ latitude: 10.2443, longitude: 123.7898 });

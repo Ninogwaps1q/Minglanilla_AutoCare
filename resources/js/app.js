@@ -1,6 +1,55 @@
 import './bootstrap';
 import 'bootstrap';
 
+const systemTheme = window.matchMedia('(prefers-color-scheme: dark)');
+
+function applyTheme(theme, persist = false) {
+    const normalizedTheme = theme === 'dark' ? 'dark' : 'light';
+    document.documentElement.dataset.theme = normalizedTheme;
+    document.documentElement.dataset.bsTheme = normalizedTheme;
+
+    if (persist) {
+        try {
+            localStorage.setItem('autocare-theme', normalizedTheme);
+        } catch {
+            // The selected theme still works for this page when storage is unavailable.
+        }
+    }
+
+    const nextTheme = normalizedTheme === 'dark' ? 'light' : 'dark';
+    const label = `Switch to ${nextTheme} mode`;
+    document.querySelectorAll('[data-theme-toggle]').forEach((button) => {
+        button.setAttribute('aria-label', label);
+        button.setAttribute('title', label);
+        const text = button.querySelector('[data-theme-label]');
+        if (text) {
+            text.textContent = label;
+        }
+    });
+
+    window.dispatchEvent(new CustomEvent('autocare:theme-change', { detail: { theme: normalizedTheme } }));
+}
+
+applyTheme(document.documentElement.dataset.theme || (systemTheme.matches ? 'dark' : 'light'));
+
+document.querySelectorAll('[data-theme-toggle]').forEach((button) => {
+    button.addEventListener('click', () => {
+        applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark', true);
+    });
+});
+
+systemTheme.addEventListener('change', (event) => {
+    try {
+        if (localStorage.getItem('autocare-theme')) {
+            return;
+        }
+    } catch {
+        // Follow the system preference when storage is unavailable.
+    }
+
+    applyTheme(event.matches ? 'dark' : 'light');
+});
+
 document.querySelectorAll('input[type="password"]').forEach((input) => {
     const wrapper = document.createElement('div');
     wrapper.className = 'auth-password';

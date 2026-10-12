@@ -59,7 +59,7 @@ it('blocks approval until current required documents are verified', function () 
     $shop->update(['verification_status' => 'pending', 'shop_status' => 'inactive']);
     $shop->documents()->create(['document_type' => 'business_permit', 'document_path' => 'documents/expired.pdf', 'verification_status' => 'verified', 'expires_at' => today()->subDay()]);
 
-    $this->actingAs(User::factory()->create(['role' => 'admin'))->patch(route('admin.shops.approve', $shop))->assertSessionHasErrors('shop');
+    $this->actingAs(User::factory()->create(['role' => 'admin']))->patch(route('admin.shops.approve', $shop))->assertSessionHasErrors('shop');
 
     $this->assertDatabaseHas('shops', ['id' => $shop->id, 'verification_status' => 'pending']);
 });

@@ -1770,6 +1770,7 @@ h4 {
 }
 
 @media (prefers-reduced-motion: reduce) {
+
     .portal-content *,
     .portal-sidebar *,
     .customer-mobile-nav * {
@@ -1887,6 +1888,25 @@ h4 {
     --canvas: #f5f7fb;
     --accent: #f97316;
     --accent-dark: #d85c0b;
+    --surface-subtle: #eef3f8;
+    --border-color: #d6dee9;
+    --shadow-color: 27 46 72;
+    color-scheme: light;
+}
+
+html[data-theme="dark"] {
+    --bs-primary: #7cb5ff;
+    --bs-primary-rgb: 124, 181, 255;
+    --ink: #f2f6fb;
+    --muted: #c2cede;
+    --surface: #152238;
+    --surface-subtle: #1b2a43;
+    --canvas: #0d1728;
+    --accent: #fb923c;
+    --accent-dark: #fdba74;
+    --border-color: #30415b;
+    --shadow-color: 2 8 23;
+    color-scheme: dark;
 }
 
 body {
@@ -1895,6 +1915,7 @@ body {
     background: var(--canvas);
     color: var(--ink);
     line-height: 1.55;
+    transition: background-color .2s ease-out, color .2s ease-out;
 }
 
 ::selection {
@@ -2022,7 +2043,9 @@ body {
 .form-control,
 .form-select {
     min-height: 2.75rem;
-    border-color: #d6dee9;
+    color: var(--ink);
+    background-color: var(--surface);
+    border-color: var(--border-color);
 }
 
 .form-label {
@@ -2045,7 +2068,10 @@ body {
 
 .table {
     --bs-table-bg: transparent;
-    --bs-table-hover-bg: #f7f9fc;
+    --bs-table-color: var(--ink);
+    --bs-table-border-color: var(--border-color);
+    --bs-table-hover-bg: var(--surface-subtle);
+    --bs-table-hover-color: var(--ink);
 }
 
 .table> :not(caption)>*>* {
@@ -2200,6 +2226,13 @@ body {
     border-color: rgb(16 29 53 / 20%);
 }
 
+.public-navbar .navbar-toggler i {
+    display: block;
+    color: var(--ink);
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
 .public-navbar .navbar-toggler-icon {
     filter: invert(16%) sepia(20%) saturate(1978%) hue-rotate(176deg) brightness(87%) contrast(97%);
 }
@@ -2305,5 +2338,323 @@ body {
     .public-navbar .nav-item .btn {
         width: 100%;
         margin-top: .5rem;
+    }
+}
+
+/* Calm, low-glare color themes shared by public pages and every role portal. */
+.theme-toggle {
+    display: inline-grid;
+    width: 2.75rem;
+    height: 2.75rem;
+    flex: 0 0 2.75rem;
+    color: #1e3a5f;
+    background: var(--surface-subtle);
+    border: 1px solid var(--border-color);
+    border-radius: .75rem;
+    place-items: center;
+    transition: color .18s ease-out, background-color .18s ease-out, transform .18s ease-out;
+}
+
+.theme-toggle:hover {
+    color: #9a3412;
+    background: #ffedd5;
+    transform: translateY(-1px);
+}
+
+.theme-toggle .theme-icon-light,
+html[data-theme="dark"] .theme-toggle .theme-icon-dark {
+    display: none;
+}
+
+html[data-theme="dark"] .theme-toggle .theme-icon-light {
+    display: inline-block;
+}
+
+html[data-theme="dark"] .theme-toggle {
+    color: #ffd29d;
+    background: #1b2a43;
+}
+
+html[data-theme="dark"] .theme-toggle:hover {
+    color: #fff3e7;
+    background: #263753;
+}
+
+html[data-theme="dark"] ::selection {
+    color: #f8fbff;
+    background: #315f92;
+}
+
+html[data-theme="dark"] .portal-topbar,
+html[data-theme="dark"] .customer-mobile-nav,
+html[data-theme="dark"] .dropdown-menu,
+html[data-theme="dark"] .modal-content,
+html[data-theme="dark"] .offcanvas,
+html[data-theme="dark"] .list-group-item,
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .ai-chat,
+html[data-theme="dark"] .ai-message-content,
+html[data-theme="dark"] .ai-composer,
+html[data-theme="dark"] .ai-widget-panel,
+html[data-theme="dark"] .ai-widget-message,
+html[data-theme="dark"] .ai-widget-composer {
+    color: var(--ink);
+    background-color: var(--surface);
+    border-color: var(--border-color);
+}
+
+html[data-theme="dark"] .portal-topbar,
+html[data-theme="dark"] .public-navbar {
+    border-color: var(--border-color);
+    box-shadow: 0 .35rem 1.5rem rgb(var(--shadow-color) / 35%);
+}
+
+html[data-theme="dark"] .portal-context,
+html[data-theme="dark"] .public-navbar .navbar-brand,
+html[data-theme="dark"] .public-navbar .nav-link,
+html[data-theme="dark"] .dropdown-item,
+html[data-theme="dark"] .page-link {
+    color: var(--ink);
+}
+
+html[data-theme="dark"] .customer-top-actions a {
+    color: #dce7f5;
+}
+
+html[data-theme="dark"] .customer-top-actions a.primary {
+    color: #ffffff;
+    background: #2f6fca;
+}
+
+html[data-theme="dark"] .customer-top-actions a.primary:hover {
+    background: #3d7ed9;
+}
+
+html[data-theme="dark"] .portal-context>i,
+html[data-theme="dark"] .customer-top-actions a:hover {
+    color: #9cc6ff;
+    background: #203554;
+}
+
+html[data-theme="dark"] :is(.customer-stat, .workspace-stat, .workspace-actions, .customer-empty-state) {
+    color: var(--ink);
+    background: var(--surface);
+    box-shadow: 0 .55rem 1.6rem rgb(var(--shadow-color) / 26%);
+}
+
+html[data-theme="dark"] :is(.customer-stat, .workspace-stat):hover {
+    color: #ffffff;
+    background: #192a44;
+    box-shadow: 0 .8rem 2rem rgb(var(--shadow-color) / 36%);
+}
+
+html[data-theme="dark"] :is(.workspace-stat>i:first-child, .workspace-list-icon) {
+    color: #9cc6ff;
+    background: #203554;
+}
+
+html[data-theme="dark"] :is(.repair-glance, .attention-link, .workspace-list article, .admin-attention a, .ai-composer, .ai-widget-composer) {
+    border-color: var(--border-color);
+}
+
+html[data-theme="dark"] .portal-content .form-label {
+    color: #dce7f5;
+}
+
+html[data-theme="dark"] .portal-content .table thead th {
+    color: #d0dbea;
+    background: #19283f;
+}
+
+html[data-theme="dark"] .file-selection {
+    color: var(--muted);
+}
+
+html[data-theme="dark"] .password-toggle {
+    color: #a9ceff;
+    background: var(--surface);
+}
+
+html[data-theme="dark"] .password-toggle:hover {
+    color: #ffffff;
+    background: #243652;
+}
+
+html[data-theme="dark"] .ai-avatar {
+    color: #c6d2e2;
+    background: #263753;
+}
+
+html[data-theme="dark"] :is(.ai-avatar-assistant, .ai-message-assistant .ai-avatar) {
+    color: #fdba74;
+    background: #3b271d;
+}
+
+html[data-theme="dark"] .ai-command-action {
+    color: #b9d7ff;
+    background: #203554;
+}
+
+html[data-theme="dark"] .ai-command-action:hover {
+    color: #ffffff;
+    background: #29466f;
+}
+
+html[data-theme="dark"] :is(.surface, .metric-card, .feature-panel, .auth-panel, .error-panel) {
+    box-shadow: 0 .65rem 1.9rem rgb(var(--shadow-color) / 24%);
+}
+
+html[data-theme="dark"] :is(a:not(.btn):not(.portal-nav-link):not(.navbar-brand), .section-heading>a) {
+    text-decoration-color: rgb(124 181 255 / 52%);
+}
+
+html[data-theme="dark"] :is(input, textarea, select) {
+    caret-color: #fb923c;
+}
+
+html[data-theme="dark"] * {
+    scrollbar-color: #52657f var(--canvas);
+}
+
+html[data-theme="dark"] :focus-visible {
+    outline-color: #fb923c;
+}
+
+html[data-theme="dark"] .btn-light {
+    --bs-btn-color: var(--ink);
+    --bs-btn-bg: var(--surface-subtle);
+    --bs-btn-border-color: var(--border-color);
+    --bs-btn-hover-color: #ffffff;
+    --bs-btn-hover-bg: #263753;
+    --bs-btn-hover-border-color: #415573;
+}
+
+html[data-theme="dark"] .btn-outline-secondary {
+    --bs-btn-color: #c3d0e0;
+    --bs-btn-border-color: #60718a;
+    --bs-btn-hover-color: #ffffff;
+    --bs-btn-hover-bg: #354762;
+    --bs-btn-hover-border-color: #71839d;
+}
+
+html[data-theme="dark"] :is(.text-secondary, .form-text, .portal-footer, .portal-context small) {
+    color: var(--muted) !important;
+}
+
+html[data-theme="dark"] :is(.text-muted, .text-body-secondary) {
+    color: var(--muted) !important;
+}
+
+html[data-theme="dark"] :is(.text-primary, .link-primary, .btn-link) {
+    color: #a9ceff !important;
+}
+
+html[data-theme="dark"] .text-success {
+    color: #86efac !important;
+}
+
+html[data-theme="dark"] .text-danger {
+    color: #fca5a5 !important;
+}
+
+html[data-theme="dark"] .text-warning {
+    color: #fde68a !important;
+}
+
+html[data-theme="dark"] :is(.border, .border-top, .border-bottom, .dropdown-divider) {
+    border-color: var(--border-color) !important;
+}
+
+html[data-theme="dark"] :is(.bg-white, .bg-light) {
+    color: var(--ink) !important;
+    background-color: var(--surface) !important;
+}
+
+html[data-theme="dark"] .form-control::placeholder {
+    color: #aebdd0;
+    opacity: 1;
+}
+
+html[data-theme="dark"] :is(.form-control, .form-select):disabled,
+html[data-theme="dark"] :is(.form-control, .form-select)[readonly] {
+    color: #b8c5d6;
+    background: #1a2940;
+}
+
+html[data-theme="dark"] .dropdown-item:hover,
+html[data-theme="dark"] .dropdown-item:focus,
+html[data-theme="dark"] .page-link:hover {
+    color: #ffffff;
+    background: #243652;
+}
+
+html[data-theme="dark"] .public-navbar .navbar-toggler {
+    border-color: #60718a;
+}
+
+html[data-theme="dark"] .ai-message-list,
+html[data-theme="dark"] .ai-widget-messages {
+    background: var(--canvas);
+    scrollbar-color: #60718a var(--canvas);
+}
+
+html[data-theme="dark"] .ai-message-user .ai-message-content,
+html[data-theme="dark"] .ai-widget-message.is-user {
+    color: #ffffff;
+    background: #275fa8;
+}
+
+html[data-theme="dark"] :is(.ai-message-meta time, .ai-widget-composer small, .ai-disclaimer) {
+    color: #b8c5d6;
+}
+
+html[data-theme="dark"] .ai-widget-error {
+    color: #fca5a5;
+}
+
+html[data-theme="dark"] .ai-availability {
+    color: #86efac;
+}
+
+html[data-theme="dark"] :is(.customer-empty-compact>i, .workspace-stat>i:last-child) {
+    color: #aebdd0;
+}
+
+html[data-theme="dark"] :is(.attention-link span i, .workspace-actions i, .admin-attention i, .shop-onboarding>i, .ai-widget-empty>i) {
+    color: #9cc6ff;
+}
+
+html[data-theme="dark"] .form-check-input {
+    border-color: #7f91a9;
+}
+
+html[data-theme="dark"] .btn-outline-primary {
+    --bs-btn-color: #a9ceff;
+    --bs-btn-border-color: #6494d1;
+    --bs-btn-hover-color: #071525;
+    --bs-btn-hover-bg: #a9ceff;
+    --bs-btn-hover-border-color: #a9ceff;
+}
+
+html[data-theme="dark"] :is(.portal-context small, .portal-nav-label, .ai-message-meta time, .ai-widget-composer small) {
+    font-size: max(.75rem, 12px);
+}
+
+html[data-theme="dark"] .hero-route-card {
+    color: var(--ink);
+    background: var(--surface);
+}
+
+html[data-theme="dark"] .hero-route-icon,
+html[data-theme="dark"] .feature-icon {
+    color: #fdba74;
+    background: #3b271d;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    body,
+    .theme-toggle {
+        transition: none;
     }
 }

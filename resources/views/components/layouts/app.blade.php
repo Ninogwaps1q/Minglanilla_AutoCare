@@ -24,6 +24,7 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
+        <x-theme-init />
         <title>{{ $title ? $title.' · ' : '' }}{{ config('app.name', 'Minglanilla AutoCare Hub') }}</title>
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
@@ -70,6 +71,7 @@
                     <nav class="customer-top-actions d-none d-md-flex" aria-label="Customer quick actions"><a href="{{ route('map.index') }}"><i class="bi bi-geo-alt" aria-hidden="true"></i>Find shop</a><a class="primary" href="{{ route('customer.appointments.create') }}"><i class="bi bi-calendar-plus" aria-hidden="true"></i>Book service</a></nav>
                 @endif
                 <div class="d-flex align-items-center gap-2 ms-auto">
+                    <x-theme-toggle />
                     @if (in_array($role, ['customer', 'shop_owner']))
                         <a class="btn btn-light" href="{{ route($role === 'customer' ? 'customer.notifications.index' : 'shop.notifications.index') }}" aria-label="Notifications"><i class="bi bi-bell" aria-hidden="true"></i></a>
                     @endif

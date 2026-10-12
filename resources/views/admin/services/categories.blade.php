@@ -23,8 +23,8 @@
                     <div class="col-md-auto"><button class="btn btn-outline-primary">Save category</button></div>
                 </form>
                 @if ($category->services_count === 0)
-                    <form method="POST" action="{{ route('admin.service-categories.destroy', $category) }}" class="mt-3" onsubmit="return confirm('Delete this unused category? This cannot be undone.');">
-                        @csrf @method('DELETE')<button class="btn btn-outline-danger">Delete unused category</button>
+                    <form method="POST" action="{{ route('admin.service-categories.destroy', $category) }}" class="mt-3">
+                        @csrf @method('DELETE')<button class="btn btn-outline-danger" data-confirm="Delete this unused category? This cannot be undone.">Delete unused category</button>
                     </form>
                 @else
                     <p class="small text-secondary mt-2 mb-0">Reassign its services before deleting this category.</p>

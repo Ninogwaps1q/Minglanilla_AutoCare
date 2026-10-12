@@ -3,12 +3,15 @@ import { Chart, registerables } from 'chart.js';
 Chart.register(...registerables);
 
 document.addEventListener('DOMContentLoaded', () => {
+    const chartTextColor = () => document.documentElement.dataset.theme === 'dark' ? '#b8c7dc' : '#64748b';
+    const chartGridColor = () => document.documentElement.dataset.theme === 'dark' ? 'rgb(148 163 184 / 16%)' : 'rgb(100 116 139 / 14%)';
+
     document.querySelectorAll('[data-report-chart]').forEach((canvas) => {
         const labels = JSON.parse(canvas.dataset.labels ?? '[]');
         const values = JSON.parse(canvas.dataset.values ?? '[]');
         const currency = canvas.dataset.currency === 'true';
 
-        new Chart(canvas, {
+        const chart = new Chart(canvas, {
             type: 'line',
             data: {
                 labels,
@@ -41,10 +44,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     },
                 },
                 scales: {
-                    y: { beginAtZero: true, ticks: { precision: currency ? undefined : 0 } },
-                    x: { ticks: { maxRotation: 0, autoSkipPadding: 12 } },
+                    y: { beginAtZero: true, ticks: { color: chartTextColor(), precision: currency ? undefined : 0 }, grid: { color: chartGridColor() } },
+                    x: { ticks: { color: chartTextColor(), maxRotation: 0, autoSkipPadding: 12 }, grid: { color: chartGridColor() } },
                 },
             },
+        });
+
+        window.addEventListener('autocare:theme-change', () => {
+            chart.options.scales.x.ticks.color = chartTextColor();
+            chart.options.scales.y.ticks.color = chartTextColor();
+            chart.options.scales.x.grid.color = chartGridColor();
+            chart.options.scales.y.grid.color = chartGridColor();
+            chart.update('none');
         });
     });
 });
