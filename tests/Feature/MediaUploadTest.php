@@ -21,7 +21,11 @@ it('stores and renders a customer profile photo', function () {
     $path = $customer->fresh()->profile_photo;
     expect($path)->toStartWith('profile-photos/');
     Storage::disk('public')->assertExists($path);
-    $this->get(route('customer.profile.edit'))->assertOk()->assertSee('/storage/'.$path, false);
+    $this->get(route('customer.profile.edit'))->assertOk()->assertSee('/media/'.$path, false);
+    $this->get(route('media.image', ['directory' => 'profile-photos', 'filename' => basename($path)]))
+        ->assertOk()
+        ->assertHeader('Content-Type', 'image/png')
+        ->assertHeader('X-Content-Type-Options', 'nosniff');
 });
 
 it('stores shop branding during registration and replaces it from the profile', function () {
@@ -58,7 +62,7 @@ it('stores shop branding during registration and replaces it from the profile', 
     $shop->refresh();
     Storage::disk('public')->assertMissing($oldLogo);
     Storage::disk('public')->assertExists($shop->logo);
-    $this->get(route('shop.profile.edit'))->assertOk()->assertSee('/storage/'.$shop->logo, false);
+    $this->get(route('shop.profile.edit'))->assertOk()->assertSee('/media/'.$shop->logo, false);
 });
 
 it('stores and renders a technician photo only for the owning shop', function () {
@@ -82,7 +86,7 @@ it('stores and renders a technician photo only for the owning shop', function ()
 
     $technician = $shop->technicians()->sole();
     Storage::disk('public')->assertExists($technician->photo);
-    $this->get(route('shop.technicians.index'))->assertOk()->assertSee('/storage/'.$technician->photo, false);
+    $this->get(route('shop.technicians.index'))->assertOk()->assertSee('/media/'.$technician->photo, false);
 });
 
 it('rejects active and oversized upload formats', function () {
@@ -97,6 +101,23 @@ it('rejects active and oversized upload formats', function () {
         'name' => $customer->name,
         'profile_photo' => UploadedFile::fake()->createWithContent('large.png', mediaPng().str_repeat('0', 2_100_000)),
     ])->assertSessionHasErrors('profile_photo');
+});
+
+it('serves only uploaded public images and keeps private documents inaccessible', function () {
+    Storage::fake('public');
+    Storage::disk('public')->put('vehicles/photo.png', mediaPng());
+    Storage::disk('public')->put('vehicles/not-image.png', 'not an image');
+    Storage::disk('public')->put('shop-documents/secret.png', mediaPng());
+
+    $this->get(route('media.image', ['directory' => 'vehicles', 'filename' => 'photo.png']))
+        ->assertOk()
+        ->assertHeader('Content-Type', 'image/png')
+        ->assertStreamedContent(mediaPng());
+
+    $this->get(route('media.image', ['directory' => 'vehicles', 'filename' => 'missing.png']))->assertNotFound();
+    $this->get(route('media.image', ['directory' => 'vehicles', 'filename' => 'not-image.png']))->assertNotFound();
+    $this->get('/media/shop-documents/secret.png')->assertNotFound();
+    $this->get('/media/vehicles/%2E%2E%2Fsecret.png')->assertNotFound();
 });
 
 function mediaImage(string $name): UploadedFile

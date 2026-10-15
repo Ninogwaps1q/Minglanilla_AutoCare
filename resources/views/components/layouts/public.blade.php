@@ -28,7 +28,7 @@
                     <li class="nav-item"><a class="nav-link" href="{{ route('home') }}#about">About</a></li>
                     <li class="nav-item d-flex align-items-center"><x-theme-toggle /></li>
                     @auth
-                        <li class="nav-item ms-lg-2"><a class="btn btn-primary" href="{{ route(auth()->user()->role === 'shop_owner' ? 'shop.dashboard' : (auth()->user()->role === 'admin' ? 'admin.dashboard' : 'dashboard')) }}">Open dashboard</a></li>
+                        <li class="nav-item ms-lg-2"><a class="btn btn-primary" href="{{ auth()->user()->hasVerifiedEmail() ? route(auth()->user()->role === 'shop_owner' ? 'shop.dashboard' : (auth()->user()->role === 'admin' ? 'admin.dashboard' : 'dashboard')) : route('verification.notice') }}">{{ auth()->user()->hasVerifiedEmail() ? 'Open dashboard' : 'Verify email' }}</a></li>
                     @else
                         <li class="nav-item"><a class="nav-link" href="{{ route('login') }}">Sign in</a></li>
                         <li class="nav-item ms-lg-2"><a class="btn btn-primary" href="{{ route('register') }}">Create account</a></li>
@@ -59,7 +59,7 @@
                 <strong>Ready to get started?</strong>
                 <span>Manage bookings, repairs, and vehicle records in one place.</span>
                 @auth
-                    <a class="btn btn-accent" href="{{ route(auth()->user()->role === 'shop_owner' ? 'shop.dashboard' : (auth()->user()->role === 'admin' ? 'admin.dashboard' : 'dashboard')) }}">Open dashboard</a>
+                    <a class="btn btn-accent" href="{{ auth()->user()->hasVerifiedEmail() ? route(auth()->user()->role === 'shop_owner' ? 'shop.dashboard' : (auth()->user()->role === 'admin' ? 'admin.dashboard' : 'dashboard')) : route('verification.notice') }}">{{ auth()->user()->hasVerifiedEmail() ? 'Open dashboard' : 'Verify email' }}</a>
                 @else
                     <a class="btn btn-accent" href="{{ route('register') }}">Create an account</a>
                 @endauth

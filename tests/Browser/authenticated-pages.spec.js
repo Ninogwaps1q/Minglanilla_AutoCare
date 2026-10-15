@@ -74,6 +74,9 @@ test('customer creates a vehicle and opens its private passport', async ({ page 
         mimeType: 'image/png',
         buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9JQqkAAAAASUVORK5CYII=', 'base64'),
     });
+    await expect(page.locator('img[data-image-preview]')).toBeVisible();
+    expect(await page.locator('img[data-image-preview]').evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
+    await expect(page.locator('.file-selection')).toContainText('Save to publish this image');
     await page.getByRole('button', { name: 'Save vehicle' }).click();
     await expect(page).toHaveURL(/customer\/vehicles$/);
     await page.reload();
@@ -85,6 +88,29 @@ test('customer creates a vehicle and opens its private passport', async ({ page 
     const qr = page.getByAltText('QR code linking to this private vehicle passport');
     await expect(qr).toBeVisible();
     expect(await qr.evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
+});
+
+test('booking shows the service price and checks the selected shop schedule', async ({ page }) => {
+    const fixture = await signIn(page, 'customer');
+    await page.goto('/customer/appointments/create');
+    await page.locator('#shop_id').selectOption(String(fixture.shop));
+    await page.locator('#service_id').selectOption(String(fixture.service));
+    await expect(page.locator('#booking-service-summary')).toContainText('₱900.00');
+    await page.locator('#appointment_date').fill(await page.locator('#appointment_date').getAttribute('min'));
+    await expect(page.locator('#time-suggestions button').first()).toBeVisible();
+    await page.locator('#time-suggestions button').first().click();
+    await expect(page.locator('#appointment_time')).toHaveValue('08:00');
+    await expect(page.locator('#slot-feedback')).toContainText('The shop still needs to confirm');
+});
+
+test('customer sees shop payment details and the review steps', async ({ page }) => {
+    await signIn(page, 'customer');
+    await page.goto('/customer/invoices');
+    await expect(page.getByText('This form does not transfer money.')).toBeVisible();
+    await page.locator('[data-payment-method]').first().selectOption('gcash');
+    await expect(page.getByText('Send GCash to 09171234567')).toBeVisible();
+    await page.locator('[data-payment-method]').first().selectOption('bank_transfer');
+    await expect(page.getByText('Test Bank')).toBeVisible();
 });
 
 test('customer dashboard makes primary actions clear', async ({ page }, testInfo) => {
@@ -137,17 +163,13 @@ test('dark theme keeps customer shop and admin workspaces readable', async ({ pa
     }
 });
 
-test('AI assistant displays clean readable chat bubbles', async ({ page }, testInfo) => {
+test('AI assistant starts without saved database chat history', async ({ page }, testInfo) => {
     await signIn(page, 'customer');
     await page.goto('/customer/ai-assistant');
     await expect(page.getByRole('heading', { name: 'Ask AutoCare AI' })).toBeVisible();
-    const userMessage = page.locator('.ai-message-user').filter({ hasText: 'oil warning light' }).first();
-    const assistantMessage = page.locator('.ai-message-assistant').filter({ hasText: 'Recommended steps' }).first();
-    await expect(userMessage).toContainText('oil warning light');
-    await expect(assistantMessage).toContainText('Recommended steps');
-    await expect(assistantMessage).toContainText('• Stop safely');
-    await expect(assistantMessage).not.toContainText('# Recommended steps');
-    await expect(assistantMessage).not.toContainText('* Stop safely');
+    await expect(page.getByRole('heading', { name: 'How can I help with your vehicle today?' })).toBeVisible();
+    await expect(page.locator('.ai-message-user')).toHaveCount(0);
+    await expect(page.locator('.ai-message-assistant')).toHaveCount(0);
     await expect(page.getByLabel('Ask AutoCare AI a question')).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => document.documentElement.clientWidth + 1));
     await page.screenshot({ path: testInfo.outputPath('ai-assistant.png'), fullPage: true });

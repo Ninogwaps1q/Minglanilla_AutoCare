@@ -1,12 +1,31 @@
 <x-layouts.app title="Shop invoices">
-    @if ($invoices->isNotEmpty())<p class="text-end"><a class="btn btn-sm btn-outline-secondary" href="{{ route('shop.invoices.show', $invoices->first()) }}">Open latest printable invoice</a></p>@endif
-    <div class="page-heading"><h1>Invoices and payments</h1><p>Review repair invoices and verify customer payment submissions.</p></div>
-    <div class="surface overflow-hidden"><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Invoice</th><th>Customer</th><th>Repair job</th><th class="text-end">Total</th><th>Payment status</th><th class="text-end">Action</th></tr></thead><tbody>
+    <div class="page-heading"><h1>Bills and payments</h1><p>Confirm a payment only after you have received the money. Explain any rejection so the customer knows what to correct.</p></div>
+    <x-form-errors />
+
+    <div class="d-grid gap-3">
         @forelse ($invoices as $invoice)
-            @php($pendingPayment = $invoice->payments->firstWhere('status', 'pending'))
-            <tr><td><strong>{{ $invoice->invoice_number }}</strong><br><span class="text-secondary small">{{ $invoice->created_at->format('M j, Y') }}</span></td><td>{{ $invoice->customer->name }}</td><td>{{ $invoice->repairJob?->job_number ?? 'Manual invoice' }}</td><td class="text-end">₱{{ number_format($invoice->total, 2) }}</td><td><span class="badge text-bg-{{ $invoice->status === 'paid' ? 'success' : 'warning' }} text-capitalize">{{ $invoice->status }}</span>@if ($pendingPayment)<div class="small text-secondary mt-1">₱{{ number_format($pendingPayment->amount, 2) }} awaiting review</div>@endif</td><td class="text-end">@if ($pendingPayment)<form method="POST" action="{{ route('shop.payments.update', $pendingPayment) }}" class="d-inline-flex gap-1">@csrf @method('PATCH')<button class="btn btn-sm btn-success" name="status" value="confirmed">Confirm</button><button class="btn btn-sm btn-outline-danger" name="status" value="rejected">Reject</button></form>@else<span class="text-secondary small">No pending payment</span>@endif</td></tr>
+            <article class="surface p-4">
+                <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
+                    <div><h2 class="h5 mb-1">{{ $invoice->invoice_number }}</h2><p class="text-secondary mb-1">{{ $invoice->customer->name }} · {{ $invoice->repairJob?->job_number ?? 'Manual invoice' }}</p><a href="{{ route('shop.invoices.show', $invoice) }}">View invoice</a></div>
+                    <div class="text-sm-end"><span class="badge text-bg-{{ $invoice->status === 'paid' ? 'success' : 'warning' }}">{{ $invoice->status === 'paid' ? 'Paid' : 'Awaiting payment' }}</span><p class="mb-0 mt-1"><strong>PHP {{ number_format($invoice->total, 2) }}</strong><br><span class="text-secondary small">Remaining: PHP {{ number_format($invoice->remainingBalance(), 2) }}</span></p></div>
+                </div>
+                @forelse ($invoice->payments->where('status', 'pending') as $payment)
+                    <section class="payment-instructions mb-2" aria-label="Payment awaiting review">
+                        <div class="d-flex flex-wrap justify-content-between gap-2"><strong>PHP {{ number_format($payment->amount, 2) }} · {{ ucfirst(str_replace('_', ' ', $payment->payment_method)) }}</strong><span class="small text-secondary">{{ $payment->created_at->format('M j, Y g:i A') }}</span></div>
+                        @if ($payment->reference_number)<p class="small mb-2">Reference: {{ $payment->reference_number }}</p>@endif
+                        <p class="small text-secondary mb-2">Check your cash receipt or transfer record before deciding.</p>
+                        <div class="d-flex flex-wrap align-items-start gap-2">
+                            <form method="POST" action="{{ route('shop.payments.update', $payment) }}">@csrf @method('PATCH')<input type="hidden" name="status" value="confirmed"><button type="submit" class="btn btn-sm btn-success">Confirm received</button></form>
+                            <details class="payment-reject-details"><summary class="btn btn-sm btn-outline-danger">Reject with reason</summary><form method="POST" action="{{ route('shop.payments.update', $payment) }}" class="mt-2">@csrf @method('PATCH')<input type="hidden" name="status" value="rejected"><label class="form-label" for="payment-reason-{{ $payment->id }}">What should the customer correct?</label><textarea id="payment-reason-{{ $payment->id }}" class="form-control mb-2" name="review_note" maxlength="500" rows="2" required></textarea><button type="submit" class="btn btn-sm btn-outline-danger">Send rejection</button></form></details>
+                        </div>
+                    </section>
+                @empty
+                    <p class="text-secondary mb-0">No payment is waiting for review.</p>
+                @endforelse
+            </article>
         @empty
-            <tr><td colspan="6" class="p-4 text-secondary">No invoices yet. Complete a repair job, then issue its invoice.</td></tr>
+            <div class="surface p-4"><h2 class="h5">No invoices yet</h2><p class="text-secondary mb-0">Complete a repair job, then issue its invoice here.</p></div>
         @endforelse
-    </tbody></table></div></div>
+    </div>
+    <div class="mt-3">{{ $invoices->links() }}</div>
 </x-layouts.app>

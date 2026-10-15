@@ -19,12 +19,23 @@
                         class="badge text-bg-{{ $shop->verification_status === 'approved' ? 'success' : 'warning' }} text-capitalize">{{ $shop->verification_status }}</span>
                 </div>
                 <h1 id="shop-welcome-title">{{ $shop->name }}</h1>
-                <p>See today’s workload, respond to customers, and keep every repair moving.</p>
-                <div class="d-flex flex-wrap gap-2 mt-4"><a class="btn btn-accent"
-                        href="{{ route('shop.appointments.index') }}"><i class="bi bi-calendar-check me-2"
-                            aria-hidden="true"></i>Review appointments</a><a class="btn btn-light"
-                        href="{{ route('shop.repair-jobs.create') }}"><i class="bi bi-plus-lg me-2"
-                            aria-hidden="true"></i>Create repair job</a></div>
+                <p>@if ($shop->verification_status !== 'approved') Your shop is not approved yet. Check your business details and verification documents.
+                    @elseif ($metrics['Waiting approval'] > 0) You have {{ $metrics['Waiting approval'] }} {{ str('booking')->plural($metrics['Waiting approval']) }} waiting for a decision.
+                    @elseif ($pendingPaymentCount > 0) {{ $pendingPaymentCount }} {{ str('payment')->plural($pendingPaymentCount) }} need your confirmation.
+                    @else Review today's visits and keep each repair moving.
+                    @endif</p>
+                <div class="d-flex flex-wrap gap-2 mt-4">
+                    @if ($shop->verification_status !== 'approved')
+                        <a class="btn btn-accent" href="{{ route('shop.profile.edit') }}"><i class="bi bi-file-earmark-check me-2" aria-hidden="true"></i>Check verification details</a>
+                    @elseif ($metrics['Waiting approval'] > 0)
+                        <a class="btn btn-accent" href="{{ route('shop.appointments.index', ['status' => 'pending']) }}"><i class="bi bi-calendar-check me-2" aria-hidden="true"></i>Review booking requests</a>
+                    @elseif ($pendingPaymentCount > 0)
+                        <a class="btn btn-accent" href="{{ route('shop.invoices.index') }}"><i class="bi bi-receipt me-2" aria-hidden="true"></i>Confirm payments</a>
+                    @else
+                        <a class="btn btn-accent" href="{{ route('shop.appointments.index') }}"><i class="bi bi-calendar-check me-2" aria-hidden="true"></i>Review appointments</a>
+                    @endif
+                    <a class="btn btn-light" href="{{ route('shop.repair-jobs.index') }}">View repair jobs</a>
+                </div>
             </div>
             <x-uploaded-image class="workspace-shop-logo" :path="$shop->logo" :alt="$shop->name . ' logo'"
                 fallback-icon="wrench-adjustable-circle" />

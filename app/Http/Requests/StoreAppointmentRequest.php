@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Appointment;
+use App\Models\Shop;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -40,6 +41,19 @@ class StoreAppointmentRequest extends FormRequest
     {
         return [function (Validator $validator): void {
             if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            $shop = Shop::query()->find($this->integer('shop_id'));
+            $preferredTime = $this->input('appointment_time');
+            if ($shop?->opening_time && $preferredTime < substr($shop->opening_time, 0, 5)) {
+                $validator->errors()->add('appointment_time', 'Choose a time after this shop opens.');
+
+                return;
+            }
+            if ($shop?->closing_time && $preferredTime >= substr($shop->closing_time, 0, 5)) {
+                $validator->errors()->add('appointment_time', 'Choose a time before this shop closes.');
+
                 return;
             }
 

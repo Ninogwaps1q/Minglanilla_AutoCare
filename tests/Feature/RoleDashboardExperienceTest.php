@@ -36,8 +36,23 @@ it('presents an approved shop owner with a task focused workspace', function () 
         ->assertSee('Easy Service Garage')
         ->assertSee('Today at a glance')
         ->assertSee('Review appointments')
-        ->assertSee('Create repair job')
+        ->assertSee('View repair jobs')
         ->assertSee('Quick actions');
+});
+
+it('points an unverified shop owner to verification details', function () {
+    $owner = User::factory()->create(['role' => 'shop_owner']);
+    Shop::factory()->create([
+        'owner_id' => $owner->id,
+        'barangay_id' => Barangay::factory()->create()->id,
+        'verification_status' => 'pending',
+        'shop_status' => 'inactive',
+    ]);
+
+    $this->actingAs($owner)->get(route('shop.dashboard'))
+        ->assertOk()
+        ->assertSee('Your shop is not approved yet')
+        ->assertSee('Check verification details');
 });
 
 it('presents administrators with platform priorities and clear actions', function () {
@@ -61,5 +76,13 @@ it('presents administrators with platform priorities and clear actions', functio
         ->assertSee('Pending Garage')
         ->assertSee('Shop registrations to review')
         ->assertSee('Operations requiring attention')
+        ->assertSee('Review 1 pending shop');
+});
+
+it('points administrators to operations when there are no shop registrations to review', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+
+    $this->actingAs($admin)->get(route('admin.dashboard'))
+        ->assertOk()
         ->assertSee('Open operations monitor');
 });

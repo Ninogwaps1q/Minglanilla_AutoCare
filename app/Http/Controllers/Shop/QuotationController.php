@@ -12,6 +12,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class QuotationController extends Controller
@@ -55,6 +56,12 @@ class QuotationController extends Controller
         DB::transaction(function () use ($repairJob, $request, $service): void {
             $repairJob = RepairJob::query()->lockForUpdate()->findOrFail($repairJob->id);
             abort_if(in_array($repairJob->status, ['completed', 'released', 'cancelled'], true), 409);
+            abort_if(in_array($repairJob->quotation?->status, ['accepted', 'approved'], true), 409, 'The approved estimate is locked.');
+            abort_if($repairJob->quotation?->status === 'sent', 409, 'An estimate is already awaiting customer approval.');
+            $estimateTotal = round(collect($request->validated('items'))->sum(fn (array $item): float => (int) $item['quantity'] * (float) $item['unit_price']), 2);
+            if ($repairJob->items()->exists() && abs((float) $repairJob->items()->sum('subtotal') - $estimateTotal) > 0.001) {
+                throw ValidationException::withMessages(['items' => 'The estimate total must match the existing repair work items.']);
+            }
             $quotation = Quotation::query()->create([
                 'customer_id' => $repairJob->customer_id,
                 'shop_id' => $repairJob->shop_id,

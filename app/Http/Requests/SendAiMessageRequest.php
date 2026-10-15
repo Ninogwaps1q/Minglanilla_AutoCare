@@ -23,7 +23,6 @@ class SendAiMessageRequest extends FormRequest
     {
         return [
             'message' => ['required', 'string', 'max:2000'],
-            'conversation_id' => ['nullable', 'integer'],
             'widget' => ['nullable', 'boolean'],
         ];
     }

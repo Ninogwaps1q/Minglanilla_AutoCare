@@ -83,6 +83,31 @@
     font-weight: 600;
 }
 
+.portal-nav-details > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 44px;
+    padding: .55rem .75rem;
+    cursor: pointer;
+    list-style: none;
+    border-radius: .5rem;
+}
+
+.portal-nav-details > summary::-webkit-details-marker {
+    display: none;
+}
+
+.portal-nav-details > summary:hover,
+.portal-nav-details > summary:focus-visible {
+    color: #fff;
+    background: #111c30;
+}
+
+.portal-nav-details[open] > summary i {
+    transform: rotate(180deg);
+}
+
 .portal-nav-link {
     display: flex;
     gap: .75rem;
@@ -301,6 +326,19 @@ h4 {
     place-items: center;
     color: #64748b;
     background: #e8edf4;
+}
+
+[hidden].profile-photo-preview,
+[hidden].vehicle-form-preview,
+[hidden].shop-cover-preview,
+[hidden].shop-logo-preview,
+[hidden].technician-avatar {
+    display: none !important;
+}
+
+.file-selection {
+    display: block;
+    overflow-wrap: anywhere;
 }
 
 .profile-photo-preview {
@@ -2063,6 +2101,61 @@ body {
     background: var(--surface);
     border-radius: .875rem;
     box-shadow: 0 .5rem 1.5rem rgb(27 46 72 / 8%);
+}
+
+.booking-summary,
+.payment-instructions {
+    padding: 1rem;
+    background: var(--surface-subtle);
+    border-radius: .75rem;
+}
+
+.payment-instructions-preline {
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+
+.payment-history {
+    display: grid;
+    gap: .55rem;
+    padding-left: 1.25rem;
+}
+
+.payment-history li span {
+    display: block;
+    color: var(--muted);
+    font-size: .82rem;
+}
+
+.payment-reject-details > summary {
+    list-style: none;
+    cursor: pointer;
+}
+
+.payment-reject-details > summary::-webkit-details-marker {
+    display: none;
+}
+
+.repair-details {
+    padding: .75rem 1rem;
+    background: var(--surface-subtle);
+    border-radius: .75rem;
+}
+
+.repair-details > summary {
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.repair-details[open] > summary {
+    margin-bottom: 1rem;
+}
+
+.repair-next-step,
+.admin-review-check {
+    padding: .75rem 1rem;
+    background: var(--surface-subtle);
+    border-radius: .75rem;
 }
 
 .surface>.table-responsive:first-child>.table,

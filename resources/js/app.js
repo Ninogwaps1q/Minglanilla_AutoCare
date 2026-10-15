@@ -103,6 +103,8 @@ document.querySelectorAll('form').forEach((form) => {
 });
 
 document.querySelectorAll('input[type="file"]').forEach((input) => {
+    let previewUrl;
+
     input.addEventListener('change', () => {
         let status = input.parentElement?.querySelector('.file-selection');
         if (!status) {
@@ -111,6 +113,56 @@ document.querySelectorAll('input[type="file"]').forEach((input) => {
             status.setAttribute('aria-live', 'polite');
             input.insertAdjacentElement('afterend', status);
         }
-        status.textContent = input.files?.length ? `Selected: ${input.files[0].name}` : 'No file selected';
+
+        if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+            previewUrl = undefined;
+        }
+
+        const target = input.dataset.imagePreviewTarget
+            ? document.getElementById(input.dataset.imagePreviewTarget)
+            : null;
+        target?.nextElementSibling?.matches('[data-image-preview]') && target.nextElementSibling.remove();
+        if (target) {
+            target.hidden = false;
+        }
+
+        input.setCustomValidity('');
+        const file = input.files?.[0];
+        if (!file) {
+            status.textContent = 'No new file selected.';
+            return;
+        }
+
+        const maxSize = Number(input.dataset.imageMaxSize);
+        if (target && (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > maxSize)) {
+            const reason = file.size > maxSize
+                ? `Image is too large. Choose one under ${Math.round(maxSize / 1048576)} MB.`
+                : 'Choose a JPG, PNG, or WebP image.';
+            input.setCustomValidity(reason);
+            status.textContent = reason;
+            status.classList.add('text-danger');
+            return;
+        }
+
+        status.classList.remove('text-danger');
+        status.textContent = target ? `Previewing ${file.name}. Save to publish this image.` : `Selected: ${file.name}`;
+
+        if (target) {
+            previewUrl = URL.createObjectURL(file);
+            const preview = document.createElement('img');
+            preview.src = previewUrl;
+            preview.alt = target.getAttribute('alt') || target.getAttribute('aria-label') || 'Selected image preview';
+            preview.className = target.className.replace(/\buploaded-image-fallback\b/g, '').trim();
+            preview.dataset.imagePreview = '';
+            target.hidden = true;
+            target.insertAdjacentElement('afterend', preview);
+        }
     });
+
+    window.addEventListener('pagehide', () => {
+        if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+        }
+    }, { once: true });
 });

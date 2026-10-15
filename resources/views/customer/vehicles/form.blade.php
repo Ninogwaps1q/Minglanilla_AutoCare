@@ -47,12 +47,10 @@
                     value="{{ old('vin', $vehicle->vin) }}">@error('vin')
                     <div class="invalid-feedback">{{ $message }}</div>@enderror
             </div>
-            @if ($vehicle->photo)
-                <div class="col-12"><x-uploaded-image class="vehicle-form-preview" :path="$vehicle->photo" :alt="$vehicle->plate_number.' vehicle photo'" fallback-icon="car-front" /></div>
-            @endif
+            <div class="col-12"><x-uploaded-image id="vehicle-photo-preview" class="vehicle-form-preview" :path="$vehicle->photo" :alt="($vehicle->plate_number ?: 'Your').' vehicle photo'" fallback-icon="car-front" /><p class="small text-secondary mt-2 mb-0">{{ $vehicle->photo ? 'Current photo shown. A new selection previews here until you save.' : 'Choose a photo to preview it before saving.' }}</p></div>
             <div class="col-12"><label for="photo" class="form-label">Vehicle photo</label><input id="photo"
                     class="form-control @error('photo') is-invalid @enderror" type="file" name="photo"
-                    accept="image/png,image/jpeg,image/webp" aria-describedby="vehicle-photo-help">@error('photo')
+                    accept="image/png,image/jpeg,image/webp" aria-describedby="vehicle-photo-help" data-image-preview-target="vehicle-photo-preview" data-image-max-size="2097152">@error('photo')
                     <div class="invalid-feedback">{{ $message }}</div>@enderror
                 <small id="vehicle-photo-help" class="form-text">JPG, PNG, or WebP up to 2 MB. A new photo replaces the current one.</small>
             </div>

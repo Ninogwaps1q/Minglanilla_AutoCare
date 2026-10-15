@@ -14,7 +14,7 @@ class RepairJobController extends Controller
         return view('customer.repairs.index', [
             'repairJobs' => RepairJob::query()
                 ->whereBelongsTo($request->user(), 'customer')
-                ->with(['shop', 'vehicle', 'items'])
+                ->with(['shop', 'vehicle', 'items', 'quotation.items', 'technicianAssignments.technician'])
                 ->latest()->paginate()->withQueryString(),
         ]);
     }

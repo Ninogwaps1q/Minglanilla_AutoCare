@@ -13,21 +13,25 @@ class AiAssistantController extends Controller
 {
     public function index(Request $request): View
     {
-        $conversation = $request->user()->aiConversations()->with('messages')->latest()->first();
+        $history = $request->session()->get('ai_history_'.$request->user()->id, []);
 
-        return view('customer.ai-assistant.index', compact('conversation'));
+        return view('customer.ai-assistant.index', compact('history'));
     }
 
     public function store(SendAiMessageRequest $request, AiAssistantService $assistant): RedirectResponse
     {
-        $conversation = $request->user()->aiConversations()->whereKey($request->integer('conversation_id'))->first()
-            ?? $request->user()->aiConversations()->create(['title' => str($request->string('message')->toString())->limit(80), 'status' => 'active']);
-
+        $message = $request->string('message')->toString();
+        $historyKey = 'ai_history_'.$request->user()->id;
+        $history = $request->session()->get($historyKey, []);
         try {
-            $assistant->respond($request->user(), $conversation, $request->string('message')->toString());
+            $response = $assistant->respond($request->user(), $history, $message);
         } catch (\RuntimeException $exception) {
             return back()->withInput()->with('ai_widget_open', $request->boolean('widget'))->withErrors(['message' => $exception->getMessage()]);
         }
+
+        $history[] = ['role' => 'user', 'message' => $message, 'action' => null];
+        $history[] = ['role' => 'assistant', 'message' => $response['message'], 'action' => $response['action']];
+        $request->session()->put($historyKey, array_slice($history, -12));
 
         if ($request->boolean('widget')) {
             return back()->with('status', 'AI response received.')->with('ai_widget_open', true);

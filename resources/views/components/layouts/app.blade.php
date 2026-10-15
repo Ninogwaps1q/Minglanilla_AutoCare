@@ -15,8 +15,17 @@
         $roleLabel = match ($role) { 'shop_owner' => 'Shop owner', 'admin' => 'Administration', default => 'Customer' };
         $dashboardRoute = match ($role) { 'shop_owner' => 'shop.dashboard', 'admin' => 'admin.dashboard', default => 'dashboard' };
         $navigationLinks = collect($navigation)->flatMap(fn (array $group): array => $group[1]);
-        $currentNavigationItem = $navigationLinks->first(fn (array $link): bool => request()->routeIs($link[0]));
-        $currentPageLabel = $currentNavigationItem[1] ?? $roleLabel.' workspace';
+        $currentNavigationItem = $navigationLinks->first(fn (array $link): bool => request()->routeIs($link[0]))
+            ?? $navigationLinks->first(function (array $link): bool {
+                if (! str_ends_with($link[0], '.index') && ! str_ends_with($link[0], '.edit')) {
+                    return false;
+                }
+
+                $prefix = substr($link[0], 0, strrpos($link[0], '.'));
+
+                return request()->routeIs($prefix.'.*');
+            });
+        $currentPageLabel = $currentNavigationItem[1] ?? $title ?? $roleLabel.' workspace';
     @endphp
     <!doctype html>
     <html lang="en">
@@ -42,8 +51,26 @@
                 </a>
                 <nav aria-label="{{ $roleLabel }} navigation" class="portal-menu">
                     @foreach ($navigation as [$group, $links])
+                        @php
+                            $collapsible = match ($role) {
+                                'customer' => in_array($group, ['My vehicle', 'Help & account'], true),
+                                'shop_owner' => in_array($group, ['Run the shop', 'Customer care'], true),
+                                'admin' => $group === 'Monitor & report',
+                                default => false,
+                            };
+                            $groupActive = collect($links)->contains(function (array $link): bool {
+                                $prefix = substr($link[0], 0, strrpos($link[0], '.'));
+
+                                return request()->routeIs($link[0]) || request()->routeIs($prefix.'.*');
+                            });
+                        @endphp
                         <div class="portal-nav-group">
-                            <div class="portal-nav-label">{{ $group }}</div>
+                            @if ($collapsible)
+                                <details class="portal-nav-details" @if ($groupActive) open @endif>
+                                    <summary class="portal-nav-label">{{ $group }} <i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
+                            @else
+                                <div class="portal-nav-label">{{ $group }}</div>
+                            @endif
                             @foreach ($links as [$route, $label, $icon])
                                 @php
                                     $routePrefix = substr($route, 0, strrpos($route, '.'));
@@ -57,6 +84,9 @@
                                 @endphp
                                 <a class="portal-nav-link {{ $active ? 'active' : '' }}" href="{{ route($route) }}" @if ($active) aria-current="page" @endif><i class="bi bi-{{ $icon }}" aria-hidden="true"></i><span>{{ $label }}</span></a>
                             @endforeach
+                            @if ($collapsible)
+                                </details>
+                            @endif
                         </div>
                     @endforeach
                 </nav>
@@ -77,7 +107,7 @@
                     <div class="dropdown">
                         <button class="btn btn-light dropdown-toggle portal-account" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                             @if (auth()->user()->profile_photo)
-                                <img class="account-avatar" src="{{ url('storage/'.ltrim(auth()->user()->profile_photo, '/')) }}" alt="" width="28" height="28">
+                                <img class="account-avatar" src="{{ url('media/'.ltrim(auth()->user()->profile_photo, '/')) }}" alt="" width="28" height="28">
                             @else
                                 <i class="bi bi-person-circle" aria-hidden="true"></i>
                             @endif

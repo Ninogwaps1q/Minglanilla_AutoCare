@@ -14,9 +14,17 @@ use Illuminate\View\View;
 
 class ShopVerificationController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
-        return view('admin.shops.index', ['shops' => Shop::query()->with(['owner', 'barangay', 'documents'])->latest()->paginate(20)]);
+        $status = $request->query('status');
+        $status = in_array($status, ['pending', 'approved', 'rejected'], true) ? $status : null;
+
+        return view('admin.shops.index', [
+            'shops' => Shop::query()->with(['owner', 'barangay', 'documents'])
+                ->when($status, fn ($query) => $query->where('verification_status', $status))
+                ->latest()->paginate(10)->withQueryString(),
+            'selectedStatus' => $status,
+        ]);
     }
 
     public function approve(Shop $shop, Request $request): RedirectResponse

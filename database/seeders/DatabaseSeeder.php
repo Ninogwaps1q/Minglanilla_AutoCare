@@ -25,6 +25,10 @@ class DatabaseSeeder extends Seeder
         }
         $this->call(ServiceCatalogSeeder::class);
 
+        if (! app()->environment(['local', 'testing'])) {
+            return;
+        }
+
         User::factory()->create(['name' => 'System Administrator', 'email' => 'admin@minglanillaautocare.test', 'password' => 'Admin123!', 'role' => 'admin']);
         User::factory()->create(['name' => 'Demo Customer', 'email' => 'customer@minglanillaautocare.test', 'password' => 'Customer123!', 'role' => 'customer']);
         User::factory()->create(['name' => 'Demo Shop Owner', 'email' => 'shop@minglanillaautocare.test', 'password' => 'Shop123!', 'role' => 'shop_owner']);

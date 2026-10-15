@@ -18,6 +18,7 @@ class UpdatePaymentStatusRequest extends FormRequest
     {
         return [
             'status' => ['required', 'in:confirmed,rejected'],
+            'review_note' => ['required_if:status,rejected', 'nullable', 'string', 'max:500'],
         ];
     }
 }

@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class InvoiceController extends Controller
@@ -40,7 +41,7 @@ class InvoiceController extends Controller
             'invoices' => $this->shop($request)->invoices()
                 ->with(['customer', 'repairJob', 'payments'])
                 ->latest()
-                ->get(),
+                ->paginate(10),
         ]);
     }
 
@@ -88,6 +89,9 @@ class InvoiceController extends Controller
             $invoice = $payment->invoice()->lockForUpdate()->firstOrFail();
             $payment = $invoice->payments()->lockForUpdate()->findOrFail($payment->id);
             abort_unless($payment->status === 'pending', 404);
+            if ($request->validated('status') === 'confirmed' && (int) round(((float) $invoice->payments()->where('status', 'confirmed')->sum('amount') + (float) $payment->amount) * 100) > (int) round((float) $invoice->total * 100)) {
+                throw ValidationException::withMessages(['status' => 'This payment would exceed the invoice total. Review the recorded payments before confirming.']);
+            }
             $payment->update($request->validated());
             $confirmedTotal = $invoice->payments()->where('status', 'confirmed')->sum('amount');
             $confirmedCents = (int) round((float) $confirmedTotal * 100);
@@ -96,12 +100,14 @@ class InvoiceController extends Controller
             $payment->customer->notifications()->create([
                 'type' => 'payment_verification',
                 'title' => 'Payment verification updated',
-                'message' => "Your payment was {$payment->status}.",
+                'message' => $payment->status === 'rejected'
+                    ? "Your payment was rejected. Reason: {$payment->review_note}"
+                    : 'Your payment was confirmed by the shop.',
                 'data' => ['payment_id' => $payment->id],
             ]);
         });
 
-        return back()->with('status', 'Payment verification saved.');
+        return redirect()->route('shop.invoices.index')->with('status', $request->validated('status') === 'confirmed' ? 'Payment confirmed. The invoice balance has been updated.' : 'Payment rejected. The customer can submit a corrected payment.');
     }
 
     private function shop(Request $request): Shop

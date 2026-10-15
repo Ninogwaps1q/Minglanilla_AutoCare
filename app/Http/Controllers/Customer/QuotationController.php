@@ -66,9 +66,21 @@ class QuotationController extends Controller
             $quotation->update(['status' => $status]);
             $quotation->approvalRecords()->create(['customer_id' => $request->user()->id, 'decision' => $status, 'decided_at' => now()]);
             if (in_array($status, ['accepted', 'approved'], true)) {
-                RepairJob::query()->where('quotation_id', $quotation->id)
-                    ->whereNotIn('status', ['completed', 'released', 'cancelled'])
-                    ->update(['status' => $status === 'approved' ? 'in_progress' : 'approved']);
+                $repairJobs = RepairJob::query()->where('quotation_id', $quotation->id)
+                    ->whereNotIn('status', ['completed', 'released', 'cancelled'])->lockForUpdate()->get();
+                foreach ($repairJobs as $repairJob) {
+                    if (! $repairJob->items()->exists()) {
+                        $repairJob->items()->createMany($quotation->items->map(fn ($item): array => [
+                            'type' => $item->service_id ? 'service' : 'other',
+                            'description' => $item->description,
+                            'quantity' => $item->quantity,
+                            'unit_price' => $item->unit_price,
+                            'subtotal' => $item->subtotal,
+                        ])->all());
+                    }
+                    $repairJob->update(['status' => $status === 'approved' ? 'in_progress' : 'approved',
+                        'estimated_cost' => $quotation->total, 'actual_cost' => $quotation->total]);
+                }
             }
             $quotation->shop->owner->notifications()->create([
                 'type' => 'quotation_response', 'title' => 'Quotation response',

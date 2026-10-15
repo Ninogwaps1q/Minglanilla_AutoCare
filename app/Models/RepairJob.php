@@ -18,7 +18,7 @@ class RepairJob extends Model
             'waiting_approval' => ['cancelled' => 'Cancel'],
             'approved', 'repairing', 'in_progress' => ['repairing' => 'Repairing', 'waiting_parts' => 'Waiting for parts', 'completed' => 'Complete', 'cancelled' => 'Cancel'],
             'waiting_parts' => ['repairing' => 'Resume repair', 'cancelled' => 'Cancel'],
-            default => ['diagnosis' => 'Diagnosis', 'waiting_approval' => 'Waiting for approval', 'approved' => 'Approved', 'repairing' => 'Repairing', 'completed' => 'Complete', 'cancelled' => 'Cancel'],
+            default => ['diagnosis' => 'Diagnosis', 'repairing' => 'Repairing', 'completed' => 'Complete', 'cancelled' => 'Cancel'],
         };
     }
 

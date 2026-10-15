@@ -2,26 +2,22 @@
 
 namespace App\View\Components;
 
-use App\Models\AiConversation;
-use App\Models\User;
 use Closure;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Session;
 use Illuminate\View\Component;
 
 class AiChatWidget extends Component
 {
-    public ?AiConversation $conversation;
+    /** @var array<int, array{role: string, message: string, action?: array{label: string, url: string, icon: string}|null}> */
+    public array $history;
 
     public function __construct()
     {
-        $user = Auth::user();
-        $this->conversation = $user instanceof User
-            ? $user->aiConversations()
-                ->with(['messages' => fn ($query) => $query->latest('id')->limit(12)])
-                ->latest('id')
-                ->first()
-            : null;
+        $this->history = Auth::check()
+            ? Session::get('ai_history_'.Auth::id(), [])
+            : [];
     }
 
     public function render(): View|Closure|string

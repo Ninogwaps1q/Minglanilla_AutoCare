@@ -144,11 +144,76 @@ it('does not change an already verified payment or send duplicate verification n
     $this->actingAs($fixture['customer'])->post(route('customer.payments.store', $invoice), ['amount' => 100, 'payment_method' => 'cash'])->assertRedirect();
     $payment = $invoice->payments()->firstOrFail();
     $this->actingAs($fixture['owner'])->patch(route('shop.payments.update', $payment), ['status' => 'confirmed'])->assertRedirect();
-    $this->patch(route('shop.payments.update', $payment), ['status' => 'rejected'])->assertNotFound();
+    $this->patch(route('shop.payments.update', $payment), ['status' => 'rejected', 'review_note' => 'Duplicate review.'])->assertNotFound();
 
     $this->assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'confirmed']);
     $this->assertDatabaseHas('invoices', ['id' => $invoice->id, 'status' => 'paid']);
     $this->assertDatabaseCount('notifications', 2);
+});
+
+it('shows every pending payment and lets the shop review each one separately', function () {
+    $fixture = billingFixture();
+    $invoice = Invoice::query()->create([
+        'customer_id' => $fixture['customer']->id, 'shop_id' => $fixture['shop']->id,
+        'invoice_number' => 'INV-MULTI', 'subtotal' => 1000, 'total' => 1000,
+    ]);
+    $this->actingAs($fixture['customer']);
+    $this->post(route('customer.payments.store', $invoice), ['amount' => 400, 'payment_method' => 'gcash', 'reference_number' => 'GC-111'])->assertRedirect();
+    $this->post(route('customer.payments.store', $invoice), ['amount' => 600, 'payment_method' => 'cash'])->assertRedirect();
+    $payments = $invoice->payments()->orderBy('id')->get();
+
+    $this->get(route('customer.invoices.index'))->assertOk()->assertSee('Shop review pending')->assertDontSee('I paid the shop');
+    $this->actingAs($fixture['owner'])->get(route('shop.invoices.index'))->assertOk()
+        ->assertSee('GC-111')->assertSee('Confirm received')
+        ->assertSee('name="status" value="confirmed"', false)
+        ->assertSee('name="status" value="rejected"', false);
+    $this->patch(route('shop.payments.update', $payments[0]), ['status' => 'confirmed'])
+        ->assertRedirect(route('shop.invoices.index'));
+    $this->patch(route('shop.payments.update', $payments[1]), ['status' => 'confirmed'])
+        ->assertRedirect(route('shop.invoices.index'));
+
+    expect($invoice->fresh()->status)->toBe('paid');
+    expect($invoice->remainingBalance())->toBe(0.0);
+    $this->assertDatabaseHas('payments', ['id' => $payments[0]->id, 'status' => 'confirmed']);
+    $this->assertDatabaseHas('payments', ['id' => $payments[1]->id, 'status' => 'confirmed']);
+});
+
+it('lets the customer correct a payment after the shop rejects it', function () {
+    $fixture = billingFixture();
+    $invoice = Invoice::query()->create([
+        'customer_id' => $fixture['customer']->id, 'shop_id' => $fixture['shop']->id,
+        'invoice_number' => 'INV-REJECTED', 'subtotal' => 500, 'total' => 500,
+    ]);
+    $this->actingAs($fixture['customer'])->post(route('customer.payments.store', $invoice), [
+        'amount' => 500, 'payment_method' => 'gcash', 'reference_number' => 'WRONG-REF',
+    ])->assertRedirect();
+    $payment = $invoice->payments()->firstOrFail();
+
+    $this->actingAs($fixture['owner'])->patch(route('shop.payments.update', $payment), ['status' => 'rejected', 'review_note' => 'Reference number did not match our records.'])
+        ->assertRedirect(route('shop.invoices.index'));
+    $this->actingAs($fixture['customer'])->get(route('customer.invoices.index'))
+        ->assertOk()->assertSee('I paid the shop')->assertSee('Reference number did not match our records.');
+    $this->post(route('customer.payments.store', $invoice), [
+        'amount' => 500, 'payment_method' => 'gcash', 'reference_number' => 'CORRECT-REF',
+    ])->assertRedirect();
+
+    $this->assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'rejected', 'review_note' => 'Reference number did not match our records.']);
+    $this->assertDatabaseHas('payments', ['invoice_id' => $invoice->id, 'reference_number' => 'CORRECT-REF', 'status' => 'pending']);
+});
+
+it('requires a reason before the shop rejects a payment', function () {
+    $fixture = billingFixture();
+    $invoice = Invoice::query()->create([
+        'customer_id' => $fixture['customer']->id, 'shop_id' => $fixture['shop']->id,
+        'invoice_number' => 'INV-REASON', 'subtotal' => 500, 'total' => 500,
+    ]);
+    $this->actingAs($fixture['customer'])->post(route('customer.payments.store', $invoice), ['amount' => 500, 'payment_method' => 'cash'])->assertRedirect();
+    $payment = $invoice->payments()->firstOrFail();
+
+    $this->actingAs($fixture['owner'])->patch(route('shop.payments.update', $payment), ['status' => 'rejected'])
+        ->assertSessionHasErrors('review_note');
+
+    $this->assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'pending']);
 });
 
 /**

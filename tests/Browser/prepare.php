@@ -44,15 +44,12 @@ $shop = Shop::factory()->create([
     'owner_id' => $users['shop_owner']->id, 'barangay_id' => $barangay->id,
     'name' => 'Browser Test AutoCare', 'phone' => '09170000000',
     'email' => 'shop@browser.example.test', 'address' => 'Minglanilla',
+    'gcash_number' => '09171234567', 'bank_transfer_details' => "Test Bank\nAccount: Browser Test AutoCare\nNo. 123456",
     'latitude' => 10.2443, 'longitude' => 123.7898,
     'verification_status' => 'approved', 'shop_status' => 'active',
+    'opening_time' => '08:00', 'closing_time' => '17:00',
 ]);
 $vehicle = Vehicle::factory()->create(['customer_id' => $users['customer']->id, 'plate_number' => 'BROWSER-001']);
-$aiConversation = $users['customer']->aiConversations()->create(['title' => 'Oil warning guidance', 'status' => 'active']);
-$aiConversation->messages()->createMany([
-    ['role' => 'user', 'message' => 'What should I do if my oil warning light stays on?'],
-    ['role' => 'assistant', 'message' => "# Recommended steps\n\n* Stop safely and switch off the engine.\n* Check the oil level when the engine is cool.\n\nBook a technician if the warning remains."],
-]);
 $category = ServiceCategory::factory()->create();
 $service = Service::factory()->create(['category_id' => $category->id, 'name' => 'Browser Oil Change']);
 ShopService::query()->create(['shop_id' => $shop->id, 'service_id' => $service->id, 'price' => 900, 'availability' => true]);

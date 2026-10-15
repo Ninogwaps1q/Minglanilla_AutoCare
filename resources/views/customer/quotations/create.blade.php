@@ -1,5 +1,5 @@
-<x-layouts.app title="Request quotation">
-    <div class="page-heading"><h1>Request a quotation</h1><p>Describe the work you need so a shop can prepare an estimate.</p></div>
+<x-layouts.app title="Request estimate">
+    <div class="page-heading"><h1>Request an estimate</h1><p>Describe the work you need so a shop can prepare a price estimate.</p></div>
     <form method="POST" action="{{ route('customer.quotations.store') }}" class="surface p-4">
         @csrf
         @include('components.form-errors')

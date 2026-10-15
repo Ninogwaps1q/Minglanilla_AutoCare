@@ -7,6 +7,12 @@
         <a class="btn btn-primary" href="{{ route('customer.appointments.create') }}">Book an appointment</a>
     </div>
 
+    <form method="GET" action="{{ route('customer.appointments.index') }}" class="surface p-3 mb-3 d-flex flex-wrap align-items-end gap-2">
+        <div><label for="appointment-status-filter" class="form-label">Show appointments</label><select id="appointment-status-filter" class="form-select" name="status"><option value="">All statuses</option>@foreach (['pending' => 'Waiting for shop', 'confirmed' => 'Confirmed', 'completed' => 'Completed', 'cancelled' => 'Cancelled'] as $value => $label)<option value="{{ $value }}" @selected($selectedStatus === $value)>{{ $label }}</option>@endforeach</select></div>
+        <button class="btn btn-outline-primary">Apply filter</button>
+        @if ($selectedStatus)<a class="btn btn-link" href="{{ route('customer.appointments.index') }}">Clear</a>@endif
+    </form>
+
     <div class="surface overflow-hidden">
         <div class="list-group list-group-flush">
             @forelse ($appointments as $appointment)
@@ -33,8 +39,9 @@
                     </div>
                 </article>
             @empty
-                <div class="p-4 text-secondary">No appointments yet. Choose a verified shop and request a convenient service time.</div>
+                <div class="p-4"><h2 class="h5">{{ $selectedStatus ? 'No appointments with this status' : 'No appointments yet' }}</h2><p class="text-secondary mb-2">{{ $selectedStatus ? 'Try another status or view all appointments.' : 'Choose a verified shop and request a convenient service time.' }}</p><a href="{{ $selectedStatus ? route('customer.appointments.index') : route('customer.appointments.create') }}">{{ $selectedStatus ? 'View all appointments' : 'Book a service' }}</a></div>
             @endforelse
         </div>
     </div>
+    <div class="mt-3">{{ $appointments->links() }}</div>
 </x-layouts.app>

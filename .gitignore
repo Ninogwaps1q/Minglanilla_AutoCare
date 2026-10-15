@@ -25,3 +25,7 @@
 # /test-results/
 # /playwright-report/
 # /storage/framework/testing/
+
+# Runtime uploads belong to the storage disk, not the source repository.
+/public/storage/
+/storage/app/public/

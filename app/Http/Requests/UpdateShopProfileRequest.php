@@ -31,6 +31,8 @@ class UpdateShopProfileRequest extends FormRequest
             'barangay_id' => ['required', 'exists:barangays,id'],
             'opening_time' => ['nullable', 'date_format:H:i'],
             'closing_time' => ['nullable', 'date_format:H:i', 'after:opening_time'],
+            'gcash_number' => ['nullable', 'string', 'max:30'],
+            'bank_transfer_details' => ['nullable', 'string', 'max:1000'],
             'logo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048', 'dimensions:max_width=6000,max_height=6000'],
             'cover_photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096', 'dimensions:max_width=8000,max_height=8000'],
         ];

@@ -19,6 +19,12 @@ it('manages technicians and assigns them to a shop repair job', function () {
     expect($technician->fresh()->activeAssignments()->count())->toBe(1);
     $this->delete(route('shop.technicians.unassign', [$fixture['job'], $technician]))->assertRedirect()->assertSessionHas('status', 'Technician assignment closed.');
     expect($technician->fresh()->activeAssignments()->count())->toBe(0);
+    $this->post(route('shop.technicians.assign', $fixture['job']), ['technician_id' => $technician->id])->assertRedirect();
+    expect($technician->fresh()->activeAssignments()->count())->toBe(1);
+    $this->get(route('shop.repair-jobs.index'))->assertOk()->assertSee('Ana Cruz')->assertSee('Unassign');
+    $this->actingAs($fixture['job']->customer)->get(route('customer.repairs.index'))->assertOk()->assertSee('Technician:')->assertSee('Ana Cruz');
+    $this->actingAs($fixture['owner'])->patch(route('shop.repair-jobs.update', $fixture['job']), ['status' => 'completed'])->assertRedirect();
+    expect($technician->fresh()->activeAssignments()->count())->toBe(0);
 });
 
 it('isolates technicians and repair jobs between shops', function () {

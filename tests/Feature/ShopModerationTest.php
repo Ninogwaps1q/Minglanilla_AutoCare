@@ -7,6 +7,17 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
+it('lets an administrator focus the review list on pending shops', function () {
+    $approved = shopModerationFixture();
+    $pending = shopModerationFixture();
+    $pending->update(['name' => 'Pending Review Garage', 'verification_status' => 'pending', 'shop_status' => 'inactive']);
+
+    $this->actingAs(User::factory()->create(['role' => 'admin']))
+        ->get(route('admin.shops.index', ['status' => 'pending']))
+        ->assertOk()->assertSee('Pending Review Garage')->assertDontSee($approved->name)
+        ->assertViewHas('shops', fn ($shops) => $shops->total() === 1);
+});
+
 it('suspends a verified shop without removing its records and can reactivate it', function () {
     $shop = shopModerationFixture();
     $admin = User::factory()->create(['role' => 'admin']);

@@ -1,5 +1,5 @@
-<x-layouts.app title="Shop quotations">
-    <div class="page-heading"><h1>Quotation requests</h1><p>Prepare estimates for customers and start work after they accept.</p></div>
+<x-layouts.app title="Shop estimates">
+    <div class="page-heading"><h1>Estimate requests</h1><p>Prepare estimates for customers and start work after they approve.</p></div>
     @include('components.form-errors')
     @forelse ($quotations as $quotation)
         <article class="surface p-4 mb-3">
@@ -14,7 +14,7 @@
             @endif
         </article>
     @empty
-        <div class="surface p-4">No quotation requests yet.</div>
+        <div class="surface p-4"><h2 class="h5">No estimate requests yet</h2><p>Requests from customers will appear here.</p></div>
     @endforelse
     {{ $quotations->links() }}
 </x-layouts.app>

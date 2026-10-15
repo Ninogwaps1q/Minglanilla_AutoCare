@@ -6,13 +6,29 @@
                 <h1 id="customer-welcome-title">Good
                     {{ now()->hour < 12 ? 'morning' : (now()->hour < 18 ? 'afternoon' : 'evening') }},
                     {{ str($user->name)->before(' ') }}.</h1>
-                <p>Everything your vehicle needs—from finding a trusted shop to tracking the repair—is here in one place.
-                </p>
+                <p>@if (! $primaryVehicle) Add your vehicle first so you can book a service and keep its repair history together.
+                    @elseif ($unpaidInvoiceCount > 0) You have a payment to review. Open your invoices to see the amount and next step.
+                    @elseif ($activeRepair) Your repair is underway. Check its progress and any estimate awaiting your decision.
+                    @elseif ($nextAppointment) Your next visit is scheduled. Open your appointments for the date, time, and shop.
+                    @else Ready for your next service? Find a shop near you or choose a booking time.
+                    @endif</p>
                 <div class="d-flex flex-wrap gap-2 mt-4">
-                    <a class="btn btn-accent" href="{{ route('map.index') }}"><i class="bi bi-geo-alt me-2"
-                            aria-hidden="true"></i>Find a nearby shop</a>
-                    <a class="btn btn-light" href="{{ route('customer.appointments.create') }}"><i
-                            class="bi bi-calendar-plus me-2" aria-hidden="true"></i>Book a service</a>
+                    @if (! $primaryVehicle)
+                        <a class="btn btn-accent" href="{{ route('customer.vehicles.create') }}"><i class="bi bi-car-front me-2" aria-hidden="true"></i>Add my vehicle</a>
+                        <a class="btn btn-light" href="{{ route('map.index') }}">Find nearby shops</a>
+                    @elseif ($unpaidInvoiceCount > 0)
+                        <a class="btn btn-accent" href="{{ route('customer.invoices.index') }}"><i class="bi bi-receipt me-2" aria-hidden="true"></i>Review payments</a>
+                        <a class="btn btn-light" href="{{ route('customer.appointments.create') }}">Book a service</a>
+                    @elseif ($activeRepair)
+                        <a class="btn btn-accent" href="{{ route('customer.repairs.index') }}"><i class="bi bi-tools me-2" aria-hidden="true"></i>Track my repair</a>
+                        <a class="btn btn-light" href="{{ route('customer.appointments.create') }}">Book a service</a>
+                    @elseif ($nextAppointment)
+                        <a class="btn btn-accent" href="{{ route('customer.appointments.index') }}"><i class="bi bi-calendar-check me-2" aria-hidden="true"></i>View appointment</a>
+                        <a class="btn btn-light" href="{{ route('map.index') }}">Find nearby shops</a>
+                    @else
+                        <a class="btn btn-accent" href="{{ route('map.index') }}"><i class="bi bi-geo-alt me-2" aria-hidden="true"></i>Find a nearby shop</a>
+                        <a class="btn btn-light" href="{{ route('customer.appointments.create') }}">Book a service</a>
+                    @endif
                 </div>
             </div>
             <div class="customer-welcome-mark" aria-hidden="true"><i class="bi bi-car-front-fill"></i><span>Ready for the
@@ -131,8 +147,12 @@
             <div>
                 <h1>System overview</h1>
                 <p>Review platform activity, resolve pending work, and keep operations healthy.</p>
-            </div><a class="btn btn-primary" href="{{ route('admin.monitoring.index') }}"><i class="bi bi-activity me-2"
-                    aria-hidden="true"></i>Open operations monitor</a>
+            </div>
+            @if ($metrics['Pending verifications'] > 0)
+                <a class="btn btn-primary" href="{{ route('admin.shops.index', ['status' => 'pending']) }}"><i class="bi bi-shop me-2" aria-hidden="true"></i>Review {{ $metrics['Pending verifications'] }} pending {{ str('shop')->plural($metrics['Pending verifications']) }}</a>
+            @else
+                <a class="btn btn-primary" href="{{ route('admin.monitoring.index') }}"><i class="bi bi-activity me-2" aria-hidden="true"></i>Open operations monitor</a>
+            @endif
         </div>
         <section class="workspace-stats mb-4" aria-label="Platform totals">
             @foreach ($metrics as $label => $value)@php $icon = match ($label) { 'Users' => 'people', 'Shops' => 'shop', 'Pending verifications' => 'hourglass-split', default => 'car-front'};

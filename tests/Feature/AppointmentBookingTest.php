@@ -63,6 +63,60 @@ it('rejects a conflicting active appointment slot for the same shop', function (
     $this->assertDatabaseCount('appointments', 1);
 });
 
+it('shows booked times and shop hours without exposing customer details', function () {
+    $fixture = appointmentFixture();
+    $fixture['shop']->update(['opening_time' => '08:00', 'closing_time' => '17:00']);
+    $date = today()->addDay()->toDateString();
+    Appointment::query()->create(array_merge(appointmentPayload($fixture), ['customer_id' => $fixture['customer']->id, 'appointment_date' => $date, 'appointment_time' => '10:00', 'status' => 'confirmed']));
+    Appointment::query()->create(array_merge(appointmentPayload($fixture), ['customer_id' => $fixture['customer']->id, 'appointment_date' => $date, 'appointment_time' => '11:00', 'status' => 'cancelled']));
+
+    $response = $this->actingAs($fixture['customer'])->get(route('customer.appointments.availability', ['shop_id' => $fixture['shop']->id, 'date' => $date]));
+
+    $response->assertOk()->assertJsonPath('opening_time', '08:00')->assertJsonPath('closing_time', '17:00')
+        ->assertJsonPath('taken_times', ['10:00'])->assertDontSee($fixture['customer']->name);
+});
+
+it('does not show availability for inactive shops or to guests', function () {
+    $fixture = appointmentFixture();
+    $url = route('customer.appointments.availability', ['shop_id' => $fixture['shop']->id, 'date' => today()->addDay()->toDateString()]);
+
+    $this->get($url)->assertRedirect(route('login'));
+    $fixture['shop']->update(['shop_status' => 'suspended']);
+    $this->actingAs($fixture['customer'])->get($url)->assertNotFound();
+});
+
+it('rejects appointment times outside published shop hours', function (string $time) {
+    $fixture = appointmentFixture();
+    $fixture['shop']->update(['opening_time' => '08:00', 'closing_time' => '17:00']);
+
+    $this->actingAs($fixture['customer'])->post(route('customer.appointments.store'), appointmentPayload($fixture, ['appointment_time' => $time]))
+        ->assertSessionHasErrors('appointment_time');
+    $this->assertDatabaseCount('appointments', 0);
+})->with(['07:30', '17:00']);
+
+it('paginates appointments and preserves a status filter for both customer and shop', function () {
+    $fixture = appointmentFixture();
+    foreach (range(1, 11) as $day) {
+        Appointment::query()->create(array_merge(appointmentPayload($fixture), [
+            'customer_id' => $fixture['customer']->id,
+            'appointment_date' => today()->addDays($day)->toDateString(),
+            'status' => 'pending',
+        ]));
+    }
+    Appointment::query()->create(array_merge(appointmentPayload($fixture), [
+        'customer_id' => $fixture['customer']->id,
+        'appointment_date' => today()->addDays(12)->toDateString(),
+        'status' => 'confirmed',
+    ]));
+
+    $this->actingAs($fixture['customer'])->get(route('customer.appointments.index'))
+        ->assertOk()->assertViewHas('appointments', fn ($appointments) => $appointments->count() === 10 && $appointments->total() === 12);
+    $this->get(route('customer.appointments.index', ['status' => 'confirmed']))
+        ->assertOk()->assertViewHas('appointments', fn ($appointments) => $appointments->count() === 1 && str_contains($appointments->nextPageUrl() ?? $appointments->url(1), 'status=confirmed'));
+    $this->actingAs($fixture['owner'])->get(route('shop.appointments.index', ['status' => 'pending']))
+        ->assertOk()->assertViewHas('appointments', fn ($appointments) => $appointments->count() === 10 && $appointments->total() === 11);
+});
+
 it('does not let a customer cancel another customer appointment', function () {
     $fixture = appointmentFixture();
     $appointment = Appointment::query()->create(array_merge(appointmentPayload($fixture), ['customer_id' => $fixture['customer']->id]));

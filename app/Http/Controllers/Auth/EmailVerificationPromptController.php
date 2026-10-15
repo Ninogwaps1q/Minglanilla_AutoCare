@@ -13,4 +13,15 @@ class EmailVerificationPromptController extends Controller
     {
         return $request->user()->hasVerifiedEmail() ? redirect()->route('dashboard') : view('auth.verify-email');
     }
+
+    public function store(Request $request): RedirectResponse
+    {
+        if ($request->user()->hasVerifiedEmail()) {
+            return redirect()->route('dashboard');
+        }
+
+        $request->user()->sendEmailVerificationNotification();
+
+        return back()->with('status', 'A new verification link has been sent to your email address.');
+    }
 }

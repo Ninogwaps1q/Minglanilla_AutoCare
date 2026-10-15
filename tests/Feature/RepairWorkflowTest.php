@@ -11,6 +11,24 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
+it('filters repair jobs by stage while keeping the next action visible', function () {
+    $fixture = repairFixture();
+    $fixture['repairJob']->update(['status' => 'waiting_approval']);
+    RepairJob::query()->create([
+        'customer_id' => $fixture['customer']->id,
+        'shop_id' => $fixture['shop']->id,
+        'vehicle_id' => $fixture['vehicle']->id,
+        'job_number' => 'RJ-TEST-002',
+        'description' => 'Brake repair',
+        'status' => 'repairing',
+    ]);
+
+    $this->actingAs($fixture['owner'])->get(route('shop.repair-jobs.index', ['status' => 'waiting_approval']))
+        ->assertOk()->assertSee('Prepare and send the estimate for customer approval.')
+        ->assertSee('RJ-TEST-001')->assertDontSee('RJ-TEST-002')
+        ->assertViewHas('repairJobs', fn ($jobs) => $jobs->total() === 1);
+});
+
 it('keeps an appointment in progress until its repair is completed', function () {
     $fixture = repairFixture();
     $appointment = Appointment::query()->create([
@@ -101,9 +119,44 @@ it('itemizes repair work and isolates line items by shop', function () {
 
     $item = $fixture['repairJob']->items()->sole();
     expect((float) $item->subtotal)->toBe(1500.0);
+    expect($fixture['repairJob']->fresh()->actual_cost)->toBe('1500.00');
     $otherOwner = User::factory()->create(['role' => 'shop_owner']);
     $this->actingAs($otherOwner)->delete(route('shop.repair-job-items.destroy', $item))->assertNotFound();
     $this->assertModelExists($item);
+});
+
+it('recalculates actual cost when work items are added or removed and keeps itemized totals authoritative', function () {
+    $fixture = repairFixture();
+    $this->actingAs($fixture['owner']);
+
+    $this->post(route('shop.repair-job-items.store', $fixture['repairJob']), ['type' => 'labor', 'description' => 'Brake labor', 'quantity' => 2, 'unit_price' => '250.50'])->assertRedirect();
+    $this->post(route('shop.repair-job-items.store', $fixture['repairJob']), ['type' => 'part', 'description' => 'Brake pads', 'quantity' => 1, 'unit_price' => '750.00'])->assertRedirect();
+    expect($fixture['repairJob']->fresh()->actual_cost)->toBe('1251.00');
+
+    $this->patch(route('shop.repair-jobs.update', $fixture['repairJob']), ['status' => 'diagnosis', 'actual_cost' => 1])->assertRedirect();
+    expect($fixture['repairJob']->fresh()->actual_cost)->toBe('1251.00');
+
+    $labor = $fixture['repairJob']->items()->where('type', 'labor')->firstOrFail();
+    $this->delete(route('shop.repair-job-items.destroy', $labor))->assertRedirect();
+    expect($fixture['repairJob']->fresh()->actual_cost)->toBe('750.00');
+    $remainingItem = $fixture['repairJob']->items()->sole();
+    $this->patch(route('shop.repair-jobs.update', $fixture['repairJob']), ['status' => 'completed'])->assertRedirect();
+    $this->delete(route('shop.repair-job-items.destroy', $remainingItem))->assertConflict();
+    expect($fixture['repairJob']->fresh()->actual_cost)->toBe('750.00');
+});
+
+it('shows the estimate approval on the repair page and prevents other customers approving it', function () {
+    $fixture = repairFixture();
+    $quotation = Quotation::query()->create(['customer_id' => $fixture['customer']->id, 'shop_id' => $fixture['shop']->id, 'vehicle_id' => $fixture['vehicle']->id, 'quotation_number' => 'QT-REPAIR-APPROVAL', 'subtotal' => 850, 'total' => 850, 'status' => 'sent']);
+    $quotation->items()->create(['description' => 'Brake service', 'quantity' => 1, 'unit_price' => 850, 'subtotal' => 850]);
+    $fixture['repairJob']->update(['quotation_id' => $quotation->id, 'status' => 'waiting_approval']);
+
+    $this->actingAs($fixture['customer'])->get(route('customer.repairs.index'))->assertOk()->assertSee('Approve estimate')->assertSee('Brake service');
+    $this->actingAs(User::factory()->create(['role' => 'customer']))->patch(route('customer.quotations.update', $quotation), ['status' => 'accepted'])->assertNotFound();
+    $this->actingAs($fixture['customer'])->patch(route('customer.quotations.update', $quotation), ['status' => 'accepted'])->assertRedirect();
+
+    expect($quotation->fresh()->status)->toBe('accepted');
+    expect($fixture['repairJob']->fresh()->status)->toBe('approved');
 });
 
 it('records inventory adjustments for the shop that owns the part', function () {

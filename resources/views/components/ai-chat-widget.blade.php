@@ -12,11 +12,11 @@
         </header>
 
         <div class="ai-widget-messages" role="log" aria-live="polite">
-            @forelse (($conversation?->messages ?? collect())->sortBy('id') as $message)
-                <article class="ai-widget-message {{ $message->role === 'assistant' ? 'is-assistant' : 'is-user' }}">
-                    <strong>{{ $message->role === 'assistant' ? 'AutoCare AI' : 'You' }}</strong>
-                    <p>{{ $message->displayMessage() }}</p>
-                    @if ($action = $message->suggestedAction())
+            @forelse ($history as $message)
+                <article class="ai-widget-message {{ $message['role'] === 'assistant' ? 'is-assistant' : 'is-user' }}">
+                    <strong>{{ $message['role'] === 'assistant' ? 'AutoCare AI' : 'You' }}</strong>
+                    <p>{{ $message['message'] }}</p>
+                    @if ($action = $message['action'] ?? null)
                         <a class="ai-command-action" href="{{ $action['url'] }}">
                             <i class="bi bi-{{ $action['icon'] }}" aria-hidden="true"></i>{{ $action['label'] }}<i class="bi bi-arrow-right ms-auto" aria-hidden="true"></i>
                         </a>
@@ -38,7 +38,6 @@
 
         <form class="ai-widget-composer" method="POST" action="{{ route('customer.ai-assistant.store') }}">
             @csrf
-            <input type="hidden" name="conversation_id" value="{{ $conversation?->id }}">
             <input type="hidden" name="widget" value="1">
             @error('message')<p class="ai-widget-error" role="alert">{{ $message }}</p>@enderror
             <div>

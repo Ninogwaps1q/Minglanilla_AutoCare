@@ -23,7 +23,7 @@ class InvoiceController extends Controller
                 ->whereBelongsTo($request->user(), 'customer')
                 ->with(['shop', 'repairJob', 'items', 'payments'])
                 ->latest()
-                ->get(),
+                ->paginate(10),
         ]);
     }
 

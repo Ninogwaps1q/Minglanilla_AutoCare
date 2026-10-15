@@ -1,5 +1,5 @@
-<x-layouts.app title="Prepare quotation">
-    <div class="page-heading"><h1>Prepare quotation</h1><p>{{ isset($quotation) ? $quotation->customer->name.' · '.$quotation->vehicle->plate_number : $repairJob->job_number }}</p></div>
+<x-layouts.app title="Prepare estimate">
+    <div class="page-heading"><h1>Prepare estimate</h1><p>{{ isset($quotation) ? $quotation->customer->name.' · '.$quotation->vehicle->plate_number : $repairJob->job_number }}</p></div>
     @if (isset($quotation))<div class="surface p-3 mb-3"><strong>Customer request</strong><p class="mb-0 text-break">{{ $quotation->notes }}</p></div>@endif
     <form method="POST" action="{{ isset($quotation) ? route('shop.quotations.update', $quotation) : route('shop.quotations.store', $repairJob) }}" class="surface p-4">
         @csrf
@@ -12,7 +12,7 @@
         <h2 class="h4">Estimate items</h2>
         <div id="quote-items">@foreach (old('items', [['description' => '', 'quantity' => 1, 'unit_price' => '']]) as $index => $item) @include('shop.quotations.item') @endforeach</div>
         <button type="button" id="add-quote-item" class="btn btn-outline-secondary mb-3">Add item</button>
-        <div><button class="btn btn-primary">Send quotation</button></div>
+        <div><button class="btn btn-primary">Send estimate</button></div>
     </form>
     <template id="quote-item-template">@include('shop.quotations.item', ['index' => '__INDEX__', 'item' => []])</template>
     <script>

@@ -17,18 +17,17 @@
         </header>
 
         <div class="ai-message-list" role="log" aria-live="polite" aria-relevant="additions">
-            @forelse ($conversation?->messages ?? [] as $message)
-                <article class="ai-message {{ $message->role === 'assistant' ? 'ai-message-assistant' : 'ai-message-user' }}">
+            @forelse ($history as $message)
+                <article class="ai-message {{ $message['role'] === 'assistant' ? 'ai-message-assistant' : 'ai-message-user' }}">
                     <span class="ai-avatar" aria-hidden="true">
-                        <i class="bi bi-{{ $message->role === 'assistant' ? 'stars' : 'person' }}"></i>
+                        <i class="bi bi-{{ $message['role'] === 'assistant' ? 'stars' : 'person' }}"></i>
                     </span>
                     <div class="ai-message-content">
                         <div class="ai-message-meta">
-                            <strong>{{ $message->role === 'assistant' ? 'AutoCare AI' : 'You' }}</strong>
-                            <time datetime="{{ $message->created_at->toIso8601String() }}">{{ $message->created_at->format('g:i A') }}</time>
+                            <strong>{{ $message['role'] === 'assistant' ? 'AutoCare AI' : 'You' }}</strong>
                         </div>
-                        <p>{{ $message->displayMessage() }}</p>
-                        @if ($action = $message->suggestedAction())
+                        <p>{{ $message['message'] }}</p>
+                        @if ($action = $message['action'] ?? null)
                             <a class="ai-command-action" href="{{ $action['url'] }}">
                                 <i class="bi bi-{{ $action['icon'] }}" aria-hidden="true"></i>{{ $action['label'] }}<i class="bi bi-arrow-right ms-auto" aria-hidden="true"></i>
                             </a>
@@ -49,7 +48,6 @@
 
         <form class="ai-composer" method="POST" action="{{ route('customer.ai-assistant.store') }}">
             @csrf
-            <input type="hidden" name="conversation_id" value="{{ $conversation?->id }}">
             <x-form-errors />
             <label class="visually-hidden" for="message">Ask AutoCare AI a question</label>
             <div class="ai-composer-control">

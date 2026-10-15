@@ -26,6 +26,10 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        if (! $request->user()->hasVerifiedEmail()) {
+            return redirect()->route('verification.notice');
+        }
+
         $dashboardRoute = match ($request->user()->role) {
             'shop_owner' => 'shop.dashboard',
             'admin' => 'admin.dashboard',

@@ -58,8 +58,9 @@ class TechnicianController extends Controller
     {
         $shop = $this->shop($request);
         abort_unless($repairJob->shop_id === $shop->id, 404);
+        abort_if(in_array($repairJob->status, ['completed', 'released', 'cancelled'], true), 409, 'This repair job is closed.');
         $technician = $shop->technicians()->whereKey($request->integer('technician_id'))->where('status', 'active')->firstOrFail();
-        $repairJob->technicianAssignments()->updateOrCreate(['technician_id' => $technician->id], ['assigned_at' => now(), 'notes' => $request->validated('notes')]);
+        $repairJob->technicianAssignments()->updateOrCreate(['technician_id' => $technician->id], ['assigned_at' => now(), 'completed_at' => null, 'notes' => $request->validated('notes')]);
 
         return back()->with('status', "{$technician->name} assigned to {$repairJob->job_number}.");
     }

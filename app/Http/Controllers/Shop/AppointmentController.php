@@ -17,13 +17,17 @@ class AppointmentController extends Controller
     public function index(Request $request): View
     {
         $shop = $this->shop($request);
+        $status = $request->query('status');
+        $status = in_array($status, ['pending', 'confirmed', 'completed', 'cancelled'], true) ? $status : null;
 
         return view('shop.appointments.index', [
             'appointments' => $shop->appointments()
                 ->with(['customer', 'vehicle', 'service'])
+                ->when($status, fn ($query) => $query->where('status', $status))
                 ->orderBy('appointment_date')
                 ->orderBy('appointment_time')
-                ->get(),
+                ->paginate(10)->withQueryString(),
+            'selectedStatus' => $status,
         ]);
     }
 

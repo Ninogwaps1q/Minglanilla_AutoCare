@@ -41,3 +41,17 @@ it('renders administration pages without operational records', function (string 
     'admin.dashboard', 'admin.users.index', 'admin.shops.index', 'admin.services.index',
     'barangays.index', 'admin.reviews.index', 'admin.reports.index', 'admin.activity-logs.index',
 ]);
+
+it('shows the actual page name in the top bar for shop pages outside the sidebar', function () {
+    $owner = User::factory()->create(['role' => 'shop_owner']);
+    Shop::factory()->create([
+        'owner_id' => $owner->id,
+        'barangay_id' => Barangay::factory()->create()->id,
+        'verification_status' => 'approved',
+        'shop_status' => 'active',
+    ]);
+
+    $this->actingAs($owner)->get(route('shop.notifications.index'))
+        ->assertOk()
+        ->assertSee('<strong>Notifications</strong>', false);
+});

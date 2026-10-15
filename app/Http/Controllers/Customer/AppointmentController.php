@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreAppointmentRequest;
 use App\Models\Appointment;
 use App\Models\Shop;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,12 +17,35 @@ class AppointmentController extends Controller
 {
     public function index(Request $request): View
     {
+        $status = $request->query('status');
+        $status = in_array($status, ['pending', 'confirmed', 'completed', 'cancelled'], true) ? $status : null;
+
         return view('customer.appointments.index', [
             'appointments' => $request->user()->appointments()
                 ->with(['shop', 'vehicle', 'service'])
+                ->when($status, fn ($query) => $query->where('status', $status))
                 ->orderBy('appointment_date')
                 ->orderBy('appointment_time')
-                ->get(),
+                ->paginate(10)->withQueryString(),
+            'selectedStatus' => $status,
+        ]);
+    }
+
+    public function availability(Request $request): JsonResponse
+    {
+        $attributes = $request->validate([
+            'shop_id' => ['required', 'integer'],
+            'date' => ['required', 'date', 'after_or_equal:today'],
+        ]);
+        $shop = Shop::query()->where('verification_status', 'approved')->where('shop_status', 'active')
+            ->findOrFail($attributes['shop_id']);
+
+        return response()->json([
+            'opening_time' => $shop->opening_time ? substr($shop->opening_time, 0, 5) : null,
+            'closing_time' => $shop->closing_time ? substr($shop->closing_time, 0, 5) : null,
+            'taken_times' => $shop->appointments()->whereDate('appointment_date', $attributes['date'])
+                ->whereIn('status', ['pending', 'confirmed', 'in_progress'])
+                ->get(['appointment_time'])->map(fn (Appointment $appointment): string => $appointment->appointment_time->format('H:i'))->values(),
         ]);
     }
 

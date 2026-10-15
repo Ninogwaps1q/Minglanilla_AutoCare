@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -104,11 +103,6 @@ class User extends Authenticatable implements MustVerifyEmail
     public function messageThreads(): HasMany
     {
         return $this->hasMany(MessageThread::class, 'customer_id');
-    }
-
-    public function aiConversations(): HasMany
-    {
-        return $this->hasMany(AiConversation::class);
     }
 
     public function maintenanceRecommendations(): HasMany

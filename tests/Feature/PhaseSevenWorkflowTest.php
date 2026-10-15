@@ -32,7 +32,7 @@ it('completes the customer request estimate acceptance repair and release workfl
     expect($quote->fresh()->status)->toBe('sent');
     $this->assertDatabaseHas('notifications', ['user_id' => $fixture['customer']->id, 'type' => 'quotation_sent']);
 
-    $this->actingAs($fixture['customer'])->get(route('customer.quotations.index'))->assertOk()->assertSee('Accept quotation');
+    $this->actingAs($fixture['customer'])->get(route('customer.quotations.index'))->assertOk()->assertSee('Approve estimate');
     $this->patch(route('customer.quotations.update', $quote), ['status' => 'accepted'])->assertRedirect();
     expect($quote->fresh()->status)->toBe('accepted');
 
@@ -84,6 +84,36 @@ it('keeps a repair waiting for approval until its customer accepts the sent quot
     $quote = $job->fresh()->quotation;
     $this->actingAs($fixture['customer'])->patch(route('customer.quotations.update', $quote), ['status' => 'accepted'])->assertRedirect();
     expect($job->fresh()->status)->toBe('approved');
+    expect($job->fresh()->estimated_cost)->toBe('650.30');
+    expect($job->fresh()->actual_cost)->toBe('650.30');
+    expect($job->items()->sum('subtotal'))->toBe(650.3);
+
+    $this->actingAs($fixture['owner'])->post(route('shop.repair-job-items.store', $job), [
+        'type' => 'part', 'description' => 'Extra part', 'quantity' => 1, 'unit_price' => 100,
+    ])->assertConflict();
+    $this->patch(route('shop.repair-jobs.update', $job), ['status' => 'repairing', 'actual_cost' => 1])->assertRedirect();
+    expect($job->fresh()->actual_cost)->toBe('650.30');
+});
+
+it('does not leave a repair waiting for approval without a sent estimate', function () {
+    $fixture = phaseSevenFixture();
+    $job = RepairJob::query()->create(['customer_id' => $fixture['customer']->id, 'shop_id' => $fixture['shop']->id, 'vehicle_id' => $fixture['vehicle']->id, 'job_number' => 'RJ-NO-ESTIMATE', 'status' => 'diagnosis']);
+
+    $this->actingAs($fixture['owner'])->patch(route('shop.repair-jobs.update', $job), ['status' => 'waiting_approval'])
+        ->assertSessionHasErrors(['status' => 'Send an estimate to the customer before waiting for approval.']);
+
+    expect($job->fresh()->status)->toBe('diagnosis');
+    $this->get(route('shop.repair-jobs.index'))->assertOk()->assertSee('Send estimate');
+});
+
+it('shows a recovery action for a legacy repair waiting without a quotation', function () {
+    $fixture = phaseSevenFixture();
+    RepairJob::query()->create(['customer_id' => $fixture['customer']->id, 'shop_id' => $fixture['shop']->id, 'vehicle_id' => $fixture['vehicle']->id, 'job_number' => 'RJ-NEEDS-QUOTE', 'status' => 'waiting_approval']);
+
+    $this->actingAs($fixture['owner'])->get(route('shop.repair-jobs.index'))
+        ->assertOk()
+        ->assertSee('No estimate has been sent for this repair.')
+        ->assertSee('Send estimate for approval');
 });
 
 it('prevents owners from modifying another shops quote or opening an unaccepted repair', function () {

@@ -42,6 +42,7 @@ class RepairJobController extends Controller
                 'unit_price' => $item->unit_price,
                 'subtotal' => $item->subtotal,
             ])->all());
+            $repairJob->update(['actual_cost' => $repairJob->items()->sum('subtotal')]);
         });
 
         return redirect()->route('shop.repair-jobs.index')->with('status', 'Repair job ready for the accepted quotation.');
@@ -49,11 +50,17 @@ class RepairJobController extends Controller
 
     public function index(Request $request): View
     {
+        $status = $request->query('status');
+        $status = in_array($status, ['waiting_approval', 'approved', 'repairing', 'waiting_parts', 'completed', 'released', 'cancelled'], true) ? $status : null;
+
         return view('shop.repair-jobs.index', [
             'repairJobs' => $this->shop($request)->repairJobs()
-                ->with(['customer', 'vehicle', 'appointment', 'invoice', 'items'])
+                ->with(['customer', 'vehicle', 'appointment', 'invoice', 'items', 'quotation', 'technicianAssignments.technician'])
+                ->when($status, fn ($query) => $query->where('status', $status))
                 ->latest()
-                ->get(),
+                ->paginate(10)->withQueryString(),
+            'technicians' => $this->shop($request)->technicians()->where('status', 'active')->orderBy('name')->get(),
+            'selectedStatus' => $status,
         ]);
     }
 
@@ -99,6 +106,12 @@ class RepairJobController extends Controller
         DB::transaction(function () use ($repairJob, $request): void {
             $repairJob = RepairJob::query()->lockForUpdate()->findOrFail($repairJob->id);
             $nextStatus = $request->validated('status');
+            if ($nextStatus === 'waiting_approval' && ($repairJob->quotation === null || $repairJob->quotation->status !== 'sent')) {
+                throw ValidationException::withMessages(['status' => 'Send an estimate to the customer before waiting for approval.']);
+            }
+            if ($nextStatus === 'approved' && ! in_array($repairJob->quotation?->status, ['accepted', 'approved'], true)) {
+                throw ValidationException::withMessages(['status' => 'The customer must approve the estimate first.']);
+            }
             if ($nextStatus === $repairJob->status && in_array($repairJob->status, ['completed', 'released', 'cancelled'], true)) {
                 return;
             }
@@ -108,13 +121,20 @@ class RepairJobController extends Controller
             if (in_array($nextStatus, ['approved', 'repairing', 'in_progress', 'completed'], true) && $repairJob->quotation && ! in_array($repairJob->quotation->status, ['accepted', 'approved'], true)) {
                 throw ValidationException::withMessages(['status' => 'The customer must accept the quotation before repair work proceeds.']);
             }
-            $repairJob->update($request->validated());
+            $attributes = $request->validated();
+            if ($repairJob->items()->exists() || in_array($repairJob->quotation?->status, ['sent', 'accepted', 'approved'], true)) {
+                unset($attributes['actual_cost']);
+            }
+            $repairJob->update($attributes);
 
             if (in_array($repairJob->status, ['in_progress', 'repairing'], true) && $repairJob->started_at === null) {
                 $repairJob->update(['started_at' => now()]);
             }
             if ($repairJob->status === 'cancelled') {
                 $repairJob->appointment?->update(['status' => 'cancelled']);
+            }
+            if (in_array($repairJob->status, ['completed', 'released', 'cancelled'], true)) {
+                $repairJob->technicianAssignments()->whereNull('completed_at')->update(['completed_at' => now()]);
             }
             $repairJob->customer->notifications()->create([
                 'type' => 'repair_status', 'title' => 'Repair status updated',

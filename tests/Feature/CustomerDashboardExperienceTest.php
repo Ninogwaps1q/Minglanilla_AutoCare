@@ -17,8 +17,8 @@ it('guides a new customer toward their first useful actions', function () {
     $this->actingAs($customer)->get(route('dashboard'))
         ->assertOk()
         ->assertSee('Jamie')
-        ->assertSee('Find a nearby shop')
-        ->assertSee('Book a service')
+        ->assertSee('Add your vehicle first')
+        ->assertSee('Find nearby shops')
         ->assertSee('No upcoming service visit')
         ->assertSee('Add my vehicle');
 });
@@ -73,5 +73,6 @@ it('shows only the signed-in customers next service and billing attention', func
         ->assertSee('Friendly AutoCare')
         ->assertSee('EASY-101')
         ->assertSee('Unpaid invoices')
+        ->assertSee('Review payments')
         ->assertDontSee('Private other customer note');
 });

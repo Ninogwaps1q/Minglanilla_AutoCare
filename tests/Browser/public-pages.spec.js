@@ -106,7 +106,7 @@ test('mobile public navigation opens and closes', async ({ page }, testInfo) => 
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-expanded', 'true');
     await expect(page.locator('#publicNavigation')).toHaveClass(/\bshow\b/);
-    await expect(page.getByRole('link', { name: 'Shop directory', exact: true })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Shop directory', exact: true })).toBeVisible();
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
     await expect(page.locator('#publicNavigation')).not.toHaveClass(/\bshow\b/);
