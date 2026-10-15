@@ -166,3 +166,26 @@ document.querySelectorAll('input[type="file"]').forEach((input) => {
         }
     }, { once: true });
 });
+
+document.querySelectorAll('[data-copy-target]').forEach((button) => {
+    button.addEventListener('click', async () => {
+        const input = document.getElementById(button.dataset.copyTarget);
+        const status = button.closest('section')?.querySelector('[data-copy-status]');
+        if (!input) {
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(input.value);
+            if (status) {
+                status.textContent = 'Link copied. Share it only with the shop you trust.';
+            }
+        } catch {
+            input.focus();
+            input.select();
+            if (status) {
+                status.textContent = 'Copy is unavailable here. The link is selected; copy it manually.';
+            }
+        }
+    });
+});

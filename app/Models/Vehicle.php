@@ -20,6 +20,11 @@ class Vehicle extends Model
         return $this->hasMany(VehicleServiceRecord::class);
     }
 
+    public function passportShares(): HasMany
+    {
+        return $this->hasMany(VehiclePassportShare::class);
+    }
+
     public function customer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'customer_id');

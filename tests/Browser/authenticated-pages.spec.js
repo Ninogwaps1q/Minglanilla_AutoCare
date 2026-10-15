@@ -90,6 +90,33 @@ test('customer creates a vehicle and opens its private passport', async ({ page 
     expect(await qr.evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
 });
 
+test('customer shares and revokes a temporary service passport for a verified shop', async ({ page, browser }, testInfo) => {
+    const fixture = await signIn(page, 'customer');
+    await page.goto('/customer/vehicles/' + fixture.vehicle + '/passport');
+    await page.getByRole('button', { name: 'Create 24-hour shop link' }).click();
+    const sharedUrl = await page.getByLabel('Shop sharing link').inputValue();
+    expect(sharedUrl).toContain('/shop/shared-passports/');
+    await page.screenshot({ path: testInfo.outputPath('customer-shared-passport.png'), fullPage: true });
+
+    const shopContext = await browser.newContext();
+    try {
+        const shopPage = await shopContext.newPage();
+        await signIn(shopPage, 'shop_owner');
+        await shopPage.goto(sharedUrl);
+        await expect(shopPage.getByRole('heading', { name: 'Shared service passport' })).toBeVisible();
+        await expect(shopPage.getByText('BROWSER-001')).toBeVisible();
+        await shopPage.screenshot({ path: testInfo.outputPath('shop-shared-passport.png'), fullPage: true });
+
+        page.once('dialog', dialog => dialog.accept());
+        await page.getByRole('button', { name: 'Revoke access' }).click();
+        await expect(page.getByRole('button', { name: 'Create 24-hour shop link' })).toBeVisible();
+        const revokedResponse = await shopPage.goto(sharedUrl);
+        expect(revokedResponse.status()).toBe(404);
+    } finally {
+        await shopContext.close();
+    }
+});
+
 test('booking shows the service price and checks the selected shop schedule', async ({ page }) => {
     const fixture = await signIn(page, 'customer');
     await page.goto('/customer/appointments/create');

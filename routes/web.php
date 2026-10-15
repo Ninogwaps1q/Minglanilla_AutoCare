@@ -34,6 +34,7 @@ use App\Http\Controllers\Customer\ReviewController as CustomerReviewController;
 use App\Http\Controllers\Customer\ServiceHistoryController;
 use App\Http\Controllers\Customer\VehicleController;
 use App\Http\Controllers\Customer\VehiclePassportController;
+use App\Http\Controllers\Customer\VehiclePassportShareController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PublicImageController;
 use App\Http\Controllers\PublicShopController;
@@ -49,6 +50,7 @@ use App\Http\Controllers\Shop\RepairJobController;
 use App\Http\Controllers\Shop\RepairJobItemController;
 use App\Http\Controllers\Shop\ReportController as ShopReportController;
 use App\Http\Controllers\Shop\ReviewController as ShopReviewController;
+use App\Http\Controllers\Shop\SharedVehiclePassportController;
 use App\Http\Controllers\Shop\ShopDashboardController;
 use App\Http\Controllers\Shop\ShopDocumentController;
 use App\Http\Controllers\Shop\ShopManagementController;
@@ -86,6 +88,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::post('/shop/register', [ShopRegistrationController::class, 'store'])->middleware(['auth', 'role:shop_owner'])->name('shop.register.store');
     Route::get('/shop/dashboard', ShopDashboardController::class)->middleware(['auth', 'role:shop_owner'])->name('shop.dashboard');
     Route::middleware(['auth', 'role:shop_owner'])->prefix('shop')->name('shop.')->group(function (): void {
+        Route::get('shared-passports/{passportShare}', SharedVehiclePassportController::class)->middleware(['signed', 'throttle:30,1'])->name('passports.shared');
         Route::get('quotations', [ShopQuotationController::class, 'index'])->name('quotations.index');
         Route::get('quotations/{quotation}/edit', [ShopQuotationController::class, 'edit'])->name('quotations.edit');
         Route::put('quotations/{quotation}', [ShopQuotationController::class, 'update'])->name('quotations.update');
@@ -168,6 +171,9 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         Route::resource('vehicles', VehicleController::class);
         Route::get('vehicles/{vehicle}/passport', [VehiclePassportController::class, 'show'])->name('vehicles.passport');
         Route::get('vehicles/{vehicle}/passport/qr', [VehiclePassportController::class, 'qr'])->name('vehicles.passport.qr');
+        Route::post('vehicles/{vehicle}/passport/shares', [VehiclePassportShareController::class, 'store'])->middleware('throttle:5,1')->name('vehicles.passport.shares.store');
+        Route::delete('vehicles/{vehicle}/passport/shares/{passportShare}', [VehiclePassportShareController::class, 'destroy'])->name('vehicles.passport.shares.destroy');
+        Route::get('vehicles/{vehicle}/passport/shares/{passportShare}/qr', [VehiclePassportShareController::class, 'qr'])->name('vehicles.passport.shares.qr');
         Route::get('service-history', [ServiceHistoryController::class, 'index'])->name('service-history.index');
         Route::get('favorites', [FavoriteController::class, 'index'])->name('favorites.index');
         Route::post('favorites/{shop}', [FavoriteController::class, 'store'])->name('favorites.store');

@@ -9,6 +9,7 @@ use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
 use BaconQrCode\Writer;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\URL;
 use Illuminate\View\View;
 
 class VehiclePassportController extends Controller
@@ -17,9 +18,13 @@ class VehiclePassportController extends Controller
     {
         $this->authorize('view', $vehicle);
 
+        $activeShare = $vehicle->passportShares()->whereNull('revoked_at')->where('expires_at', '>', now())->latest()->first();
+
         return view('customer.vehicles.passport', [
             'vehicle' => $vehicle,
             'records' => $vehicle->serviceRecords()->with('shop:id,name')->latest('service_date')->paginate(20),
+            'activeShare' => $activeShare,
+            'shareUrl' => $activeShare ? URL::temporarySignedRoute('shop.passports.shared', $activeShare->expires_at, ['passportShare' => $activeShare]) : null,
         ]);
     }
 
