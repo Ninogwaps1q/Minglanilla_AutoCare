@@ -58,6 +58,28 @@ it('keeps an appointment in progress until its repair is completed', function ()
     $this->assertDatabaseHas('vehicle_service_records', ['repair_job_id' => $job->id, 'total_cost' => 500]);
 });
 
+it('rejects a second repair job for an appointment that already has one', function () {
+    $fixture = repairFixture();
+    $appointment = Appointment::query()->create([
+        'customer_id' => $fixture['customer']->id,
+        'shop_id' => $fixture['shop']->id,
+        'vehicle_id' => $fixture['vehicle']->id,
+        'appointment_date' => today(),
+        'appointment_time' => '09:00',
+        'status' => 'confirmed',
+    ]);
+    $fixture['repairJob']->update(['appointment_id' => $appointment->id]);
+
+    $this->actingAs($fixture['owner'])->post(route('shop.repair-jobs.store'), [
+        'appointment_id' => $appointment->id,
+        'description' => 'Duplicate repair',
+    ])->assertSessionHasErrors('appointment_id');
+
+    $this->assertDatabaseCount('repair_jobs', 1);
+    $this->get(route('shop.repair-jobs.create', ['appointment_id' => $appointment->id]))
+        ->assertSee('No confirmed appointments yet');
+});
+
 it('creates a vehicle service record when a shop owner completes a repair job', function () {
     $fixture = repairFixture();
 

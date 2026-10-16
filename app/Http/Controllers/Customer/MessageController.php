@@ -15,7 +15,11 @@ class MessageController extends Controller
     public function index(Request $request): View
     {
         return view('customer.messages.index', [
-            'threads' => $request->user()->messageThreads()->with(['shop', 'messages' => fn ($query) => $query->latest()->limit(1)])->latest()->get(),
+            'threads' => $request->user()->messageThreads()
+                ->with(['shop', 'messages' => fn ($query) => $query->latest()->limit(1)])
+                ->withCount(['messages as unread_messages_count' => fn ($query) => $query->whereNull('read_at')->where('sender_id', '!=', $request->user()->id)])
+                ->latest()
+                ->get(),
             'shops' => Shop::query()->where('verification_status', 'approved')->where('shop_status', 'active')->orderBy('name')->get(['id', 'name']),
         ]);
     }

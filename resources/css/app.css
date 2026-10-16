@@ -135,6 +135,42 @@
     font-weight: 600;
 }
 
+.portal-nav-count {
+    min-width: 1.65rem;
+    margin-left: auto;
+    padding: .12rem .4rem;
+    color: #fff;
+    background: #9a3412;
+    border-radius: .45rem;
+    font-size: .75rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    text-align: center;
+}
+
+.portal-nav-count.is-empty {
+    background: #334155;
+}
+
+.message-thread-preview {
+    overflow-wrap: anywhere;
+}
+
+.mobile-nav-count {
+    position: absolute;
+    top: .15rem;
+    right: .35rem;
+    min-width: 1.1rem;
+    padding: .05rem .2rem;
+    border-radius: 999px;
+    color: #fff;
+    background: #9a3412;
+    font-size: .59rem;
+    font-weight: 700;
+    line-height: 1.15;
+    text-align: center;
+}
+
 .portal-return {
     margin-top: 2rem;
 }
@@ -157,6 +193,72 @@
     padding: .75rem clamp(1rem, 3vw, 2.5rem);
     background: white;
     border-bottom: 1px solid #e5e7eb;
+}
+
+.portal-notifications-link {
+    display: inline-flex;
+    min-height: 2.75rem;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: .45rem;
+    padding: .45rem .65rem;
+    color: var(--ink);
+    background: var(--surface-subtle);
+    border-radius: .75rem;
+    font-size: .85rem;
+    font-weight: 650;
+    text-decoration: none;
+}
+
+.portal-notifications-link:hover,
+.portal-notifications-link:focus-visible {
+    color: var(--ink);
+    background: var(--surface);
+    outline-offset: 2px;
+}
+
+.portal-notifications-count {
+    min-width: 1.65rem;
+    padding: .12rem .35rem;
+    color: #fff;
+    background: #9a3412;
+    border-radius: .45rem;
+    font-size: .75rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    text-align: center;
+}
+
+.portal-notifications-count.is-empty {
+    color: var(--ink);
+    background: var(--border-color);
+}
+
+.notification-page-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: .75rem 1.5rem;
+}
+
+.notification-summary {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.25rem;
+    padding: .4rem .75rem;
+    color: var(--ink);
+    background: var(--surface-subtle);
+    border-radius: .65rem;
+    font-size: .85rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+}
+
+@media (max-width: 1199.98px) {
+    .portal-notifications-label {
+        display: none;
+    }
 }
 
 .portal-context {
@@ -1728,6 +1830,7 @@ h4 {
     }
 
     .customer-mobile-nav a {
+        position: relative;
         display: grid;
         min-width: 0;
         min-height: 3.5rem;
@@ -1857,6 +1960,55 @@ h4 {
 
     .portal-content .table.table-sm {
         min-width: 34rem;
+    }
+
+    .portal-content table.appointment-table {
+        min-width: 0;
+    }
+
+    .appointment-table thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+    }
+
+    .appointment-table tbody,
+    .appointment-table tr,
+    .appointment-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .appointment-table tbody tr {
+        padding: 1rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .appointment-table tbody tr:last-child {
+        border-bottom: 0;
+    }
+
+    .appointment-table td {
+        padding: .35rem 0;
+        border: 0;
+        text-align: start !important;
+        overflow-wrap: anywhere;
+    }
+
+    .appointment-table td[data-label]::before {
+        display: block;
+        margin-bottom: .15rem;
+        color: var(--muted);
+        content: attr(data-label);
+        font-size: .75rem;
+        font-weight: 700;
+    }
+
+    .appointment-table td[data-label="Next action"] .btn {
+        width: 100%;
     }
 
     .portal-content :is(.btn, .form-control, .form-select) {

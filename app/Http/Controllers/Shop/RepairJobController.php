@@ -57,6 +57,7 @@ class RepairJobController extends Controller
             'repairJobs' => $this->shop($request)->repairJobs()
                 ->with(['customer', 'vehicle', 'appointment', 'invoice', 'items', 'quotation', 'technicianAssignments.technician'])
                 ->when($status, fn ($query) => $query->where('status', $status))
+                ->when($request->integer('appointment_id') > 0, fn ($query) => $query->where('appointment_id', $request->integer('appointment_id')))
                 ->latest()
                 ->paginate(10)->withQueryString(),
             'technicians' => $this->shop($request)->technicians()->where('status', 'active')->orderBy('name')->get(),
@@ -66,12 +67,17 @@ class RepairJobController extends Controller
 
     public function create(Request $request): View
     {
+        $appointments = $this->shop($request)->appointments()
+            ->where('status', 'confirmed')
+            ->whereDoesntHave('repairJob')
+            ->with(['customer', 'vehicle', 'service'])
+            ->orderBy('appointment_date')
+            ->get();
+        $requestedAppointmentId = $request->integer('appointment_id');
+
         return view('shop.repair-jobs.create', [
-            'appointments' => $this->shop($request)->appointments()
-                ->where('status', 'confirmed')
-                ->with(['customer', 'vehicle', 'service'])
-                ->orderBy('appointment_date')
-                ->get(),
+            'appointments' => $appointments,
+            'selectedAppointmentId' => $appointments->contains('id', $requestedAppointmentId) ? $requestedAppointmentId : null,
         ]);
     }
 
@@ -83,6 +89,9 @@ class RepairJobController extends Controller
                 ->where('shop_id', $shop->id)
                 ->where('status', 'confirmed')
                 ->lockForUpdate()->firstOrFail();
+            if ($appointment->repairJob()->exists()) {
+                throw ValidationException::withMessages(['appointment_id' => 'A repair job already exists for this appointment. Open it from Shop appointments.']);
+            }
             $repairJob = $shop->repairJobs()->create([
                 ...$request->validated(),
                 'customer_id' => $appointment->customer_id,

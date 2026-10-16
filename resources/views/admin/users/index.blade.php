@@ -4,22 +4,22 @@
         <p>Search accounts and control customer or shop-owner access.</p>
     </div>
     <div class="surface p-4 mb-4">
-        <form class="row g-2" method="GET">
-            <div class="col-md-5"><label class="visually-hidden" for="search">Search</label><input id="search"
+        <form class="row g-2 align-items-end" method="GET">
+            <div class="col-md-5"><label class="form-label" for="search">Search users</label><input id="search"
                     class="form-control" name="search" value="{{ $filters['search'] ?? '' }}"
                     placeholder="Name or email"></div>
-            <div class="col-md-3"><select class="form-select" name="role">
+            <div class="col-md-3"><label class="form-label" for="filter-role">Role</label><select id="filter-role" class="form-select" name="role">
                     <option value="">All roles</option>
                     @foreach(['customer' => 'Customer', 'shop_owner' => 'Shop owner', 'admin' => 'Administrator'] as $value => $label)
                         <option value="{{ $value }}" @selected(($filters['role'] ?? '') === $value)>{{ $label }}</option>
                     @endforeach
                 </select></div>
-            <div class="col-md-2"><select class="form-select" name="status">
+            <div class="col-md-2"><label class="form-label" for="filter-status">Account status</label><select id="filter-status" class="form-select" name="status">
                     <option value="">All statuses</option>
                     <option value="active" @selected(($filters['status'] ?? '') === 'active')>Active</option>
                     <option value="suspended" @selected(($filters['status'] ?? '') === 'suspended')>Suspended</option>
                 </select></div>
-            <div class="col-md-2"><button class="btn btn-primary w-100">Filter</button></div>
+            <div class="col-md-2"><button class="btn btn-primary w-100">Apply filters</button></div>
         </form>
     </div>
     <div class="surface overflow-hidden">

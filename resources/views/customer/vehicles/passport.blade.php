@@ -8,6 +8,7 @@
     <section class="surface p-4 mb-4 d-print-none" aria-labelledby="passport-share-title">
         <h2 id="passport-share-title" class="h4">Share with a verified shop</h2>
         <p class="text-secondary">Create a read-only link when you want a shop to review this vehicle's service history. Only an approved shop owner who signs in can open it. The link expires after 24 hours, and you can revoke it earlier.</p>
+        <p class="small text-secondary">For a shop to scan the QR on another device, this site must have an address that device can reach. A localhost link works only on this computer.</p>
         @if ($activeShare)
             <div class="d-flex flex-column flex-md-row gap-4 align-items-start">
                 <img src="{{ route('customer.vehicles.passport.shares.qr', [$vehicle, $activeShare]) }}" width="220" height="220" class="img-fluid" alt="QR code for the temporary shop sharing link">

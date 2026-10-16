@@ -17,16 +17,16 @@
                             <td class="text-capitalize">{{ str_replace('_', ' ', $emergencyRequest->status) }}</td>
                             <td>
                                 @if ($emergencyRequest->allowedStatuses() !== [])
-                                    <form method="POST" action="{{ route('shop.emergency-requests.update', $emergencyRequest) }}" class="d-flex gap-2">
+                                    <form method="POST" action="{{ route('shop.emergency-requests.update', $emergencyRequest) }}" class="d-flex flex-wrap align-items-end gap-2">
                                         @csrf
                                         @method('PATCH')
-                                        <label class="visually-hidden" for="emergency-status-{{ $emergencyRequest->id }}">Next status for request {{ $emergencyRequest->id }}</label>
+                                        <div><label class="form-label" for="emergency-status-{{ $emergencyRequest->id }}">Next request status</label>
                                         <select id="emergency-status-{{ $emergencyRequest->id }}" class="form-select" name="status" required>
                                             @foreach ($emergencyRequest->allowedStatuses() as $status)
                                                 <option value="{{ $status }}">{{ ucfirst(str_replace('_', ' ', $status)) }}</option>
                                             @endforeach
-                                        </select>
-                                        <button class="btn btn-primary" type="submit">Save</button>
+                                        </select></div>
+                                        <button class="btn btn-primary" type="submit">Update status</button>
                                     </form>
                                 @else
                                     <span class="text-secondary small">Request closed</span>

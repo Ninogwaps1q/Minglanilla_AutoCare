@@ -3,12 +3,13 @@
         <h1>My repairs</h1>
         <p>Review estimates, approve work, and track your vehicle's repair status.</p>
     </div>
+    @if (request()->integer('appointment_id') > 0)<p><a href="{{ route('customer.repairs.index') }}">View all repairs</a></p>@endif
     <x-form-errors />
     @forelse ($repairJobs as $repairJob)
-        <article class="surface p-4 mb-3" aria-labelledby="repair-{{ $repairJob->id }}">
+        <article id="repair-{{ $repairJob->id }}" class="surface p-4 mb-3" aria-labelledby="repair-title-{{ $repairJob->id }}">
             <div class="d-flex flex-column flex-md-row justify-content-between gap-2 mb-3">
                 <div>
-                    <h2 id="repair-{{ $repairJob->id }}" class="h5 mb-1">{{ $repairJob->job_number }}</h2>
+                    <h2 id="repair-title-{{ $repairJob->id }}" class="h5 mb-1">{{ $repairJob->job_number }}</h2>
                     <p class="text-secondary mb-0">{{ $repairJob->shop->name }} · {{ $repairJob->vehicle->plate_number }}</p>
                 </div>
                 <div><span class="badge {{ in_array($repairJob->status, ['completed', 'released'], true) ? 'text-bg-success' : 'text-bg-secondary' }} text-capitalize">{{ str_replace('_', ' ', $repairJob->status) }}</span></div>

@@ -32,27 +32,27 @@
                             <td><span class="{{ $part->quantity <= $part->minimum_stock ? 'text-danger fw-semibold' : '' }}">{{ $part->quantity }}</span> / min {{ $part->minimum_stock }}</td>
                             <td>PHP {{ number_format($part->purchase_price, 2) }} → PHP {{ number_format($part->selling_price, 2) }}</td>
                             <td>
-                                <form method="POST" action="{{ route('shop.inventory.adjust', $part) }}" class="d-flex gap-2">
+                                <form method="POST" action="{{ route('shop.inventory.adjust', $part) }}" class="d-flex flex-wrap align-items-end gap-2">
                                     @csrf @method('PATCH')
-                                    <label class="visually-hidden" for="adjust-{{ $part->id }}">Stock change for {{ $part->name }}</label>
-                                    <input id="adjust-{{ $part->id }}" class="form-control form-control-sm" type="number" name="quantity" placeholder="± stock" required>
-                                    <button class="btn btn-sm btn-outline-primary">Save</button>
+                                    <div><label class="form-label small" for="adjust-{{ $part->id }}">Stock change (+/−)</label>
+                                    <input id="adjust-{{ $part->id }}" class="form-control form-control-sm" type="number" name="quantity" placeholder="e.g. +5 or -2" required></div>
+                                    <button class="btn btn-sm btn-outline-primary" type="submit">Update stock</button>
                                 </form>
                             </td>
                             <td>
                                 @if ($part->quantity > 0 && $repairJobs->isNotEmpty())
-                                    <form method="POST" action="{{ route('shop.inventory.consume', $part) }}" class="d-flex flex-wrap gap-2">
+                                    <form method="POST" action="{{ route('shop.inventory.consume', $part) }}" class="d-flex flex-wrap align-items-end gap-2">
                                         @csrf
-                                        <label class="visually-hidden" for="repair-{{ $part->id }}">Repair job for {{ $part->name }}</label>
+                                        <div><label class="form-label small" for="repair-{{ $part->id }}">Repair job</label>
                                         <select id="repair-{{ $part->id }}" class="form-select form-select-sm" name="repair_job_id" required>
                                             <option value="">Select repair</option>
                                             @foreach ($repairJobs as $job)
                                                 <option value="{{ $job->id }}">{{ $job->job_number }}</option>
                                             @endforeach
-                                        </select>
-                                        <label class="visually-hidden" for="use-{{ $part->id }}">Units of {{ $part->name }} used</label>
-                                        <input id="use-{{ $part->id }}" class="form-control form-control-sm" type="number" name="quantity" min="1" max="{{ $part->quantity }}" placeholder="Units" required>
-                                        <button class="btn btn-sm btn-outline-primary">Record usage</button>
+                                        </select></div>
+                                        <div><label class="form-label small" for="use-{{ $part->id }}">Units used</label>
+                                        <input id="use-{{ $part->id }}" class="form-control form-control-sm" type="number" name="quantity" min="1" max="{{ $part->quantity }}" placeholder="Units" required></div>
+                                        <button class="btn btn-sm btn-outline-primary" type="submit">Record usage</button>
                                     </form>
                                 @else
                                     <span class="text-secondary small">{{ $part->quantity === 0 ? 'Out of stock' : 'No active repair' }}</span>

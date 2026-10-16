@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Appointment;
+use App\Models\Service;
 use App\Models\Shop;
 use App\Models\User;
 use App\Models\Vehicle;
@@ -112,6 +114,41 @@ it('rejects expired links and keeps later signed history pages accessible', func
     $this->get($firstPage)->assertSee('Next')->assertSee('page=2', false);
     $secondPage = URL::temporarySignedRoute('shop.passports.shared', $share->expires_at, ['passportShare' => $share, 'page' => 2]);
     $this->get($secondPage)->assertOk()->assertSee('Visit 21')->assertSee('Previous');
+});
+
+it('takes a verified shop from a shared passport to a preselected confirmed appointment', function () {
+    [$customer, $vehicle, $shopOwner, $shop] = passportSharingFixture();
+    $appointment = Appointment::query()->create([
+        'customer_id' => $customer->id, 'vehicle_id' => $vehicle->id, 'shop_id' => $shop->id,
+        'service_id' => Service::factory()->create()->id,
+        'appointment_date' => today()->addDay(), 'appointment_time' => '09:00', 'status' => 'confirmed',
+    ]);
+    $share = VehiclePassportShare::factory()->for($vehicle)->create();
+    $url = URL::temporarySignedRoute('shop.passports.shared', $share->expires_at, ['passportShare' => $share]);
+
+    $this->actingAs($shopOwner)->get($url)
+        ->assertOk()
+        ->assertSee('Start repair job')
+        ->assertSee(route('shop.repair-jobs.create', ['appointment_id' => $appointment->id]));
+    $this->get(route('shop.repair-jobs.create', ['appointment_id' => $appointment->id]))
+        ->assertViewHas('selectedAppointmentId', $appointment->id);
+});
+
+it('does not preselect a confirmed appointment from another shop', function () {
+    [$customer, $vehicle, $shopOwner] = passportSharingFixture();
+    $otherShop = Shop::factory()->create(['verification_status' => 'approved', 'shop_status' => 'active']);
+    $appointment = Appointment::query()->create([
+        'customer_id' => $customer->id, 'vehicle_id' => $vehicle->id, 'shop_id' => $otherShop->id,
+        'service_id' => Service::factory()->create()->id,
+        'appointment_date' => today()->addDay(), 'appointment_time' => '09:00', 'status' => 'confirmed',
+    ]);
+    $share = VehiclePassportShare::factory()->for($vehicle)->create();
+    $url = URL::temporarySignedRoute('shop.passports.shared', $share->expires_at, ['passportShare' => $share]);
+
+    $this->actingAs($shopOwner)->get($url)->assertSee('Review shop appointments')->assertDontSee('Start repair job');
+    $this->get(route('shop.repair-jobs.create', ['appointment_id' => $appointment->id]))
+        ->assertViewHas('selectedAppointmentId', null)
+        ->assertSee('No confirmed appointments yet');
 });
 
 /** @return array{User, Vehicle, User, Shop} */

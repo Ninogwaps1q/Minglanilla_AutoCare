@@ -49,7 +49,7 @@
         <form class="ai-composer" method="POST" action="{{ route('customer.ai-assistant.store') }}">
             @csrf
             <x-form-errors />
-            <label class="visually-hidden" for="message">Ask AutoCare AI a question</label>
+            <label class="form-label" for="message">Your question for AutoCare AI</label>
             <div class="ai-composer-control">
                 <textarea class="form-control" id="message" name="message" rows="2" maxlength="2000" placeholder="Ask about your booking, repair, or vehicle care…" required>{{ old('message') }}</textarea>
                 <button class="btn btn-accent" type="submit" aria-label="Send question">

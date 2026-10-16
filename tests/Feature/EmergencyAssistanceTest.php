@@ -118,7 +118,7 @@ it('renders only the next valid roadside actions and hides controls on closed re
     $this->actingAs($shop->owner)->get(route('shop.emergency-requests.index'))
         ->assertSee('value="accepted"', false)
         ->assertDontSee('value="completed"', false)
-        ->assertSee('Next status for request');
+        ->assertSee('Next request status');
     $request->update(['status' => 'completed']);
     $this->get(route('shop.emergency-requests.index'))
         ->assertSee('Request closed')

@@ -62,6 +62,27 @@ for (const [role, paths] of Object.entries(pages)) {
     });
 }
 
+for (const [role, notificationsPath] of [['customer', '/customer/notifications'], ['shop_owner', '/shop/notifications']]) {
+    test(role + ' notification navigation stays labeled and aligned in both themes', async ({ page }, testInfo) => {
+        await signIn(page, role);
+        const notificationLink = page.getByRole('link', { name: 'Notifications, 0 unread' });
+        await expect(notificationLink).toBeVisible();
+        await expect(notificationLink.locator('.portal-notifications-count')).toHaveText('0');
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => document.documentElement.clientWidth + 1));
+        await page.screenshot({ path: testInfo.outputPath(role + '-notification-header-light.png'), fullPage: false });
+
+        await notificationLink.click();
+        await expect(page).toHaveURL(new RegExp(notificationsPath + '$'));
+        await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible();
+        await expect(page.locator('.notification-summary')).toHaveText('0 unread');
+        await page.evaluate(() => localStorage.setItem('autocare-theme', 'dark'));
+        await page.reload();
+        await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+        await expect(page.getByRole('link', { name: 'Notifications, 0 unread' })).toBeVisible();
+        await page.screenshot({ path: testInfo.outputPath(role + '-notifications-dark.png'), fullPage: false });
+    });
+}
+
 test('customer creates a vehicle and opens its private passport', async ({ page }, testInfo) => {
     await signIn(page, 'customer');
     const plate = 'E2E-' + testInfo.project.name;
@@ -91,12 +112,13 @@ test('customer creates a vehicle and opens its private passport', async ({ page 
 });
 
 test('customer shares and revokes a temporary service passport for a verified shop', async ({ page, browser }, testInfo) => {
+    test.setTimeout(90000);
     const fixture = await signIn(page, 'customer');
     await page.goto('/customer/vehicles/' + fixture.vehicle + '/passport');
     await page.getByRole('button', { name: 'Create 24-hour shop link' }).click();
     const sharedUrl = await page.getByLabel('Shop sharing link').inputValue();
     expect(sharedUrl).toContain('/shop/shared-passports/');
-    await page.screenshot({ path: testInfo.outputPath('customer-shared-passport.png'), fullPage: true });
+    await page.screenshot({ path: testInfo.outputPath('customer-shared-passport.png'), fullPage: true, mask: [page.locator('#passport-share-url')] });
 
     const shopContext = await browser.newContext();
     try {
@@ -105,6 +127,7 @@ test('customer shares and revokes a temporary service passport for a verified sh
         await shopPage.goto(sharedUrl);
         await expect(shopPage.getByRole('heading', { name: 'Shared service passport' })).toBeVisible();
         await expect(shopPage.getByText('BROWSER-001')).toBeVisible();
+        await expect(shopPage.getByRole('link', { name: 'Review shop appointments' })).toBeVisible();
         await shopPage.screenshot({ path: testInfo.outputPath('shop-shared-passport.png'), fullPage: true });
 
         page.once('dialog', dialog => dialog.accept());
@@ -233,6 +256,7 @@ test('shop and admin dashboards make daily priorities clear', async ({ page }, t
 });
 
 test('customer books, shop confirms, and admin monitors the same appointment', async ({ browser }, testInfo) => {
+    test.setTimeout(120000);
     const context = await browser.newContext(testInfo.project.use);
     const page = await context.newPage();
     try {
@@ -259,8 +283,12 @@ test('customer books, shop confirms, and admin monitors the same appointment', a
         const row = page.getByRole('row').filter({ hasText: reason });
         await expect(row.getByRole('option', { name: 'Complete', exact: true })).toHaveCount(0);
         await row.getByLabel('Appointment status').selectOption('confirmed');
-        await row.getByRole('button', { name: 'Save', exact: true }).click();
-        await expect(row.locator('.badge')).toHaveText('confirmed');
+        await row.getByRole('button', { name: 'Update status', exact: true }).click();
+        await expect(row.locator('.badge')).toHaveText('Ready for repair');
+        const startRepairLink = row.getByRole('link', { name: 'Start repair job' });
+        await expect(startRepairLink).toBeVisible();
+        expect(await startRepairLink.evaluate(link => link.getBoundingClientRect().right <= document.documentElement.clientWidth + 1)).toBe(true);
+        await page.screenshot({ path: testInfo.outputPath('confirmed-shop-appointment.png'), fullPage: true });
         await expect(row.getByRole('option', { name: 'Confirm', exact: true })).toHaveCount(0);
 
         await context.clearCookies();
@@ -269,6 +297,27 @@ test('customer books, shop confirms, and admin monitors the same appointment', a
         const monitored = page.getByRole('row').filter({ has: page.getByRole('rowheader', { name: '#' + appointmentId, exact: true }) });
         await expect(monitored.getByRole('cell', { name: 'Browser Test AutoCare', exact: true })).toBeVisible();
         await expect(monitored.getByRole('cell', { name: 'Confirmed', exact: true })).toBeVisible();
+
+        await context.clearCookies();
+        await signIn(page, 'shop_owner');
+        await page.goto('/shop/appointments?status=confirmed');
+        await page.getByRole('row').filter({ hasText: reason }).getByRole('link', { name: 'Start repair job' }).click();
+        await expect(page.locator('#appointment_id')).toHaveValue(appointmentId);
+        await page.getByLabel('Work description').fill('Complete ' + reason);
+        await page.getByRole('button', { name: 'Create repair job' }).click();
+        await expect(page.getByText(/Repair job .* created/)).toBeVisible();
+        const jobNumber = (await page.getByText(/Repair job .* created/).textContent()).match(/Repair job (\S+) created/)[1];
+        await page.goto('/shop/appointments?status=in_progress');
+        await expect(page.getByRole('row').filter({ hasText: reason }).getByRole('link', { name: 'View repair' })).toBeVisible();
+
+        await context.clearCookies();
+        await signIn(page, 'customer');
+        await page.goto('/customer/appointments?status=in_progress');
+        const customerAppointment = page.locator('article').filter({ hasText: reason });
+        await expect(customerAppointment.getByRole('link', { name: 'View repair progress' })).toBeVisible();
+        await page.screenshot({ path: testInfo.outputPath('customer-appointment-in-repair.png'), fullPage: true });
+        await customerAppointment.getByRole('link', { name: 'View repair progress' }).click();
+        await expect(page.getByRole('heading', { name: jobNumber })).toBeVisible();
     } finally {
         await context.close();
     }

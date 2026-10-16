@@ -2,6 +2,7 @@
 
 use App\Models\Appointment;
 use App\Models\Barangay;
+use App\Models\RepairJob;
 use App\Models\Service;
 use App\Models\ServiceCategory;
 use App\Models\Shop;
@@ -146,6 +147,54 @@ it('updates the appointment status for the shop owner', function () {
         'user_id' => $fixture['customer']->id,
         'type' => 'appointment_status',
     ]);
+});
+
+it('connects a confirmed appointment directly to its repair for both roles', function () {
+    $fixture = appointmentFixture();
+    $appointment = $fixture['customer']->appointments()->create(appointmentPayload($fixture, ['status' => 'confirmed']));
+
+    $this->actingAs($fixture['owner'])->get(route('shop.appointments.index', ['status' => 'confirmed']))
+        ->assertSee(route('shop.repair-jobs.create', ['appointment_id' => $appointment->id]));
+    $this->get(route('shop.repair-jobs.create', ['appointment_id' => $appointment->id]))
+        ->assertViewHas('selectedAppointmentId', $appointment->id);
+
+    $this->post(route('shop.repair-jobs.store'), [
+        'appointment_id' => $appointment->id,
+        'description' => 'Oil change service',
+    ])->assertRedirect(route('shop.repair-jobs.index'));
+
+    $repairJob = RepairJob::query()->where('appointment_id', $appointment->id)->firstOrFail();
+    expect($appointment->fresh()->status)->toBe('in_progress');
+    $this->get(route('shop.appointments.index', ['status' => 'in_progress']))
+        ->assertSee(route('shop.repair-jobs.index', ['appointment_id' => $appointment->id]));
+    $this->get(route('shop.repair-jobs.index', ['appointment_id' => $appointment->id]))
+        ->assertSee($repairJob->job_number);
+
+    $this->actingAs($fixture['customer'])->get(route('customer.appointments.index', ['status' => 'in_progress']))
+        ->assertSee('In repair')
+        ->assertSee(route('customer.repairs.index', ['appointment_id' => $appointment->id]));
+    $this->get(route('customer.repairs.index', ['appointment_id' => $appointment->id]))
+        ->assertSee($repairJob->job_number);
+});
+
+it('does not show another customers repair through an appointment link', function () {
+    $fixture = appointmentFixture();
+    $appointment = $fixture['customer']->appointments()->create(appointmentPayload($fixture, ['status' => 'in_progress']));
+    RepairJob::query()->create([
+        'customer_id' => $fixture['customer']->id,
+        'shop_id' => $fixture['shop']->id,
+        'vehicle_id' => $fixture['vehicle']->id,
+        'appointment_id' => $appointment->id,
+        'job_number' => 'RJ-PRIVATE-001',
+        'description' => 'Private repair',
+        'status' => 'repairing',
+    ]);
+    $otherCustomer = User::factory()->create(['role' => 'customer']);
+
+    $this->actingAs($otherCustomer)->get(route('customer.repairs.index', ['appointment_id' => $appointment->id]))
+        ->assertDontSee('RJ-PRIVATE-001');
+    $this->get(route('customer.appointments.index', ['status' => 'in_progress']))
+        ->assertDontSee($fixture['vehicle']->plate_number);
 });
 
 it('blocks invalid appointment status transitions', function () {

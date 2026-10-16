@@ -8,7 +8,7 @@
     </div>
 
     <form method="GET" action="{{ route('customer.appointments.index') }}" class="surface p-3 mb-3 d-flex flex-wrap align-items-end gap-2">
-        <div><label for="appointment-status-filter" class="form-label">Show appointments</label><select id="appointment-status-filter" class="form-select" name="status"><option value="">All statuses</option>@foreach (['pending' => 'Waiting for shop', 'confirmed' => 'Confirmed', 'completed' => 'Completed', 'cancelled' => 'Cancelled'] as $value => $label)<option value="{{ $value }}" @selected($selectedStatus === $value)>{{ $label }}</option>@endforeach</select></div>
+        <div><label for="appointment-status-filter" class="form-label">Show appointments</label><select id="appointment-status-filter" class="form-select" name="status"><option value="">All statuses</option>@foreach (['pending' => 'Waiting for shop', 'confirmed' => 'Confirmed', 'in_progress' => 'In repair', 'completed' => 'Completed', 'cancelled' => 'Cancelled'] as $value => $label)<option value="{{ $value }}" @selected($selectedStatus === $value)>{{ $label }}</option>@endforeach</select></div>
         <button class="btn btn-outline-primary">Apply filter</button>
         @if ($selectedStatus)<a class="btn btn-link" href="{{ route('customer.appointments.index') }}">Clear</a>@endif
     </form>
@@ -27,7 +27,12 @@
                             @endif
                         </div>
                         <div class="d-flex flex-column align-items-md-end gap-2">
-                            <span class="badge text-bg-{{ $appointment->status === 'confirmed' ? 'success' : ($appointment->status === 'pending' ? 'warning' : 'secondary') }} text-capitalize">{{ $appointment->status }}</span>
+                            <span class="badge text-bg-{{ $appointment->status === 'confirmed' ? 'success' : ($appointment->status === 'pending' ? 'warning' : 'secondary') }}">{{ match ($appointment->status) { 'pending' => 'Waiting for shop', 'confirmed' => 'Confirmed', 'in_progress' => 'In repair', 'completed' => 'Completed', default => 'Cancelled' } }}</span>
+                            @if ($appointment->repairJob)
+                                <a class="btn btn-sm btn-outline-primary" href="{{ route('customer.repairs.index', ['appointment_id' => $appointment->id]) }}">View repair progress</a>
+                            @elseif ($appointment->status === 'confirmed')
+                                <span class="small text-secondary">The shop will start the service.</span>
+                            @endif
                             @if ($appointment->status === 'pending')
                                 <form method="POST" action="{{ route('customer.appointments.destroy', $appointment) }}">
                                     @csrf

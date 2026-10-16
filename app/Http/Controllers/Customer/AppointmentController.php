@@ -18,11 +18,11 @@ class AppointmentController extends Controller
     public function index(Request $request): View
     {
         $status = $request->query('status');
-        $status = in_array($status, ['pending', 'confirmed', 'completed', 'cancelled'], true) ? $status : null;
+        $status = in_array($status, ['pending', 'confirmed', 'in_progress', 'completed', 'cancelled'], true) ? $status : null;
 
         return view('customer.appointments.index', [
             'appointments' => $request->user()->appointments()
-                ->with(['shop', 'vehicle', 'service'])
+                ->with(['shop', 'vehicle', 'service', 'repairJob'])
                 ->when($status, fn ($query) => $query->where('status', $status))
                 ->orderBy('appointment_date')
                 ->orderBy('appointment_time')

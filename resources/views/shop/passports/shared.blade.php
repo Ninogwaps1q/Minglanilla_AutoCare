@@ -2,7 +2,14 @@
     <div class="page-heading"><h1>Shared service passport</h1><p>Read-only vehicle history shared by its owner. Access expires {{ $expiresAt->format('M j, Y g:i A') }}.</p></div>
     <section class="surface p-4 mb-4" aria-labelledby="shared-vehicle-title">
         <h2 id="shared-vehicle-title" class="h3">{{ $vehicle->year }} {{ $vehicle->make }} {{ $vehicle->model }}</h2>
-        <p class="mb-0">{{ $vehicle->plate_number }} · {{ number_format($vehicle->current_mileage) }} km</p>
+        <p class="mb-3">{{ $vehicle->plate_number }} · {{ number_format($vehicle->current_mileage) }} km</p>
+        @if ($confirmedAppointment)
+            <p class="text-secondary">This vehicle has a confirmed appointment at your shop. You can start its repair job with the appointment already selected.</p>
+            <a class="btn btn-primary" href="{{ route('shop.repair-jobs.create', ['appointment_id' => $confirmedAppointment->id]) }}">Start repair job</a>
+        @else
+            <p class="text-secondary mb-2">To start a repair job, the customer must book with your shop and you must confirm the appointment first.</p>
+            <a class="btn btn-outline-primary" href="{{ route('shop.appointments.index') }}">Review shop appointments</a>
+        @endif
     </section>
     <section aria-labelledby="shared-history-title"><h2 id="shared-history-title" class="h4">Recorded service history</h2>
         <div class="surface table-responsive"><table class="table mb-0"><thead><tr><th scope="col">Date</th><th scope="col">Service</th><th scope="col">Shop</th><th scope="col">Cost</th></tr></thead><tbody>
