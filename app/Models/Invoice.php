@@ -26,6 +26,11 @@ class Invoice extends Model
         return $this->belongsTo(User::class, 'customer_id');
     }
 
+    public function issuedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
     public function shop(): BelongsTo
     {
         return $this->belongsTo(Shop::class);

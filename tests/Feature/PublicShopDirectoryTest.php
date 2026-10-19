@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\Barangay;
+use App\Models\RepairJob;
+use App\Models\Review;
 use App\Models\Service;
 use App\Models\ServiceCategory;
 use App\Models\Shop;
@@ -27,6 +29,33 @@ it('shows only approved active shops in the directory', function () {
     $this->get(route('shops.index'))->assertSee('Directory Shop')->assertDontSee('Hidden Shop');
 });
 
+it('shows five visual stars with a one-decimal rating and does not rate shops without reviews', function () {
+    $owner = User::factory()->create(['role' => 'shop_owner']);
+    Shop::factory()->create([
+        'owner_id' => $owner->id,
+        'name' => 'Five Star AutoCare',
+        'verification_status' => 'approved',
+        'shop_status' => 'active',
+        'average_rating' => 5,
+        'total_reviews' => 1,
+    ]);
+    Shop::factory()->create([
+        'owner_id' => $owner->id,
+        'name' => 'New AutoCare',
+        'verification_status' => 'approved',
+        'shop_status' => 'active',
+        'average_rating' => 0,
+        'total_reviews' => 0,
+    ]);
+
+    $response = $this->get(route('shops.index'));
+
+    $response->assertOk()
+        ->assertSee('aria-label="5.0 out of 5 stars"', false)
+        ->assertSee('Not yet rated');
+    expect(substr_count($response->getContent(), 'class="bi bi-star-fill"'))->toBe(5);
+});
+
 it('filters the directory by an available service', function () {
     $barangay = Barangay::factory()->create();
     $owner = User::factory()->create(['role' => 'shop_owner']);
@@ -47,6 +76,27 @@ it('does not expose non-public shop profiles', function () {
     $shop = Shop::query()->create(['owner_id' => $owner->id, 'name' => 'Pending Shop', 'phone' => '09170000000', 'email' => 'pending@example.test', 'address' => 'Demo Street', 'barangay_id' => $barangay->id, 'verification_status' => 'pending', 'shop_status' => 'inactive']);
 
     $this->get(route('shops.show', $shop))->assertNotFound();
+});
+
+it('connects the public shop profile to customer booking, messaging, and published reviews', function () {
+    $customer = User::factory()->create(['role' => 'customer']);
+    $owner = User::factory()->create(['role' => 'shop_owner']);
+    $shop = Shop::factory()->create(['owner_id' => $owner->id, 'verification_status' => 'approved', 'shop_status' => 'active']);
+    $category = ServiceCategory::query()->create(['name' => 'Maintenance']);
+    $service = Service::query()->create(['category_id' => $category->id, 'name' => 'Brake check']);
+    ShopService::query()->create(['shop_id' => $shop->id, 'service_id' => $service->id, 'price' => 500, 'availability' => true]);
+    $vehicle = $customer->vehicles()->create(['plate_number' => 'PUBLIC-001', 'make' => 'Toyota', 'model' => 'Vios', 'year' => 2020]);
+    $repairJob = RepairJob::query()->create(['customer_id' => $customer->id, 'shop_id' => $shop->id, 'vehicle_id' => $vehicle->id, 'job_number' => 'RJ-PUBLIC-001', 'description' => 'Brake check', 'status' => 'completed']);
+    $hiddenRepairJob = RepairJob::query()->create(['customer_id' => $customer->id, 'shop_id' => $shop->id, 'vehicle_id' => $vehicle->id, 'job_number' => 'RJ-PUBLIC-002', 'description' => 'Follow-up check', 'status' => 'completed']);
+    Review::query()->create(['customer_id' => $customer->id, 'shop_id' => $shop->id, 'repair_job_id' => $repairJob->id, 'rating' => 5, 'comment' => 'Helpful staff.', 'status' => 'published']);
+    Review::query()->create(['customer_id' => $customer->id, 'shop_id' => $shop->id, 'repair_job_id' => $hiddenRepairJob->id, 'rating' => 1, 'comment' => 'Hidden comment.', 'status' => 'hidden']);
+
+    $this->get(route('shops.show', $shop))->assertOk()->assertSee('Sign in to book or message')->assertSee('Helpful staff.')->assertDontSee('Hidden comment.');
+    $this->actingAs($customer)->get(route('shops.show', $shop))->assertOk()
+        ->assertSee(route('customer.appointments.create', ['shop_id' => $shop->id]), false)
+        ->assertSee(route('customer.messages.show', $shop), false);
+    $this->get(route('customer.appointments.create', ['shop_id' => $shop->id]))
+        ->assertOk()->assertSee('value="'.$shop->id.'" selected', false);
 });
 
 it('compares offers from approved active shops only', function () {

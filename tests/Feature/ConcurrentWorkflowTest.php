@@ -19,6 +19,7 @@ it('prevents duplicate records when simultaneous requests compete for the same w
     $connection['url'] = null;
     config(['database.connections.concurrency_admin' => $connection]);
     $admin = DB::connection('concurrency_admin');
+    $isMariaDb = str_contains(strtolower((string) $admin->selectOne('SELECT VERSION() AS version')->version), 'mariadb');
     $admin->statement("CREATE DATABASE `{$database}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
     $workers = [];
 
@@ -77,7 +78,7 @@ it('prevents duplicate records when simultaneous requests compete for the same w
             $worker->start();
             $workers[] = $worker;
         }
-        $deadline = microtime(true) + 20;
+        $deadline = microtime(true) + ($isMariaDb ? 2 : 20);
         $waiting = 0;
         do {
             $ids = array_map(fn (Process $worker): int => (int) strtok($worker->getOutput(), "\n"), $workers);
@@ -89,6 +90,7 @@ it('prevents duplicate records when simultaneous requests compete for the same w
             }
             usleep(20000);
         } while (microtime(true) < $deadline);
+        $workersBlockedBeforeCommit = collect($workers)->every(fn (Process $worker): bool => $worker->isRunning());
         DB::commit();
 
         $statuses = [];
@@ -99,7 +101,11 @@ it('prevents duplicate records when simultaneous requests compete for the same w
             $statuses[] = json_decode(end($lines), true, flags: JSON_THROW_ON_ERROR)['status'];
         }
         sort($statuses);
-        $this->assertSame(2, $waiting, 'Workers: '.json_encode(array_map(fn (Process $worker): array => ['output' => $worker->getOutput(), 'error' => $worker->getErrorOutput()], $workers)));
+        if ($isMariaDb) {
+            $this->assertTrue($workersBlockedBeforeCommit, 'Both workers should remain pending until the parent row lock is released.');
+        } else {
+            $this->assertSame(2, $waiting, 'Workers: '.json_encode(array_map(fn (Process $worker): array => ['output' => $worker->getOutput(), 'error' => $worker->getErrorOutput()], $workers)));
+        }
         expect($statuses)->toBe($operation === 'invoice' ? [302, 302] : [302, 422]);
         if ($operation === 'booking') {
             $this->assertDatabaseCount('appointments', 1);

@@ -48,6 +48,15 @@ it('keeps an appointment in progress until its repair is completed', function ()
     $job = RepairJob::query()->where('appointment_id', $appointment->id)->firstOrFail();
     expect($appointment->fresh()->status)->toBe('in_progress');
 
+    $quotation = Quotation::query()->create([
+        'customer_id' => $fixture['customer']->id, 'shop_id' => $fixture['shop']->id,
+        'vehicle_id' => $fixture['vehicle']->id, 'quotation_number' => 'QT-BOOKED-REPAIR',
+        'subtotal' => 500, 'total' => 500, 'status' => 'sent',
+    ]);
+    $job->update(['quotation_id' => $quotation->id]);
+    $this->actingAs($fixture['customer'])->patch(route('customer.quotations.update', $quotation), ['status' => 'accepted'])->assertRedirect();
+    $this->actingAs($fixture['owner']);
+
     $this->patch(route('shop.repair-jobs.update', $job), ['status' => 'in_progress'])->assertRedirect();
     expect($job->fresh()->started_at)->not->toBeNull();
     expect($appointment->fresh()->status)->toBe('in_progress');
@@ -83,6 +92,14 @@ it('rejects a second repair job for an appointment that already has one', functi
 it('creates a vehicle service record when a shop owner completes a repair job', function () {
     $fixture = repairFixture();
 
+    $quotation = Quotation::query()->create([
+        'customer_id' => $fixture['customer']->id, 'shop_id' => $fixture['shop']->id,
+        'vehicle_id' => $fixture['vehicle']->id, 'quotation_number' => 'QT-COMPLETED-REPAIR',
+        'subtotal' => 1500, 'total' => 1500, 'status' => 'sent',
+    ]);
+    $fixture['repairJob']->update(['quotation_id' => $quotation->id]);
+    $this->actingAs($fixture['customer'])->patch(route('customer.quotations.update', $quotation), ['status' => 'accepted'])->assertRedirect();
+
     $response = $this->actingAs($fixture['owner'])->patch(route('shop.repair-jobs.update', $fixture['repairJob']), [
         'status' => 'completed',
         'actual_cost' => 1500,
@@ -92,6 +109,24 @@ it('creates a vehicle service record when a shop owner completes a repair job', 
     $response->assertRedirect();
     $this->assertDatabaseHas('repair_jobs', ['id' => $fixture['repairJob']->id, 'status' => 'completed', 'actual_cost' => 1500]);
     $this->assertDatabaseHas('vehicle_service_records', ['repair_job_id' => $fixture['repairJob']->id, 'total_cost' => 1500]);
+});
+
+it('blocks repair work and manual cost changes until the customer approves an estimate', function () {
+    $fixture = repairFixture();
+    $this->actingAs($fixture['owner']);
+
+    $this->patch(route('shop.repair-jobs.update', $fixture['repairJob']), ['status' => 'repairing', 'actual_cost' => 1500])
+        ->assertSessionHasErrors('status');
+    $this->patch(route('shop.repair-jobs.update', $fixture['repairJob']), ['status' => 'completed', 'actual_cost' => 1500])
+        ->assertSessionHasErrors('status');
+    $this->patch(route('shop.repair-jobs.update', $fixture['repairJob']), ['status' => 'diagnosis', 'actual_cost' => 1500])
+        ->assertRedirect()->assertSessionHasNoErrors();
+
+    $this->assertDatabaseHas('repair_jobs', ['id' => $fixture['repairJob']->id, 'status' => 'diagnosis', 'actual_cost' => null]);
+    $this->assertDatabaseHas('repair_job_status_histories', ['repair_job_id' => $fixture['repairJob']->id, 'from_status' => 'pending', 'to_status' => 'diagnosis', 'changed_by' => $fixture['owner']->id]);
+    $this->assertDatabaseMissing('vehicle_service_records', ['repair_job_id' => $fixture['repairJob']->id]);
+    $this->actingAs($fixture['customer'])->get(route('customer.repairs.index'))
+        ->assertOk()->assertSee('Workflow history')->assertSee('Diagnosis')->assertSee($fixture['owner']->name);
 });
 
 it('lets a customer approve their sent quotation', function () {
@@ -118,6 +153,7 @@ it('lets a customer approve their sent quotation', function () {
         'decision' => 'approved',
     ]);
     $this->assertDatabaseHas('repair_jobs', ['id' => $fixture['repairJob']->id, 'status' => 'in_progress']);
+    $this->assertDatabaseHas('repair_job_status_histories', ['repair_job_id' => $fixture['repairJob']->id, 'to_status' => 'in_progress', 'changed_by' => $fixture['customer']->id]);
 });
 
 it('does not let a shop owner update another shop repair job', function () {
@@ -162,6 +198,14 @@ it('recalculates actual cost when work items are added or removed and keeps item
     $this->delete(route('shop.repair-job-items.destroy', $labor))->assertRedirect();
     expect($fixture['repairJob']->fresh()->actual_cost)->toBe('750.00');
     $remainingItem = $fixture['repairJob']->items()->sole();
+    $quotation = Quotation::query()->create([
+        'customer_id' => $fixture['customer']->id, 'shop_id' => $fixture['shop']->id,
+        'vehicle_id' => $fixture['vehicle']->id, 'quotation_number' => 'QT-ITEMIZED-REPAIR',
+        'subtotal' => 750, 'total' => 750, 'status' => 'sent',
+    ]);
+    $fixture['repairJob']->update(['quotation_id' => $quotation->id]);
+    $this->actingAs($fixture['customer'])->patch(route('customer.quotations.update', $quotation), ['status' => 'accepted'])->assertRedirect();
+    $this->actingAs($fixture['owner']);
     $this->patch(route('shop.repair-jobs.update', $fixture['repairJob']), ['status' => 'completed'])->assertRedirect();
     $this->delete(route('shop.repair-job-items.destroy', $remainingItem))->assertConflict();
     expect($fixture['repairJob']->fresh()->actual_cost)->toBe('750.00');

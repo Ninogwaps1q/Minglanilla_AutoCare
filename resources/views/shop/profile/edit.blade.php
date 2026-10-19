@@ -35,6 +35,15 @@
     </form>
     <section class="surface p-4 mt-4" aria-labelledby="verification-documents-title">
         <div class="mb-3"><h2 class="h4 mb-1" id="verification-documents-title">Verification documents</h2><p class="text-secondary mb-0">Upload permits securely for administrator review. PDF, JPG, or PNG up to 5 MB.</p></div>
+        <div class="row g-2 mb-3" aria-label="Required permit checklist">
+            @foreach ($shop->permitChecklist() as $permit)
+                <div class="col-md-6"><div class="border rounded p-3 h-100">
+                    <div class="d-flex align-items-center justify-content-between gap-2"><strong>{{ $permit['label'] }}</strong><span class="badge text-bg-{{ $permit['status'] === 'verified' ? 'success' : ($permit['status'] === 'rejected' || $permit['status'] === 'expired' ? 'danger' : 'warning') }} text-capitalize">{{ $permit['status'] }}</span></div>
+                    <p class="small text-secondary mb-0 mt-2">{{ $permit['action'] }}</p>
+                </div></div>
+            @endforeach
+        </div>
+        @unless ($shop->hasCurrentVerifiedPermits())<p class="small text-secondary">Both required permits must be current and verified before admin can approve your shop. If a document is rejected or expired, upload a corrected copy below.</p>@endunless
         <form method="POST" enctype="multipart/form-data" action="{{ route('shop.documents.store') }}" class="row g-3 align-items-end mb-4">@csrf
             <div class="col-md-4"><label class="form-label" for="document_type">Document type</label><select class="form-select" id="document_type" name="document_type" required><option value="business_permit">Business permit</option><option value="bir_registration">BIR registration</option><option value="dti_registration">DTI registration</option><option value="mayors_permit">Mayor's permit</option><option value="other">Other</option></select></div>
             <div class="col-md-4"><label class="form-label" for="document">Document file</label><input class="form-control @error('document') is-invalid @enderror" id="document" type="file" name="document" accept="application/pdf,image/jpeg,image/png" required>@error('document')<div class="invalid-feedback">{{ $message }}</div>@enderror</div>

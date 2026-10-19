@@ -99,6 +99,26 @@ test('directory filter submits and can be cleared', async ({ page }) => {
     await expect(page.getByLabel('Shop name')).toHaveValue('');
 });
 
+test('public shop profile guides customers to booking and messaging', async ({ page }) => {
+    test.skip(process.env.BROWSER_ISOLATED !== '1', 'Requires the disposable browser fixture');
+    const fixture = JSON.parse(process.env.BROWSER_FIXTURE);
+    const response = await page.goto('/shops/' + fixture.shop);
+    expect(response.status()).toBe(200);
+    await expect(page.getByRole('heading', { name: 'Customer reviews' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Sign in to book or message' })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+
+    await page.goto('/login');
+    await page.getByLabel('Email address').fill('customer@browser.example.test');
+    await page.getByLabel('Password', { exact: true }).fill(fixture.password);
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.goto('/shops/' + fixture.shop);
+    await expect(page.locator('#main-content').getByRole('link', { name: 'Book a service' })).toBeVisible();
+    await expect(page.locator('#main-content').getByRole('link', { name: 'Message shop' })).toBeVisible();
+    await page.locator('#main-content').getByRole('link', { name: 'Book a service' }).click();
+    await expect(page.locator('#shop_id')).toHaveValue(String(fixture.shop));
+});
+
 test('mobile public navigation opens and closes', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name === 'desktop', 'Mobile navigation only');
     await page.goto('/');

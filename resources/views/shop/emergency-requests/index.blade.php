@@ -11,8 +11,8 @@
                 <tbody>
                     @forelse ($requests as $emergencyRequest)
                         <tr>
-                            <td>{{ $emergencyRequest->customer->name }}<br><small>{{ $emergencyRequest->customer->phone }}</small></td>
-                            <td>{{ ucfirst(str_replace('_', ' ', $emergencyRequest->emergency_type)) }}<br><small>{{ $emergencyRequest->vehicle?->plate_number }}</small></td>
+                            <td>{{ $emergencyRequest->customer->name }}<br>@if ($emergencyRequest->customer->phone)<small><a href="tel:{{ preg_replace('/[^+0-9]/', '', $emergencyRequest->customer->phone) }}">Call {{ $emergencyRequest->customer->phone }}</a></small>@else<small class="text-secondary">No phone number provided</small>@endif</td>
+                            <td>{{ ucfirst(str_replace('_', ' ', $emergencyRequest->emergency_type)) }}<br><small>{{ $emergencyRequest->vehicle?->plate_number ?: 'Vehicle not specified' }}</small><br><small class="text-secondary">Requested {{ $emergencyRequest->requested_at?->format('M j, g:i A') }}</small></td>
                             <td>{{ $emergencyRequest->address ?: 'Coordinates shared' }}<br><small>{{ $emergencyRequest->latitude }}, {{ $emergencyRequest->longitude }}</small></td>
                             <td class="text-capitalize">{{ str_replace('_', ' ', $emergencyRequest->status) }}</td>
                             <td>

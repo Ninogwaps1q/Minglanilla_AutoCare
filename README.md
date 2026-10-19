@@ -1,59 +1,95 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Minglanilla AutoCare Hub
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Laravel application for customers, auto shops, and administrators. It covers shop discovery, appointments, estimates, repairs, invoices and payments, roadside assistance, service passports, and maintenance reminders.
 
-## About Laravel
+## Requirements
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- PHP 8.2 or newer with the extensions required by `composer install`, including PDO MySQL, mbstring, fileinfo, and OpenSSL
+- Composer 2
+- Node.js `^20.19.0` or `>=22.12.0` and npm (required by the installed Vite version)
+- MySQL 8 for the intended production database; a local MariaDB setup can run the app, but MySQL 8 concurrency sign-off must be done separately
+- A web server that points its document root to `public/`
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Set up a development copy
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+Run these commands from the repository root. In PowerShell, use `Copy-Item`; on macOS/Linux, use `cp` instead.
 
-## Learning Laravel
+```powershell
+composer install
+npm ci
+Copy-Item .env.example .env
+php artisan key:generate
+```
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+Create an **empty** database, then set `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, and `DB_PASSWORD` in `.env`. Set `APP_URL` to the address you will use in the browser. Do not commit `.env` or paste its secrets into an issue or chat.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+```powershell
+php artisan migrate --no-interaction
+php artisan storage:link
+npm run build
+php artisan app:deployment-check
+```
 
-## Laravel Sponsors
+Start the app with `composer run dev`, or run `php artisan serve`, `npm run dev`, and `php artisan queue:work` in separate terminals. Run `php artisan schedule:work` in another terminal if you want reminders, quotation expiry, and unanswered roadside reassignment to execute locally.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+`php artisan db:seed` is optional **only on a fresh local database**. It creates demo accounts with known passwords; never expose those accounts to the internet and change their passwords if you keep them. Do not run `migrate:fresh` or reset an existing database to set up this project.
 
-### Premium Partners
+If you do not use demo accounts, create the first administrator with `php artisan app:bootstrap-admin`. The command asks for a strong password privately and refuses to run once an administrator exists.
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+## Images and documents after cloning
 
-## Contributing
+Uploaded profile, shop, and vehicle images live in `storage/app/public`, not in Git. `php artisan storage:link` makes them available through `public/storage`. A fresh clone needs the link **and**, when moving an existing installation, a separate copy of the old public uploads. Secure shop documents and other private files in `storage/app/private` also need a separate, access-controlled transfer. Move the matching database backup too; a database row alone cannot recreate a missing image.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+If images do not appear:
 
-## Code of Conduct
+1. Check that `public/storage` resolves to this installation's `storage/app/public` directory; rerun `php artisan storage:link` if it is missing.
+2. Confirm the uploaded file exists in `storage/app/public` and that the web/queue processes can read it.
+3. Confirm `APP_URL` matches the browser origin and run `php artisan optimize:clear` after changing `.env`.
+4. On Windows, creating the storage link may require Developer Mode or an elevated terminal. Do not copy uploads into `public/` as a substitute for persistent storage.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## Optional integrations
 
-## Security Vulnerabilities
+- AI assistant: set `AI_PROVIDER=gemini`, `GEMINI_API_KEY`, and `AI_MODEL` in `.env`. Keep the key server-side.
+- Password-reset email: `MAIL_MAILER=log` writes development mail to Laravel logs. Configure a real mail provider before inviting users, then send and redeem a test reset link.
+- Maps and browser location: geolocation requires the user's permission and HTTPS in production (localhost is suitable for local testing).
+- Background work: the default database queue requires a running `php artisan queue:work` process. Production also needs a scheduler that invokes `php artisan schedule:run` every minute.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Tests
 
-## License
+```powershell
+php artisan route:list --except-vendor
+php artisan migrate:status
+php artisan test --compact
+npm run build
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+The normal PHP suite uses an in-memory SQLite database. Four concurrent-request tests are skipped unless explicitly enabled. Run them **only** against a disposable MySQL 8 test server whose credentials may create and drop databases named `autocare_concurrency_test_*`:
+
+```powershell
+$env:RUN_MYSQL_CONCURRENCY='1'
+php artisan test --compact tests/Feature/ConcurrentWorkflowTest.php
+Remove-Item Env:RUN_MYSQL_CONCURRENCY
+```
+
+Browser tests use an isolated temporary SQLite database and a local server on port 8877. Install the browser once with `npx playwright install chrome`, then run:
+
+```powershell
+$env:BROWSER_ISOLATED='1'
+npm run test:browser
+Remove-Item Env:BROWSER_ISOLATED
+```
+
+Do not point the browser tests at production. Their temporary database is deleted when the run completes.
+
+## Production checklist
+
+Before switching traffic to a new host:
+
+1. Set `APP_ENV=production`, `APP_DEBUG=false`, a unique `APP_KEY`, an HTTPS `APP_URL`, real database credentials, and a working mail provider. Keep `.env` outside source control.
+2. Run `composer install --no-dev --optimize-autoloader`, `npm ci`, `npm run build`, `php artisan migrate --force --no-interaction`, `php artisan storage:link`, and `php artisan optimize` on the target host. Ensure `storage/` and `bootstrap/cache/` are writable by the application.
+3. Start a supervised queue worker and configure the once-per-minute scheduler. Check `php artisan queue:failed` and `php artisan schedule:list`.
+4. Run `php artisan app:deployment-check --strict`. It checks configuration, database access, storage link, and writable directories, but it cannot prove external services are operating.
+5. Manually verify a delivered password-reset email, customer/shop/admin workflows, image upload and display, HTTPS, payment review, and a database **backup plus restore into a separate disposable database**. Do not restore over production as a test.
+6. On a private console, run `php artisan app:bootstrap-admin` to create the first production administrator. The local demo-account seeder intentionally does not create production users.
+
+This repository previously tracked `.env`; removing it from the current Git index does not erase old commits. Rotate any real keys or passwords that were committed, and coordinate history cleanup before publishing the repository.

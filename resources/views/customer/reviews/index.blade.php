@@ -7,7 +7,7 @@
                     <h2 class="h5">{{ $repairJob->shop->name }} · {{ $repairJob->job_number }}</h2>
                     <p class="text-secondary">{{ $repairJob->description }}</p>
                     @if ($repairJob->review)
-                        <p class="mb-0">Your rating: {{ $repairJob->review->rating }}/5 — {{ $repairJob->review->comment }}</p>
+                        <p class="mb-0 d-flex flex-wrap align-items-center gap-2"><span>Your rating:</span><x-star-rating :rating="$repairJob->review->rating" />@if ($repairJob->review->comment)<span>— {{ $repairJob->review->comment }}</span>@endif</p>
                     @else
                         <form method="POST" action="{{ route('customer.reviews.store') }}" class="row g-2 align-items-end">
                             @csrf

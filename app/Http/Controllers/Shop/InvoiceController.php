@@ -49,30 +49,50 @@ class InvoiceController extends Controller
     {
         abort_unless($repairJob->shop_id === $this->shop($request)->id && in_array($repairJob->status, ['completed', 'released'], true), 404);
 
-        $invoice = DB::transaction(function () use ($repairJob): Invoice {
+        $invoice = DB::transaction(function () use ($repairJob, $request): Invoice {
             $repairJob = RepairJob::query()->lockForUpdate()->findOrFail($repairJob->id);
             abort_unless(in_array($repairJob->status, ['completed', 'released'], true), 404);
             $existingInvoice = $repairJob->invoice()->first();
             if ($existingInvoice !== null) {
                 return $existingInvoice;
             }
-            $total = $repairJob->actual_cost ?? $repairJob->estimated_cost ?? 0;
+            $repairItems = $repairJob->items()->orderBy('id')->get();
+            $total = $repairItems->isNotEmpty()
+                ? number_format($repairItems->sum(fn ($item): int => (int) round((float) $item->subtotal * 100)) / 100, 2, '.', '')
+                : ($repairJob->actual_cost ?? $repairJob->estimated_cost ?? 0);
+            if (in_array($repairJob->quotation?->status, ['accepted', 'approved'], true)
+                && (int) round((float) $repairJob->quotation->total * 100) !== (int) round((float) $total * 100)) {
+                throw ValidationException::withMessages(['invoice' => 'The repair items do not match the customer-approved estimate. Review the repair before issuing an invoice.']);
+            }
+            if ($repairItems->isNotEmpty() && (int) round((float) $repairJob->actual_cost * 100) !== (int) round((float) $total * 100)) {
+                $repairJob->update(['actual_cost' => $total]);
+            }
             $invoice = Invoice::query()->create([
                 'customer_id' => $repairJob->customer_id,
                 'shop_id' => $repairJob->shop_id,
                 'repair_job_id' => $repairJob->id,
+                'created_by' => $request->user()->id,
                 'invoice_number' => 'INV-'.Str::upper(Str::random(10)),
                 'subtotal' => $total,
                 'total' => $total,
                 'status' => 'unpaid',
             ]);
 
-            $invoice->items()->create([
-                'description' => $repairJob->description,
-                'quantity' => 1,
-                'unit_price' => $total,
-                'subtotal' => $total,
-            ]);
+            if ($repairItems->isNotEmpty()) {
+                $invoice->items()->createMany($repairItems->map(fn ($item): array => [
+                    'description' => ucfirst($item->type).': '.$item->description,
+                    'quantity' => $item->quantity,
+                    'unit_price' => $item->unit_price,
+                    'subtotal' => $item->subtotal,
+                ])->all());
+            } else {
+                $invoice->items()->create([
+                    'description' => $repairJob->description,
+                    'quantity' => 1,
+                    'unit_price' => $total,
+                    'subtotal' => $total,
+                ]);
+            }
 
             return $invoice;
         });
@@ -92,7 +112,7 @@ class InvoiceController extends Controller
             if ($request->validated('status') === 'confirmed' && (int) round(((float) $invoice->payments()->where('status', 'confirmed')->sum('amount') + (float) $payment->amount) * 100) > (int) round((float) $invoice->total * 100)) {
                 throw ValidationException::withMessages(['status' => 'This payment would exceed the invoice total. Review the recorded payments before confirming.']);
             }
-            $payment->update($request->validated());
+            $payment->update([...$request->validated(), 'reviewed_by' => $request->user()->id, 'reviewed_at' => now()]);
             $confirmedTotal = $invoice->payments()->where('status', 'confirmed')->sum('amount');
             $confirmedCents = (int) round((float) $confirmedTotal * 100);
             $totalCents = (int) round((float) $invoice->total * 100);

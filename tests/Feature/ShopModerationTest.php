@@ -65,16 +65,43 @@ it('notifies and logs a verification decision once and does not bypass suspensio
     $this->assertDatabaseHas('shops', ['id' => $shop->id, 'shop_status' => 'suspended']);
 });
 
-it('allows an administrator to approve after reviewing incomplete documents', function () {
+it('requires verified current business and mayors permits before approving a shop', function () {
     $shop = shopModerationFixture();
     $shop->update(['verification_status' => 'pending', 'shop_status' => 'inactive']);
     $shop->documents()->create(['document_type' => 'business_permit', 'document_path' => 'documents/expired.pdf', 'verification_status' => 'verified', 'expires_at' => today()->subDay()]);
 
-    $this->actingAs(User::factory()->create(['role' => 'admin']))->patch(route('admin.shops.approve', $shop))->assertRedirect();
+    $this->actingAs(User::factory()->create(['role' => 'admin']))->patch(route('admin.shops.approve', $shop))->assertSessionHasErrors('shop');
+
+    $this->assertDatabaseHas('shops', ['id' => $shop->id, 'verification_status' => 'pending', 'shop_status' => 'inactive']);
+    $this->assertDatabaseCount('activity_logs', 0);
+    $this->assertDatabaseCount('notifications', 0);
+
+    $shop->documents()->createMany([
+        ['document_type' => 'business_permit', 'document_path' => 'documents/business-current.pdf', 'verification_status' => 'verified', 'expires_at' => today()->addMonth()],
+        ['document_type' => 'mayors_permit', 'document_path' => 'documents/mayor-current.pdf', 'verification_status' => 'verified', 'expires_at' => today()],
+    ]);
+    $this->get(route('admin.shops.index'))->assertSee('Required permit checklist')->assertSee('Current and verified.');
+    $this->patch(route('admin.shops.approve', $shop))->assertRedirect();
 
     $this->assertDatabaseHas('shops', ['id' => $shop->id, 'verification_status' => 'approved', 'shop_status' => 'active']);
     $this->assertDatabaseCount('activity_logs', 1);
     $this->assertDatabaseCount('notifications', 1);
+});
+
+it('shows the latest permit decision and exact correction to admin and shop owner', function () {
+    $shop = shopModerationFixture();
+    $shop->update(['verification_status' => 'pending', 'shop_status' => 'inactive']);
+    $shop->documents()->createMany([
+        ['document_type' => 'business_permit', 'document_path' => 'documents/old.pdf', 'verification_status' => 'verified'],
+        ['document_type' => 'business_permit', 'document_path' => 'documents/rejected.pdf', 'verification_status' => 'rejected', 'admin_notes' => 'Upload a readable renewed business permit.'],
+    ]);
+
+    expect($shop->hasCurrentVerifiedPermits())->toBeFalse();
+    $this->actingAs(User::factory()->create(['role' => 'admin']))->get(route('admin.shops.index'))
+        ->assertOk()->assertSee('Upload a readable renewed business permit.')->assertSee('Upload this permit to continue verification.');
+    $this->patch(route('admin.shops.approve', $shop))->assertSessionHasErrors('shop');
+    $this->actingAs($shop->owner)->get(route('shop.profile.edit'))
+        ->assertOk()->assertSee('Upload a readable renewed business permit.');
 });
 
 it('denies shop moderation to non administrators', function (string $role) {

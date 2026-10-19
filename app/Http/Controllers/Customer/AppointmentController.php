@@ -59,6 +59,7 @@ class AppointmentController extends Controller
                 ->orderBy('name')
                 ->get(),
             'vehicles' => $request->user()->vehicles()->orderBy('plate_number')->get(),
+            'selectedShopId' => $request->integer('shop_id'),
         ]);
     }
 

@@ -7,7 +7,7 @@
                     <div class="d-flex justify-content-between gap-3">
                         <div>
                             <h2 class="h5 mb-1">{{ $review->customer->name }} · {{ $review->repairJob->job_number }}</h2>
-                            <p class="text-warning mb-2">{{ $review->rating }}/5 stars</p>
+                            <p class="mb-2"><x-star-rating :rating="$review->rating" /></p>
                             <p>{{ $review->comment }}</p>
                         </div>
                         <small class="text-secondary">{{ $review->created_at->format('M j, Y') }}</small>

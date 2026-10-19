@@ -18,7 +18,7 @@
                 <select id="shop_id" class="form-select @error('shop_id') is-invalid @enderror" name="shop_id" required>
                     <option value="">Choose a shop</option>
                     @foreach ($shops as $shop)
-                        <option value="{{ $shop->id }}" @selected(old('shop_id') == $shop->id)>{{ $shop->name }}</option>
+                        <option value="{{ $shop->id }}" @selected(old('shop_id', $selectedShopId) == $shop->id)>{{ $shop->name }}</option>
                     @endforeach
                 </select>
                 @error('shop_id')<div class="invalid-feedback">{{ $message }}</div>@enderror

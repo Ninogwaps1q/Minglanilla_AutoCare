@@ -19,7 +19,7 @@
                         <td><a href="{{ route('shops.show', $offer->shop) }}">{{ $offer->shop->name }}</a></td>
                         <td>{{ $offer->shop->barangay->name }}</td>
                         <td>₱{{ number_format($offer->price, 2) }}</td>
-                        <td>{{ number_format($offer->shop->average_rating, 1) }}</td>
+                        <td>@if ($offer->shop->total_reviews > 0)<x-star-rating :rating="$offer->shop->average_rating" />@else<span class="text-secondary">Not yet rated</span>@endif</td>
                 </tr>@empty<tr>
                         <td colspan="4" class="text-secondary p-4">No approved shops currently offer this service.</td>
                     </tr>@endforelse

@@ -11,7 +11,7 @@ class Payment extends Model
 
     protected function casts(): array
     {
-        return ['amount' => 'decimal:2', 'payment_date' => 'datetime'];
+        return ['amount' => 'decimal:2', 'payment_date' => 'datetime', 'reviewed_at' => 'datetime'];
     }
 
     public function invoice(): BelongsTo
@@ -27,5 +27,10 @@ class Payment extends Model
     public function shop(): BelongsTo
     {
         return $this->belongsTo(Shop::class);
+    }
+
+    public function reviewedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
     }
 }

@@ -69,6 +69,9 @@ class ShopVerificationController extends Controller
             if ($shop->verification_status === $verification) {
                 return;
             }
+            if ($verification === 'approved' && ! $shop->hasCurrentVerifiedPermits()) {
+                throw ValidationException::withMessages(['shop' => 'Verify current business and mayor\'s permits before approving this shop.']);
+            }
             $shop->update(['verification_status' => $verification, 'shop_status' => $status]);
             $this->recordDecision($shop, $request, "Shop registration {$verification}.");
         });

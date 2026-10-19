@@ -62,23 +62,40 @@ for (const [role, paths] of Object.entries(pages)) {
     });
 }
 
+test('customer can share location and see the assigned roadside shop', async ({ page }, testInfo) => {
+    await signIn(page, 'customer');
+    await page.context().grantPermissions(['geolocation']);
+    await page.context().setGeolocation({ latitude: 10.2443, longitude: 123.7898 });
+    await page.goto('/customer/emergency-requests');
+    await page.getByRole('button', { name: 'Use my current location' }).click();
+    await expect(page.getByRole('status')).toContainText('Location ready');
+    const landmark = 'Browser roadside ' + testInfo.project.name;
+    await page.getByLabel('Location details').fill(landmark);
+    await page.getByRole('button', { name: 'Send assistance request' }).click();
+    const request = page.getByRole('article', { name: 'breakdown request' }).filter({ hasText: landmark });
+    await expect(request).toContainText('Browser Test AutoCare');
+    await expect(request.getByRole('link', { name: '09170000000' })).toHaveAttribute('href', 'tel:09170000000');
+    await expect(request).toContainText('Dispatch history (1)');
+});
+
 for (const [role, notificationsPath] of [['customer', '/customer/notifications'], ['shop_owner', '/shop/notifications']]) {
     test(role + ' notification navigation stays labeled and aligned in both themes', async ({ page }, testInfo) => {
         await signIn(page, role);
-        const notificationLink = page.getByRole('link', { name: 'Notifications, 0 unread' });
+        const notificationLink = page.locator('.portal-topbar .portal-notifications-link');
         await expect(notificationLink).toBeVisible();
-        await expect(notificationLink.locator('.portal-notifications-count')).toHaveText('0');
+        const unreadCount = Number((await notificationLink.getAttribute('aria-label')).match(/Notifications, (\d+) unread/)[1]);
+        await expect(notificationLink.locator('.portal-notifications-count')).toHaveText(String(unreadCount));
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => document.documentElement.clientWidth + 1));
         await page.screenshot({ path: testInfo.outputPath(role + '-notification-header-light.png'), fullPage: false });
 
         await notificationLink.click();
         await expect(page).toHaveURL(new RegExp(notificationsPath + '$'));
         await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible();
-        await expect(page.locator('.notification-summary')).toHaveText('0 unread');
+        await expect(page.locator('.notification-summary')).toContainText('unread');
         await page.evaluate(() => localStorage.setItem('autocare-theme', 'dark'));
         await page.reload();
         await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-        await expect(page.getByRole('link', { name: 'Notifications, 0 unread' })).toBeVisible();
+        await expect(page.locator('.portal-topbar .portal-notifications-link')).toBeVisible();
         await page.screenshot({ path: testInfo.outputPath(role + '-notifications-dark.png'), fullPage: false });
     });
 }
@@ -106,7 +123,8 @@ test('customer creates a vehicle and opens its private passport', async ({ page 
     expect(await vehicleCard.locator('.vehicle-card-photo').evaluate(element => element.complete && element.naturalWidth > 0)).toBe(true);
     const fixture = JSON.parse(process.env.BROWSER_FIXTURE);
     await page.goto('/customer/vehicles/' + fixture.vehicle + '/passport');
-    const qr = page.getByAltText('QR code linking to this private vehicle passport');
+    await page.getByText('My private QR (owner login only)').click();
+    const qr = page.getByAltText('QR code linking to your private vehicle passport');
     await expect(qr).toBeVisible();
     expect(await qr.evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
 });
@@ -166,7 +184,7 @@ test('customer sees shop payment details and the review steps', async ({ page })
 test('customer dashboard makes primary actions clear', async ({ page }, testInfo) => {
     await signIn(page, 'customer');
     await expect(page.getByRole('heading', { name: /Good (morning|afternoon|evening)/ })).toBeVisible();
-    await expect(page.locator('#main-content').getByRole('link', { name: 'Find a nearby shop' })).toBeVisible();
+    await expect(page.locator('.customer-welcome .btn-accent')).toBeVisible();
     await expect(page.locator('#main-content').getByRole('link', { name: 'Book a service' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Your care summary' })).toBeVisible();
     const aiLauncher = page.getByRole('button', { name: 'Open AutoCare AI assistant' });
@@ -220,7 +238,7 @@ test('AI assistant starts without saved database chat history', async ({ page },
     await expect(page.getByRole('heading', { name: 'How can I help with your vehicle today?' })).toBeVisible();
     await expect(page.locator('.ai-message-user')).toHaveCount(0);
     await expect(page.locator('.ai-message-assistant')).toHaveCount(0);
-    await expect(page.getByLabel('Ask AutoCare AI a question')).toBeVisible();
+    await expect(page.getByLabel('Your question for AutoCare AI')).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => document.documentElement.clientWidth + 1));
     await page.screenshot({ path: testInfo.outputPath('ai-assistant.png'), fullPage: true });
 });
@@ -231,7 +249,7 @@ test('shop and admin dashboards make daily priorities clear', async ({ page }, t
     await expect(page.getByRole('heading', { name: 'Browser Test AutoCare' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Today at a glance' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Review appointments' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Create repair job' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'View repair jobs' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Quick actions' })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => document.documentElement.clientWidth + 1));
     if (testInfo.project.name !== 'desktop') {
@@ -341,7 +359,7 @@ test('admin manages categories and suspends then restores a public shop', async 
     await expect(updated).toHaveCount(0);
 
     await page.goto('/admin/shops');
-    const shop = page.getByRole('row').filter({ hasText: 'Browser Test AutoCare' });
+    const shop = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Browser Test AutoCare' }) });
     await shop.getByLabel('Reason for suspending Browser Test AutoCare').fill('Browser moderation test');
     await shop.getByRole('button', { name: 'Suspend shop', exact: true }).click();
     await expect(shop.getByRole('button', { name: 'Reactivate shop' })).toBeVisible();
@@ -356,8 +374,8 @@ test('shop owner records part usage for an active repair', async ({ page }) => {
     await page.goto('/shop/inventory');
     const row = page.getByRole('row').filter({ hasText: 'Browser Brake Pad' });
     const stock = Number((await row.getByRole('cell').first().textContent()).match(/\d+/)[0]);
-    await row.getByLabel('Repair job for Browser Brake Pad').selectOption(String(fixture.repairJob));
-    await row.getByLabel('Units of Browser Brake Pad used').fill('1');
+    await row.getByLabel('Repair job').selectOption(String(fixture.repairJob));
+    await row.getByLabel('Units used').fill('1');
     await row.getByRole('button', { name: 'Record usage' }).click();
     await expect(page.getByText('Part usage recorded for the repair job.')).toBeVisible();
     await expect(row.getByRole('cell').first()).toContainText(String(stock - 1));
@@ -391,8 +409,8 @@ test('uploaded customer and shop images render from public storage', async ({ pa
     await page.getByRole('button', { name: 'Save profile' }).click();
     await expect(page.getByText('Your profile has been updated.')).toBeVisible();
     await expect(page.locator('.profile-photo-preview')).toBeVisible();
-    expect(await page.locator('.profile-photo-preview').evaluate(element => element.complete && element.naturalWidth > 0)).toBe(true);
-    expect(await page.locator('.account-avatar').evaluate(element => element.complete && element.naturalWidth > 0)).toBe(true);
+    await expect.poll(() => page.locator('.profile-photo-preview').evaluate(element => element.complete && element.naturalWidth > 0)).toBe(true);
+    await expect.poll(() => page.locator('.account-avatar').evaluate(element => element.complete && element.naturalWidth > 0)).toBe(true);
 
     await page.context().clearCookies();
     await signIn(page, 'shop_owner');

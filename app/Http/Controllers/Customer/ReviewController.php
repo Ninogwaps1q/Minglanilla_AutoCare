@@ -25,19 +25,18 @@ class ReviewController extends Controller
     {
         $repairJob = RepairJob::query()->whereBelongsTo($request->user(), 'customer')->whereKey($request->integer('repair_job_id'))->whereIn('status', ['completed', 'released'])->firstOrFail();
 
-        if ($repairJob->review()->exists()) {
-            throw ValidationException::withMessages(['repair_job_id' => 'You have already reviewed this repair job.']);
-        }
-
         DB::transaction(function () use ($repairJob, $request): void {
+            $shop = $repairJob->shop()->lockForUpdate()->firstOrFail();
+            if ($repairJob->review()->exists()) {
+                throw ValidationException::withMessages(['repair_job_id' => 'You have already reviewed this repair job.']);
+            }
             $review = Review::query()->create([
                 ...$request->validated(),
                 'customer_id' => $request->user()->id,
                 'shop_id' => $repairJob->shop_id,
                 'status' => 'published',
             ]);
-            $shop = $repairJob->shop()->firstOrFail();
-            $shop->update(['average_rating' => $shop->reviews()->avg('rating'), 'total_reviews' => $shop->reviews()->count()]);
+            $shop->refreshPublishedRating();
             $shop->owner->notifications()->create([
                 'type' => 'review_received',
                 'title' => 'New customer review',

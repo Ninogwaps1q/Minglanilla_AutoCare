@@ -22,7 +22,7 @@ class RepairJobController extends Controller
     public function storeFromQuotation(Request $request, Quotation $quotation): RedirectResponse
     {
         abort_unless($quotation->shop_id === $this->shop($request)->id, 404);
-        DB::transaction(function () use ($quotation): void {
+        DB::transaction(function () use ($quotation, $request): void {
             $quotation = Quotation::query()->lockForUpdate()->findOrFail($quotation->id);
             abort_unless(in_array($quotation->status, ['accepted', 'approved'], true), 409);
             if (RepairJob::query()->where('quotation_id', $quotation->id)->exists()) {
@@ -43,6 +43,7 @@ class RepairJobController extends Controller
                 'subtotal' => $item->subtotal,
             ])->all());
             $repairJob->update(['actual_cost' => $repairJob->items()->sum('subtotal')]);
+            $repairJob->statusHistories()->create(['to_status' => 'approved', 'changed_by' => $request->user()->id, 'changed_at' => now(), 'note' => 'Created from customer-approved estimate']);
         });
 
         return redirect()->route('shop.repair-jobs.index')->with('status', 'Repair job ready for the accepted quotation.');
@@ -55,7 +56,7 @@ class RepairJobController extends Controller
 
         return view('shop.repair-jobs.index', [
             'repairJobs' => $this->shop($request)->repairJobs()
-                ->with(['customer', 'vehicle', 'appointment', 'invoice', 'items', 'quotation', 'technicianAssignments.technician'])
+                ->with(['customer', 'vehicle', 'appointment', 'invoice.issuedBy', 'invoice.payments.customer', 'invoice.payments.reviewedBy', 'items', 'quotation.approvalRecords.customer', 'statusHistories.changedBy', 'technicianAssignments.technician'])
                 ->when($status, fn ($query) => $query->where('status', $status))
                 ->when($request->integer('appointment_id') > 0, fn ($query) => $query->where('appointment_id', $request->integer('appointment_id')))
                 ->latest()
@@ -99,6 +100,7 @@ class RepairJobController extends Controller
                 'job_number' => 'RJ-'.Str::upper(Str::random(10)),
                 'status' => 'pending',
             ]);
+            $repairJob->statusHistories()->create(['to_status' => 'pending', 'changed_by' => $request->user()->id, 'changed_at' => now()]);
 
             $appointment->update(['status' => 'in_progress']);
 
@@ -127,14 +129,16 @@ class RepairJobController extends Controller
             if ($nextStatus !== $repairJob->status && ! array_key_exists($nextStatus, $repairJob->availableStatuses()) && ! ($nextStatus === 'in_progress' && ! in_array($repairJob->status, ['waiting_approval', 'completed', 'released', 'cancelled'], true))) {
                 throw ValidationException::withMessages(['status' => 'This status change is not allowed for the current repair stage.']);
             }
-            if (in_array($nextStatus, ['approved', 'repairing', 'in_progress', 'completed'], true) && $repairJob->quotation && ! in_array($repairJob->quotation->status, ['accepted', 'approved'], true)) {
-                throw ValidationException::withMessages(['status' => 'The customer must accept the quotation before repair work proceeds.']);
+            if (in_array($nextStatus, ['approved', 'repairing', 'in_progress', 'completed'], true) && ! in_array($repairJob->quotation?->status, ['accepted', 'approved'], true)) {
+                throw ValidationException::withMessages(['status' => 'Send an estimate and wait for the customer to approve it before repair work proceeds.']);
             }
             $attributes = $request->validated();
-            if ($repairJob->items()->exists() || in_array($repairJob->quotation?->status, ['sent', 'accepted', 'approved'], true)) {
-                unset($attributes['actual_cost']);
-            }
+            unset($attributes['actual_cost']);
+            $previousStatus = $repairJob->status;
             $repairJob->update($attributes);
+            if ($previousStatus !== $repairJob->status) {
+                $repairJob->statusHistories()->create(['from_status' => $previousStatus, 'to_status' => $repairJob->status, 'changed_by' => $request->user()->id, 'changed_at' => now()]);
+            }
 
             if (in_array($repairJob->status, ['in_progress', 'repairing'], true) && $repairJob->started_at === null) {
                 $repairJob->update(['started_at' => now()]);

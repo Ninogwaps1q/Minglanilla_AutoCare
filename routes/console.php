@@ -15,3 +15,7 @@ Schedule::command('app:expire-quotations')
 Schedule::command('app:send-maintenance-reminders')
     ->daily()
     ->withoutOverlapping(30);
+
+Schedule::command('app:reassign-unanswered-emergency-requests')
+    ->everyFiveMinutes()
+    ->withoutOverlapping(5);

@@ -1,6 +1,30 @@
 @import 'bootstrap/dist/css/bootstrap.min.css';
 @import 'bootstrap-icons/font/bootstrap-icons.css';
 
+.rating-display {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.rating-stars {
+    display: inline-flex;
+    gap: .12rem;
+    color: #9a4d00;
+    line-height: 1;
+}
+
+.rating-score {
+    color: var(--bs-body-color);
+    font-size: .95em;
+}
+
+html[data-theme="dark"] .rating-stars {
+    color: #fbbf24;
+}
+
 .skip-link {
     position: fixed;
     top: -6rem;

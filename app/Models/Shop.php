@@ -50,6 +50,43 @@ class Shop extends Model
         return $this->hasMany(ShopDocument::class);
     }
 
+    public function hasCurrentVerifiedPermits(): bool
+    {
+        return collect($this->permitChecklist())->every(fn (array $permit): bool => $permit['status'] === 'verified');
+    }
+
+    /**
+     * @return array<int, array{type: string, label: string, status: string, action: string, document: ?ShopDocument}>
+     */
+    public function permitChecklist(): array
+    {
+        $documents = $this->relationLoaded('documents') ? $this->documents : $this->documents()->get();
+
+        return collect(['business_permit' => 'Business permit', 'mayors_permit' => 'Mayor’s permit'])
+            ->map(function (string $label, string $type) use ($documents): array {
+                $document = $documents->where('document_type', $type)->sortByDesc('id')->first();
+                $status = match (true) {
+                    $document === null => 'missing',
+                    $document->expires_at?->isBefore(today()) => 'expired',
+                    default => $document->verification_status,
+                };
+
+                return [
+                    'type' => $type,
+                    'label' => $label,
+                    'status' => $status,
+                    'action' => match ($status) {
+                        'verified' => 'Current and verified.',
+                        'pending' => 'Waiting for admin review.',
+                        'rejected' => $document->admin_notes ?: 'Upload a corrected permit for review.',
+                        'expired' => 'Upload a renewed permit.',
+                        default => 'Upload this permit to continue verification.',
+                    },
+                    'document' => $document,
+                ];
+            })->values()->all();
+    }
+
     public function spareParts(): HasMany
     {
         return $this->hasMany(SparePart::class);
@@ -68,6 +105,15 @@ class Shop extends Model
     public function reviews(): HasMany
     {
         return $this->hasMany(Review::class);
+    }
+
+    public function refreshPublishedRating(): void
+    {
+        $publishedReviews = $this->reviews()->where('status', 'published');
+        $this->update([
+            'average_rating' => $publishedReviews->avg('rating') ?? 0,
+            'total_reviews' => $publishedReviews->count(),
+        ]);
     }
 
     public function messageThreads(): HasMany

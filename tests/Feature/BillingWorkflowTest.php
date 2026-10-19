@@ -2,6 +2,7 @@
 
 use App\Models\Barangay;
 use App\Models\Invoice;
+use App\Models\Quotation;
 use App\Models\RepairJob;
 use App\Models\Shop;
 use App\Models\User;
@@ -22,10 +23,46 @@ it('lets a shop owner issue an invoice for a completed repair job', function () 
         'repair_job_id' => $fixture['repairJob']->id,
         'customer_id' => $fixture['customer']->id,
         'shop_id' => $fixture['shop']->id,
+        'created_by' => $fixture['owner']->id,
         'total' => 1850,
         'status' => 'unpaid',
     ]);
     $this->assertDatabaseHas('invoice_items', ['description' => 'Brake inspection', 'unit_price' => 1850]);
+});
+
+it('copies the repair work breakdown into a single invoice with the matching total', function () {
+    $fixture = billingFixture();
+    $repairJob = $fixture['repairJob'];
+    $repairJob->update(['status' => 'completed', 'actual_cost' => 9999]);
+    $repairJob->items()->createMany([
+        ['type' => 'labor', 'description' => 'Brake inspection', 'quantity' => 1, 'unit_price' => '500.00', 'subtotal' => '500.00'],
+        ['type' => 'part', 'description' => 'Brake pad', 'quantity' => 2, 'unit_price' => '675.25', 'subtotal' => '1350.50'],
+    ]);
+
+    $this->actingAs($fixture['owner'])->post(route('shop.invoices.store', $repairJob))->assertRedirect();
+
+    $invoice = $repairJob->invoice()->with('items')->firstOrFail();
+    expect((float) $invoice->total)->toBe(1850.5);
+    expect($invoice->items)->toHaveCount(2);
+    $this->assertDatabaseHas('invoice_items', ['invoice_id' => $invoice->id, 'description' => 'Labor: Brake inspection', 'subtotal' => 500]);
+    $this->assertDatabaseHas('invoice_items', ['invoice_id' => $invoice->id, 'description' => 'Part: Brake pad', 'quantity' => 2, 'subtotal' => 1350.50]);
+    $this->actingAs($fixture['customer'])->get(route('customer.invoices.show', $invoice))
+        ->assertOk()->assertSee('Labor: Brake inspection')->assertSee('Part: Brake pad');
+});
+
+it('does not issue an invoice above the customer-approved estimate', function () {
+    $fixture = billingFixture();
+    $repairJob = $fixture['repairJob'];
+    $quotation = Quotation::query()->create([
+        'customer_id' => $fixture['customer']->id, 'shop_id' => $fixture['shop']->id,
+        'vehicle_id' => $fixture['vehicle']->id, 'quotation_number' => 'QT-BILL-APPROVED',
+        'subtotal' => 500, 'total' => 500, 'status' => 'accepted',
+    ]);
+    $repairJob->update(['status' => 'completed', 'quotation_id' => $quotation->id, 'actual_cost' => 650]);
+    $repairJob->items()->create(['type' => 'labor', 'description' => 'Brake inspection', 'quantity' => 1, 'unit_price' => 650, 'subtotal' => 650]);
+
+    $this->actingAs($fixture['owner'])->post(route('shop.invoices.store', $repairJob))->assertSessionHasErrors('invoice');
+    $this->assertDatabaseCount('invoices', 0);
 });
 
 it('records a customer payment and lets the shop confirm it', function () {
@@ -54,8 +91,11 @@ it('records a customer payment and lets the shop confirm it', function () {
         ->patch(route('shop.payments.update', $payment), ['status' => 'confirmed'])
         ->assertRedirect();
 
-    $this->assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'confirmed']);
+    $this->assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'confirmed', 'reviewed_by' => $fixture['owner']->id]);
+    expect($payment->fresh()->reviewed_at)->not->toBeNull();
     $this->assertDatabaseHas('invoices', ['id' => $invoice->id, 'status' => 'paid']);
+    $this->actingAs($fixture['customer'])->get(route('customer.repairs.index'))
+        ->assertOk()->assertSee('Payment confirmed')->assertSee($fixture['owner']->name);
 });
 
 it('does not let a customer submit payment for another customers invoice', function () {

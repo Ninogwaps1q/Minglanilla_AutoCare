@@ -27,7 +27,7 @@ class PublicShopController extends Controller
     {
         abort_unless($shop->verification_status === 'approved' && $shop->shop_status === 'active', 404);
 
-        return view('shops.show', ['shop' => $shop->load(['barangay', 'services.service.category', 'reviews' => fn ($query) => $query->where('status', 'published')->with('customer')->latest()])]);
+        return view('shops.show', ['shop' => $shop->load(['barangay', 'services.service.category', 'reviews' => fn ($query) => $query->where('status', 'published')->with('customer:id,name')->latest()->limit(5)])]);
     }
 
     public function compare(Service $service): View

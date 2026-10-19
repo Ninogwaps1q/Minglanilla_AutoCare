@@ -71,7 +71,11 @@ class QuotationController extends Controller
                 'status' => 'draft',
             ]);
             $service->send($quotation, $request->validated('items'), $request->validated('valid_until'), $request->validated('notes'));
+            $previousStatus = $repairJob->status;
             $repairJob->update(['quotation_id' => $quotation->id, 'estimated_cost' => $quotation->total, 'status' => 'waiting_approval']);
+            if ($previousStatus !== 'waiting_approval') {
+                $repairJob->statusHistories()->create(['from_status' => $previousStatus, 'to_status' => 'waiting_approval', 'changed_by' => $request->user()->id, 'changed_at' => now(), 'note' => 'Estimate sent to customer']);
+            }
         });
 
         return redirect()->route('shop.repair-jobs.index')->with('status', 'Quotation sent to the customer.');

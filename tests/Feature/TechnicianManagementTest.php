@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Barangay;
+use App\Models\Quotation;
 use App\Models\RepairJob;
 use App\Models\Shop;
 use App\Models\User;
@@ -50,7 +51,8 @@ function technicianFixture(): array
     $customer = User::factory()->create(['role' => 'customer']);
     $shop = Shop::query()->create(['owner_id' => $owner->id, 'barangay_id' => Barangay::factory()->create()->id, 'name' => 'Technician Shop', 'phone' => '09170000000', 'email' => 'tech@example.test', 'address' => 'Demo Street']);
     $vehicle = Vehicle::factory()->create(['customer_id' => $customer->id]);
-    $job = RepairJob::query()->create(['shop_id' => $shop->id, 'customer_id' => $customer->id, 'vehicle_id' => $vehicle->id, 'job_number' => 'RJ-TECH-001', 'description' => 'Inspection', 'status' => 'repairing']);
+    $quotation = Quotation::query()->create(['customer_id' => $customer->id, 'shop_id' => $shop->id, 'vehicle_id' => $vehicle->id, 'quotation_number' => 'QT-TECH-001', 'subtotal' => 500, 'total' => 500, 'status' => 'accepted']);
+    $job = RepairJob::query()->create(['shop_id' => $shop->id, 'customer_id' => $customer->id, 'vehicle_id' => $vehicle->id, 'quotation_id' => $quotation->id, 'job_number' => 'RJ-TECH-001', 'description' => 'Inspection', 'status' => 'repairing']);
 
     return compact('owner', 'shop', 'job');
 }

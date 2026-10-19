@@ -28,6 +28,21 @@ it('lets an administrator hide a review and records the moderation action', func
     ]);
 });
 
+it('keeps public ratings in sync when an administrator hides and restores reviews', function () {
+    $fixture = moderationFixture();
+    $shop = $fixture['review']->shop;
+    $shop->refreshPublishedRating();
+    expect($shop->fresh()->total_reviews)->toBe(1);
+
+    $this->actingAs($fixture['admin'])->patch(route('admin.reviews.update', $fixture['review']), ['status' => 'hidden'])->assertRedirect();
+    expect($shop->fresh()->total_reviews)->toBe(0);
+    expect((float) $shop->fresh()->average_rating)->toBe(0.0);
+
+    $this->patch(route('admin.reviews.update', $fixture['review']), ['status' => 'published'])->assertRedirect();
+    expect($shop->fresh()->total_reviews)->toBe(1);
+    expect((float) $shop->fresh()->average_rating)->toBe(4.0);
+});
+
 it('shows moderation and audit pages only to administrators', function () {
     $fixture = moderationFixture();
 

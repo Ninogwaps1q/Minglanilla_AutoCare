@@ -78,8 +78,13 @@ class QuotationController extends Controller
                             'subtotal' => $item->subtotal,
                         ])->all());
                     }
-                    $repairJob->update(['status' => $status === 'approved' ? 'in_progress' : 'approved',
+                    $previousStatus = $repairJob->status;
+                    $nextStatus = $status === 'approved' ? 'in_progress' : 'approved';
+                    $repairJob->update(['status' => $nextStatus,
                         'estimated_cost' => $quotation->total, 'actual_cost' => $quotation->total]);
+                    if ($previousStatus !== $nextStatus) {
+                        $repairJob->statusHistories()->create(['from_status' => $previousStatus, 'to_status' => $nextStatus, 'changed_by' => $request->user()->id, 'changed_at' => now(), 'note' => 'Customer approved estimate']);
+                    }
                 }
             }
             $quotation->shop->owner->notifications()->create([

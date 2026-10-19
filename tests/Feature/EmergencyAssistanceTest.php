@@ -6,6 +6,7 @@ use App\Models\Shop;
 use App\Models\User;
 use App\Models\Vehicle;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
 
 uses(RefreshDatabase::class);
 
@@ -28,6 +29,47 @@ it('assigns a customer emergency request to the nearest eligible shop', function
         'status' => 'pending',
     ]);
     $this->assertDatabaseHas('notifications', ['user_id' => $nearbyShop->owner_id, 'type' => 'emergency_request']);
+    $this->get(route('customer.emergency-requests.index'))->assertOk()->assertSee('Assigned shop:')->assertSee($nearbyShop->name)->assertSee($nearbyShop->phone);
+});
+
+it('reassigns a declined roadside request to the next nearest eligible shop without repeating an attempt', function () {
+    $fixture = emergencyFixture();
+    $nearest = createEmergencyShop($fixture['barangay'], 10.2400, 123.7800);
+    $next = createEmergencyShop($fixture['barangay'], 10.2500, 123.7900);
+    $this->actingAs($fixture['customer'])->post(route('customer.emergency-requests.store'), [
+        'emergency_type' => 'breakdown', 'latitude' => 10.2410, 'longitude' => 123.7810,
+    ])->assertRedirect();
+    $request = EmergencyRequest::query()->firstOrFail();
+
+    $this->actingAs($nearest->owner)->patch(route('shop.emergency-requests.update', $request), ['status' => 'cancelled'])->assertRedirect();
+    $this->assertDatabaseHas('emergency_requests', ['id' => $request->id, 'assigned_shop_id' => $next->id, 'status' => 'pending']);
+    $this->assertDatabaseHas('emergency_dispatch_attempts', ['emergency_request_id' => $request->id, 'shop_id' => $nearest->id, 'status' => 'declined']);
+    $this->assertDatabaseHas('emergency_dispatch_attempts', ['emergency_request_id' => $request->id, 'shop_id' => $next->id, 'status' => 'assigned']);
+    $this->actingAs($fixture['customer'])->get(route('customer.emergency-requests.index'))
+        ->assertOk()->assertSee('Reassigned 1 time')->assertSee('Dispatch history (2)')->assertSee($next->name);
+    $this->actingAs($nearest->owner)->patch(route('shop.emergency-requests.update', $request), ['status' => 'accepted'])->assertNotFound();
+
+    $this->actingAs($next->owner)->patch(route('shop.emergency-requests.update', $request), ['status' => 'cancelled'])->assertRedirect();
+    $this->assertDatabaseHas('emergency_requests', ['id' => $request->id, 'assigned_shop_id' => null, 'status' => 'cancelled']);
+    $this->assertDatabaseCount('emergency_dispatch_attempts', 2);
+});
+
+it('times out only pending roadside assignments and reassigns them once', function () {
+    $fixture = emergencyFixture();
+    $nearest = createEmergencyShop($fixture['barangay'], 10.2400, 123.7800);
+    $next = createEmergencyShop($fixture['barangay'], 10.2500, 123.7900);
+    $this->actingAs($fixture['customer'])->post(route('customer.emergency-requests.store'), [
+        'emergency_type' => 'breakdown', 'latitude' => 10.2410, 'longitude' => 123.7810,
+    ])->assertRedirect();
+    $request = EmergencyRequest::query()->firstOrFail();
+
+    $this->travel(16)->minutes();
+    Artisan::call('app:reassign-unanswered-emergency-requests');
+    $this->assertDatabaseHas('emergency_requests', ['id' => $request->id, 'assigned_shop_id' => $next->id, 'status' => 'pending']);
+    $this->assertDatabaseHas('emergency_dispatch_attempts', ['emergency_request_id' => $request->id, 'shop_id' => $nearest->id, 'status' => 'timed_out']);
+    Artisan::call('app:reassign-unanswered-emergency-requests');
+    $this->assertDatabaseHas('emergency_requests', ['id' => $request->id, 'assigned_shop_id' => $next->id, 'status' => 'pending']);
+    $this->travelBack();
 });
 
 it('does not allow a shop to update another shop emergency request', function () {

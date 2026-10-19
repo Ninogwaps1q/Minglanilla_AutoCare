@@ -20,7 +20,7 @@
                 <article class="surface h-100 d-flex flex-column overflow-hidden">
                     <x-uploaded-image class="shop-directory-cover" :path="$shop->cover_photo" :alt="$shop->name.' cover photo'" fallback-icon="shop" />
                     <div class="p-4 d-flex flex-column flex-grow-1">
-                    <div class="d-flex justify-content-between align-items-center mb-3"><span class="badge text-bg-light"><i class="bi bi-patch-check me-1" aria-hidden="true"></i>Approved shop</span>@if ($shop->average_rating > 0)<span class="small"><i class="bi bi-star-fill text-warning" aria-hidden="true"></i> {{ number_format($shop->average_rating, 1) }} / 5</span>@else<span class="small text-secondary">Not yet rated</span>@endif</div>
+                    <div class="d-flex justify-content-between align-items-center gap-2 mb-3"><span class="badge text-bg-light"><i class="bi bi-patch-check me-1" aria-hidden="true"></i>Approved shop</span>@if ($shop->total_reviews > 0)<x-star-rating class="small" :rating="$shop->average_rating" />@else<span class="small text-secondary">Not yet rated</span>@endif</div>
                     <div class="d-flex align-items-center gap-3 mb-2"><x-uploaded-image class="shop-directory-logo" :path="$shop->logo" :alt="$shop->name.' logo'" fallback-icon="wrench-adjustable-circle" /><h2 class="h4 mb-0">{{ $shop->name }}</h2></div>
                     <p class="text-secondary small"><i class="bi bi-geo-alt me-1" aria-hidden="true"></i>{{ $shop->barangay->name }}</p>
                     <p class="small">{{ $shop->services->where('availability', true)->pluck('service.name')->implode(', ') ?: 'Services not listed yet.' }}</p>

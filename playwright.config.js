@@ -2,6 +2,7 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
     testDir: './tests/Browser',
+    outputDir: './storage/framework/testing/playwright-results',
     workers: 1,
     retries: 0,
     globalSetup: process.env.BROWSER_ISOLATED === '1' ? './tests/Browser/isolated-setup.js' : undefined,

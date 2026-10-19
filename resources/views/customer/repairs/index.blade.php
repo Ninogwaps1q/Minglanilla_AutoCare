@@ -38,6 +38,7 @@
             @if ($repairJob->technicianAssignments->isNotEmpty())
                 <p class="mb-3"><strong>Technician{{ $repairJob->technicianAssignments->count() > 1 ? 's' : '' }}:</strong> {{ $repairJob->technicianAssignments->pluck('technician.name')->unique()->implode(', ') }}</p>
             @endif
+            <x-repair-timeline :repair-job="$repairJob" />
             <dl class="row mb-0">
                 <dt class="col-sm-4">Estimated cost</dt>
                 <dd class="col-sm-8">{{ $repairJob->estimated_cost !== null ? 'PHP '.number_format($repairJob->estimated_cost, 2) : 'Awaiting estimate' }}</dd>
