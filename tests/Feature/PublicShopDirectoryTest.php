@@ -29,6 +29,32 @@ it('shows only approved active shops in the directory', function () {
     $this->get(route('shops.index'))->assertSee('Directory Shop')->assertDontSee('Hidden Shop');
 });
 
+it('includes the selected public shop logo and location in the map', function () {
+    $shop = Shop::factory()->create([
+        'name' => 'Atlas AutoCare',
+        'logo' => 'shop-logos/atlas.png',
+        'latitude' => 10.2443,
+        'longitude' => 123.7898,
+        'verification_status' => 'approved',
+        'shop_status' => 'active',
+    ]);
+    Shop::factory()->create([
+        'name' => 'Private Garage',
+        'logo' => 'shop-logos/private.png',
+        'latitude' => 10.25,
+        'longitude' => 123.79,
+        'verification_status' => 'pending',
+        'shop_status' => 'inactive',
+    ]);
+
+    $this->get(route('shops.index', ['selected' => $shop->id]))
+        ->assertOk()
+        ->assertSee('aria-label="Show Atlas AutoCare on map"', false)
+        ->assertViewHas('mapShops', fn ($mapShops): bool => $mapShops->count() === 1
+            && $mapShops->first()['id'] === $shop->id
+            && $mapShops->first()['logo_url'] === route('media.image', ['directory' => 'shop-logos', 'filename' => 'atlas.png']));
+});
+
 it('shows five visual stars with a one-decimal rating and does not rate shops without reviews', function () {
     $owner = User::factory()->create(['role' => 'shop_owner']);
     Shop::factory()->create([

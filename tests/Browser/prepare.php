@@ -12,6 +12,7 @@ use App\Models\Vehicle;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 require __DIR__.'/../../vendor/autoload.php';
 $app = require __DIR__.'/../../bootstrap/app.php';
@@ -40,10 +41,16 @@ foreach (['customer', 'shop_owner', 'admin'] as $role) {
     ]);
 }
 $barangay = Barangay::factory()->create();
+$logoPath = 'shop-logos/browser-map-'.bin2hex(random_bytes(8)).'.png';
+$logoContents = file_get_contents(public_path('images/Minglanilla AutoCare Hub Logo.png'));
+if ($logoContents === false || ! Storage::disk('public')->put($logoPath, $logoContents)) {
+    throw new RuntimeException('Could not prepare the browser shop logo.');
+}
 $shop = Shop::factory()->create([
     'owner_id' => $users['shop_owner']->id, 'barangay_id' => $barangay->id,
     'name' => 'Browser Test AutoCare', 'phone' => '09170000000',
     'email' => 'shop@browser.example.test', 'address' => 'Minglanilla',
+    'logo' => $logoPath,
     'gcash_number' => '09171234567', 'bank_transfer_details' => "Test Bank\nAccount: Browser Test AutoCare\nNo. 123456",
     'latitude' => 10.2443, 'longitude' => 123.7898,
     'verification_status' => 'approved', 'shop_status' => 'active',
@@ -81,6 +88,6 @@ $invoice = Invoice::query()->create([
 ]);
 $invoice->items()->create(['description' => 'Browser brake service', 'quantity' => 2,
     'unit_price' => 250, 'subtotal' => 500]);
-echo json_encode(['database' => $database, 'password' => $password, 'shop' => $shop->id,
+echo json_encode(['database' => $database, 'password' => $password, 'shop' => $shop->id, 'logo' => $logoPath,
     'vehicle' => $vehicle->id, 'service' => $service->id, 'repairJob' => $repairJob->id, 'diagnosisRepairJob' => $diagnosisJob->id,
     'part' => $part->id, 'invoice' => $invoice->id, 'browserDocuments' => $browserDocumentIds], JSON_THROW_ON_ERROR);

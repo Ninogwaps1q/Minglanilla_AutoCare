@@ -1,7 +1,7 @@
 import { execFileSync, spawn } from 'node:child_process';
 import { createConnection } from 'node:net';
 import { resolve, sep } from 'node:path';
-import { unlinkSync } from 'node:fs';
+import { existsSync, unlinkSync } from 'node:fs';
 
 async function portIsOccupied() {
     return new Promise(resolveCheck => {
@@ -47,6 +47,12 @@ export default async function setup() {
         }
         if (resolve(fixture.database).startsWith(resolve('storage/framework/testing') + sep)) {
             unlinkSync(fixture.database);
+        }
+        const logoPath = resolve('storage/app/public', fixture.logo);
+        if (/^shop-logos\/browser-map-[a-f0-9]{16}\.png$/.test(fixture.logo)
+            && logoPath.startsWith(resolve('storage/app/public/shop-logos') + sep)
+            && existsSync(logoPath)) {
+            unlinkSync(logoPath);
         }
     };
 }

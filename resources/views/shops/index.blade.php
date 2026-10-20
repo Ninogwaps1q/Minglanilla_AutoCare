@@ -33,7 +33,15 @@
                         <div class="p-4 d-flex flex-column flex-grow-1">
                             <div class="d-flex justify-content-between align-items-center gap-2 mb-3"><span class="badge text-bg-light"><i class="bi bi-patch-check me-1" aria-hidden="true"></i>Approved shop</span>@if ($shop->total_reviews > 0)<x-star-rating class="small" :rating="$shop->average_rating" />@else<span class="small text-secondary">Not yet rated</span>@endif</div>
                             <div class="d-flex align-items-center gap-3 mb-2"><x-uploaded-image class="shop-directory-logo" :path="$shop->logo" :alt="$shop->name.' logo'" fallback-icon="wrench-adjustable-circle" /><h3 class="h5 mb-0">{{ $shop->name }}</h3></div>
-                            <p class="text-secondary small mb-2"><i class="bi bi-geo-alt me-1" aria-hidden="true"></i>{{ $shop->barangay->name }}@if ($distances->has($shop->id)) · {{ number_format($distances->get($shop->id), 1) }} km away @endif</p>
+                            <p class="small mb-2">
+                                <i class="bi bi-geo-alt me-1 text-secondary" aria-hidden="true"></i>
+                                @if ($shop->latitude !== null && $shop->longitude !== null)
+                                    <a class="shop-directory-location-link" href="{{ route('shops.index', ['search' => $shop->name, 'selected' => $shop->id]) }}#shop-map" aria-label="Show {{ $shop->name }} on map">{{ $shop->barangay->name }} &middot; Show on map</a>
+                                @else
+                                    <span class="text-secondary">{{ $shop->barangay->name }}</span>
+                                @endif
+                                @if ($distances->has($shop->id))<span class="text-secondary"> &middot; {{ number_format($distances->get($shop->id), 1) }} km away</span>@endif
+                            </p>
                             <p class="small">{{ $shop->services->where('availability', true)->pluck('service.name')->implode(', ') ?: 'Services not listed yet.' }}</p>
                             <a class="btn btn-outline-primary mt-auto align-self-start" href="{{ route('shops.show', $shop) }}">View shop <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i></a>
                         </div>
@@ -48,6 +56,7 @@
     @push('scripts')
         <script>
             const mapShops = {{ Illuminate\Support\Js::from($mapShops) }};
+            const selectedShopId = {{ Illuminate\Support\Js::from($filters['selected'] ?? null) }};
             const mapElement = document.querySelector('#shop-map');
             const latitudeInput = document.querySelector('#latitude');
             const longitudeInput = document.querySelector('#longitude');
@@ -61,23 +70,47 @@
                 const map = L.map(mapElement).setView([10.2443, 123.7898], 13);
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
                 const bounds = [];
+                let selectedMarker = null;
                 mapShops.forEach(shop => {
                     const point = [shop.latitude, shop.longitude];
                     bounds.push(point);
                     const popup = document.createElement('div');
+                    popup.className = 'shop-map-popup';
+                    const avatar = document.createElement('div');
+                    avatar.className = 'shop-map-popup-logo';
+                    avatar.setAttribute('role', 'img');
+                    avatar.setAttribute('aria-label', `${shop.name} logo`);
+                    const fallbackIcon = document.createElement('i');
+                    fallbackIcon.className = 'bi bi-wrench-adjustable-circle';
+                    fallbackIcon.setAttribute('aria-hidden', 'true');
+                    avatar.append(fallbackIcon);
+                    if (shop.logo_url) {
+                        const logo = document.createElement('img');
+                        logo.src = shop.logo_url;
+                        logo.alt = '';
+                        logo.addEventListener('error', () => logo.remove(), { once: true });
+                        avatar.append(logo);
+                    }
+                    const details = document.createElement('div');
+                    details.className = 'shop-map-popup-details';
                     const name = document.createElement('strong');
                     name.textContent = shop.name;
                     const link = document.createElement('a');
                     link.href = shop.url;
                     link.textContent = 'View shop';
-                    popup.append(name, document.createElement('br'), link);
-                    L.marker(point).addTo(map).bindPopup(popup);
+                    details.append(name, link);
+                    popup.append(avatar, details);
+                    const marker = L.marker(point).addTo(map).bindPopup(popup);
+                    if (Number(shop.id) === Number(selectedShopId)) {
+                        selectedMarker = marker;
+                    }
                 });
                 if (savedLocation) {
                     bounds.push(savedLocation);
                     L.circleMarker(savedLocation, { radius: 7, color: '#f97316', fillOpacity: 1 }).addTo(map).bindPopup('Your approximate location');
                 }
                 map.fitBounds(bounds, { padding: [30, 30], maxZoom: 15 });
+                selectedMarker?.openPopup();
             };
 
             if (!mapShops.length) {

@@ -70,7 +70,11 @@
                     @else
                         <a class="btn btn-primary" href="{{ route('login') }}">Sign in to book or message</a>
                     @endauth
-                    <a class="btn btn-outline-secondary" href="{{ route('shops.index', ['search' => $shop->name]) }}#shop-map">View on map</a>
+                    @if ($shop->latitude !== null && $shop->longitude !== null)
+                        <a class="btn btn-outline-secondary" href="{{ route('shops.index', ['search' => $shop->name, 'selected' => $shop->id]) }}#shop-map">View on map</a>
+                    @else
+                        <span class="text-secondary small">Map location is not available for this shop yet.</span>
+                    @endif
                 </div>
                 <h3 class="h6">Contact</h3>
                 <p class="mb-0">{{ $shop->phone }}<br>{{ $shop->email }}</p>

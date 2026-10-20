@@ -19,6 +19,7 @@ class PublicShopController extends Controller
             'barangay' => ['nullable', 'integer', 'exists:barangays,id'],
             'service' => ['nullable', 'integer', 'exists:services,id'],
             'sort' => ['nullable', 'in:name,rating,distance'],
+            'selected' => ['nullable', 'integer', 'min:1'],
             'latitude' => ['nullable', 'required_with:longitude', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'required_with:latitude', 'numeric', 'between:-180,180'],
         ]);
@@ -46,9 +47,11 @@ class PublicShopController extends Controller
 
         $mapShops = $shops->filter(fn (Shop $shop): bool => $shop->latitude !== null && $shop->longitude !== null)
             ->map(fn (Shop $shop): array => [
+                'id' => $shop->id,
                 'name' => $shop->name,
                 'latitude' => (float) $shop->latitude,
                 'longitude' => (float) $shop->longitude,
+                'logo_url' => $shop->logo ? route('media.image', ['directory' => 'shop-logos', 'filename' => basename($shop->logo)]) : null,
                 'url' => route('shops.show', $shop),
             ])->values();
 

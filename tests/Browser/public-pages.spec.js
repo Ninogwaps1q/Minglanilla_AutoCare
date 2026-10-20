@@ -34,8 +34,14 @@ test('color theme can be changed and remains selected across pages', async ({ pa
     if (testInfo.project.name !== 'desktop') {
         await page.getByRole('button', { name: 'Toggle navigation' }).click();
     }
-
-    await page.getByRole('button', { name: 'Switch to dark mode' }).click();
+    const homeNavItem = page.locator('.public-nav-home');
+    const themeToggle = homeNavItem.locator('[data-theme-toggle]');
+    await expect(homeNavItem.getByRole('link', { name: 'Home' })).toBeVisible();
+    await expect(themeToggle).toBeVisible();
+    expect(await homeNavItem.evaluate(item => item.firstElementChild?.hasAttribute('data-theme-toggle'))).toBe(true);
+    await expect(page.locator('.public-footer [data-theme-toggle]')).toHaveCount(0);
+    await homeNavItem.screenshot({ path: testInfo.outputPath('theme-beside-home.png') });
+    await themeToggle.click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
     await expect(page.locator('html')).toHaveAttribute('data-bs-theme', 'dark');
     await expect(page.getByRole('button', { name: 'Switch to light mode' })).toBeVisible();
@@ -48,7 +54,7 @@ test('color theme can be changed and remains selected across pages', async ({ pa
     if (testInfo.project.name !== 'desktop') {
         await page.getByRole('button', { name: 'Toggle navigation' }).click();
     }
-    await page.getByRole('button', { name: 'Switch to light mode' }).click();
+    await page.locator('.public-nav-home [data-theme-toggle]').click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
     expect(await page.evaluate(() => localStorage.getItem('autocare-theme'))).toBe('light');
 });
@@ -79,6 +85,26 @@ test('nearby shop search filters the verified shop and shows its distance on the
     await page.getByRole('button', { name: 'Use my location', exact: true }).click();
     await expect(page.locator('#shop-results')).toContainText('0.0 km away');
     await expect(page.locator('.leaflet-marker-icon')).toHaveCount(1);
+});
+
+test('a shop location opens its matching logo on the map', async ({ page }) => {
+    test.skip(process.env.BROWSER_ISOLATED !== '1', 'Requires the disposable browser fixture');
+    const fixture = JSON.parse(process.env.BROWSER_FIXTURE);
+
+    await page.goto(`/shops/${fixture.shop}`);
+    await page.getByRole('link', { name: 'View on map' }).click();
+    await expect(page).toHaveURL(new RegExp(`selected=${fixture.shop}`));
+
+    const popup = page.locator('#shop-map .leaflet-popup-content');
+    await expect(popup).toContainText('Browser Test AutoCare');
+    const logo = popup.locator('img');
+    await expect(logo).toHaveAttribute('src', /\/media\/shop-logos\/browser-map-/);
+    await expect.poll(() => logo.evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
+
+    await page.locator('#shop-map .leaflet-popup-close-button').click();
+    await page.locator('#shop-map .leaflet-marker-icon').click();
+    await expect(popup).toContainText('Browser Test AutoCare');
+    await expect(popup.locator('img')).toBeVisible();
 });
 
 test('nearby map explains denied location access', async ({ page }) => {
