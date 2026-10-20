@@ -28,6 +28,8 @@
                 </div>
             @elseif ($repairJob->status === 'waiting_approval')
                 <p class="text-secondary">{{ $repairJob->quotation?->status === 'sent' ? 'This estimate has expired. Ask the shop for an updated estimate.' : 'Waiting for the shop to send an estimate.' }}</p>
+            @elseif ($repairJob->status === 'approved')
+                <p class="text-secondary">You approved the estimate. The shop will start the repair next; no work has been marked as started yet.</p>
             @endif
             @if ($repairJob->diagnosis)
                 <p><strong>Diagnosis:</strong> {{ $repairJob->diagnosis }}</p>
@@ -43,7 +45,7 @@
                 <dt class="col-sm-4">Estimated cost</dt>
                 <dd class="col-sm-8">{{ $repairJob->estimated_cost !== null ? 'PHP '.number_format($repairJob->estimated_cost, 2) : 'Awaiting estimate' }}</dd>
                 <dt class="col-sm-4">Actual cost</dt>
-                <dd class="col-sm-8">{{ $repairJob->actual_cost !== null ? 'PHP '.number_format($repairJob->actual_cost, 2) : 'Not finalized' }}</dd>
+                <dd class="col-sm-8">{{ in_array($repairJob->status, ['completed', 'released'], true) && $repairJob->actual_cost !== null ? 'PHP '.number_format($repairJob->actual_cost, 2) : 'Not finalized' }}</dd>
                 <dt class="col-sm-4">Started</dt>
                 <dd class="col-sm-8">{{ $repairJob->started_at?->format('M j, Y g:i A') ?? 'Not started' }}</dd>
                 <dt class="col-sm-4">Completed</dt>

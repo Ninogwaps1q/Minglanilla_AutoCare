@@ -45,8 +45,10 @@ class QuotationController extends Controller
     public function create(RepairJob $repairJob, Request $request): View
     {
         abort_unless($repairJob->shop_id === $this->shop($request)->id, 404);
+        abort_if(in_array($repairJob->status, ['completed', 'released', 'cancelled'], true), 409);
+        abort_if(in_array($repairJob->quotation?->status, ['sent', 'accepted', 'approved'], true), 409, 'This estimate is already awaiting or has received customer approval.');
 
-        return view('shop.quotations.create', compact('repairJob'));
+        return view('shop.quotations.create', ['repairJob' => $repairJob->load('items')]);
     }
 
     public function store(StoreQuotationRequest $request, RepairJob $repairJob, QuotationService $service): RedirectResponse
@@ -58,10 +60,17 @@ class QuotationController extends Controller
             abort_if(in_array($repairJob->status, ['completed', 'released', 'cancelled'], true), 409);
             abort_if(in_array($repairJob->quotation?->status, ['accepted', 'approved'], true), 409, 'The approved estimate is locked.');
             abort_if($repairJob->quotation?->status === 'sent', 409, 'An estimate is already awaiting customer approval.');
-            $estimateTotal = round(collect($request->validated('items'))->sum(fn (array $item): float => (int) $item['quantity'] * (float) $item['unit_price']), 2);
-            if ($repairJob->items()->exists() && abs((float) $repairJob->items()->sum('subtotal') - $estimateTotal) > 0.001) {
-                throw ValidationException::withMessages(['items' => 'The estimate total must match the existing repair work items.']);
+            $workItems = $repairJob->items()->orderBy('id')->get();
+            if ($workItems->isEmpty() && ! $request->validated('items')) {
+                throw ValidationException::withMessages(['items' => 'Add work items before sending the estimate.']);
             }
+            $estimateItems = $workItems->isNotEmpty()
+                ? $workItems->map(fn ($item): array => [
+                    'description' => $item->description,
+                    'quantity' => $item->quantity,
+                    'unit_price' => $item->unit_price,
+                ])->all()
+                : $request->validated('items');
             $quotation = Quotation::query()->create([
                 'customer_id' => $repairJob->customer_id,
                 'shop_id' => $repairJob->shop_id,
@@ -70,7 +79,7 @@ class QuotationController extends Controller
                 'quotation_number' => 'QT-'.Str::upper(Str::random(10)),
                 'status' => 'draft',
             ]);
-            $service->send($quotation, $request->validated('items'), $request->validated('valid_until'), $request->validated('notes'));
+            $service->send($quotation, $estimateItems, $request->validated('valid_until'), $request->validated('notes'));
             $previousStatus = $repairJob->status;
             $repairJob->update(['quotation_id' => $quotation->id, 'estimated_cost' => $quotation->total, 'status' => 'waiting_approval']);
             if ($previousStatus !== 'waiting_approval') {

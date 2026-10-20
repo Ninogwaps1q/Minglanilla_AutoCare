@@ -3,6 +3,7 @@
 use App\Models\Barangay;
 use App\Models\Shop;
 use App\Models\User;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -86,6 +87,22 @@ it('requires verified current business and mayors permits before approving a sho
     $this->assertDatabaseHas('shops', ['id' => $shop->id, 'verification_status' => 'approved', 'shop_status' => 'active']);
     $this->assertDatabaseCount('activity_logs', 1);
     $this->assertDatabaseCount('notifications', 1);
+});
+
+it('does not let a local test flag bypass permit verification', function () {
+    $shop = shopModerationFixture();
+    $shop->update(['verification_status' => 'pending', 'shop_status' => 'inactive']);
+    $admin = User::factory()->create(['role' => 'admin']);
+    $this->app->instance('env', 'local');
+    $this->withoutMiddleware(ValidateCsrfToken::class);
+
+    $this->actingAs($admin)
+        ->get(route('admin.shops.index'))->assertDontSee('Approve for local testing');
+    $this->patch(route('admin.shops.approve', $shop), ['test_approval' => '1'])->assertSessionHasErrors('shop');
+
+    $this->assertDatabaseHas('shops', ['id' => $shop->id, 'verification_status' => 'pending', 'shop_status' => 'inactive']);
+    $this->assertDatabaseCount('activity_logs', 0);
+    $this->assertDatabaseCount('notifications', 0);
 });
 
 it('shows the latest permit decision and exact correction to admin and shop owner', function () {

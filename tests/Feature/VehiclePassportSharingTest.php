@@ -79,6 +79,43 @@ it('requires a signed link and an approved active shop account', function () {
     $this->get($url)->assertForbidden();
 });
 
+it('shows the scanner only to an approved active shop owner', function () {
+    [$customer, $vehicle, $shopOwner, $shop] = passportSharingFixture();
+
+    $this->get(route('shop.passports.scan'))->assertRedirect(route('login'));
+    $this->post(route('shop.passports.open'), ['share_url' => 'https://example.test/'])->assertRedirect(route('login'));
+    $this->actingAs($customer)->get(route('shop.passports.scan'))->assertForbidden();
+    $this->post(route('shop.passports.open'), ['share_url' => 'https://example.test/'])->assertForbidden();
+    $response = $this->actingAs($shopOwner)->get(route('shop.passports.scan'))
+        ->assertOk()->assertSee('Scan a service passport')->assertSee("Customer's shop-sharing link", false);
+    expect($response->headers->get('Cache-Control'))->toContain('no-store');
+    $this->post(route('shop.passports.open'), [])->assertInvalid(['share_url' => 'Scan a customer passport QR']);
+
+    $shop->update(['verification_status' => 'pending']);
+    $this->get(route('shop.passports.scan'))->assertForbidden();
+    $this->post(route('shop.passports.open'), ['share_url' => 'https://example.test/'])->assertForbidden();
+});
+
+it('opens a valid scanned passport link and rejects forged, foreign, and revoked links', function () {
+    [$customer, $vehicle, $shopOwner] = passportSharingFixture();
+    $share = VehiclePassportShare::factory()->for($vehicle)->create();
+    $url = URL::temporarySignedRoute('shop.passports.shared', $share->expires_at, ['passportShare' => $share]);
+
+    $this->actingAs($shopOwner)->post(route('shop.passports.open'), ['share_url' => $url])->assertRedirect($url);
+    $this->get($url)->assertOk()->assertSee($vehicle->plate_number);
+
+    $this->post(route('shop.passports.open'), ['share_url' => 'https://elsewhere.example/shop/shared-passports/'.$share->id])
+        ->assertInvalid(['share_url' => 'not a valid shop-sharing QR']);
+    $this->post(route('shop.passports.open'), ['share_url' => route('shop.passports.shared', $share)])
+        ->assertInvalid(['share_url' => 'not a valid shop-sharing QR']);
+    $this->post(route('shop.passports.open'), ['share_url' => route('customer.vehicles.passport', $vehicle)])
+        ->assertInvalid(['share_url' => 'not a valid shop-sharing QR']);
+
+    $share->update(['revoked_at' => now()]);
+    $this->post(route('shop.passports.open'), ['share_url' => $url])
+        ->assertInvalid(['share_url' => 'expired or was revoked']);
+});
+
 it('revokes previous links when a new one is created and blocks revoked links', function () {
     [$customer, $vehicle, $shopOwner] = passportSharingFixture();
     $oldShare = VehiclePassportShare::factory()->for($vehicle)->create();

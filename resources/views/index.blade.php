@@ -13,9 +13,8 @@
                                 class="btn btn-primary" type="submit">Search shops</button></div>
                     </form>
                     <div class="d-flex flex-column flex-sm-row gap-3">
-                        <a class="btn btn-accent btn-lg" href="{{ route('shops.index') }}">Explore service shops <i
+                        <a class="btn btn-accent btn-lg" href="{{ route('shops.index') }}">Find a service shop <i
                                 class="bi bi-arrow-right ms-1" aria-hidden="true"></i></a>
-                        <a class="btn btn-outline-light btn-lg" href="{{ route('map.index') }}">Find nearby shops</a>
                     </div>
                 </div>
                 <div class="col-lg-5">
@@ -64,7 +63,7 @@
                 <h2 class="h2">Your next service starts here.</h2>
                 <p class="text-secondary">Explore the map to find approved shops. Share your location only when you want
                     nearby results.</p>
-                <a class="btn btn-primary" href="{{ route('map.index') }}"><i class="bi bi-geo-alt me-2"
+                <a class="btn btn-primary" href="{{ route('shops.index') }}#shop-map"><i class="bi bi-geo-alt me-2"
                         aria-hidden="true"></i>Explore the map</a>
             </div>
             <div class="col-lg-6 offset-lg-1">

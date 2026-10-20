@@ -70,6 +70,20 @@ it('filters the directory by an available service', function () {
         ->assertDontSee('No Oil Change Shop');
 });
 
+it('sorts the same filtered shop cards by distance when a location is supplied', function () {
+    $near = Shop::factory()->create(['name' => 'Zulu Nearby Garage', 'latitude' => 10.2443, 'longitude' => 123.7898, 'verification_status' => 'approved', 'shop_status' => 'active']);
+    $far = Shop::factory()->create(['name' => 'Alpha Far Garage', 'latitude' => 10.3, 'longitude' => 123.8, 'verification_status' => 'approved', 'shop_status' => 'active']);
+
+    $this->get(route('shops.index', ['latitude' => 10.2443, 'longitude' => 123.7898, 'sort' => 'distance']))
+        ->assertOk()
+        ->assertSee('0.0 km away')
+        ->assertViewHas('shops', fn ($shops) => $shops->pluck('id')->all() === [$near->id, $far->id]);
+});
+
+it('rejects incomplete location coordinates instead of silently changing nearby results', function () {
+    $this->get(route('shops.index', ['latitude' => 10.2443]))->assertSessionHasErrors('longitude');
+});
+
 it('does not expose non-public shop profiles', function () {
     $barangay = Barangay::factory()->create();
     $owner = User::factory()->create(['role' => 'shop_owner']);

@@ -49,6 +49,14 @@ $shop = Shop::factory()->create([
     'verification_status' => 'approved', 'shop_status' => 'active',
     'opening_time' => '08:00', 'closing_time' => '17:00',
 ]);
+$browserDocumentIds = [];
+foreach (['desktop', 'mobile', 'small-mobile'] as $viewport) {
+    $browserDocumentIds[$viewport] = $shop->documents()->create([
+        'document_type' => 'business_permit',
+        'document_path' => "shop-documents/browser-{$viewport}.pdf",
+        'verification_status' => 'pending',
+    ])->id;
+}
 $vehicle = Vehicle::factory()->create(['customer_id' => $users['customer']->id, 'plate_number' => 'BROWSER-001']);
 $category = ServiceCategory::factory()->create();
 $service = Service::factory()->create(['category_id' => $category->id, 'name' => 'Browser Oil Change']);
@@ -56,6 +64,14 @@ ShopService::query()->create(['shop_id' => $shop->id, 'service_id' => $service->
 $repairJob = RepairJob::query()->create([
     'customer_id' => $users['customer']->id, 'shop_id' => $shop->id, 'vehicle_id' => $vehicle->id,
     'job_number' => 'JOB-BROWSER-STOCK', 'status' => 'repairing', 'description' => 'Brake maintenance',
+]);
+$diagnosisJob = RepairJob::query()->create([
+    'customer_id' => $users['customer']->id, 'shop_id' => $shop->id, 'vehicle_id' => $vehicle->id,
+    'job_number' => 'JOB-BROWSER-DIAGNOSIS', 'status' => 'diagnosis', 'description' => 'Brake diagnosis', 'actual_cost' => 1250,
+]);
+$diagnosisJob->items()->createMany([
+    ['type' => 'labor', 'description' => 'Brake labor', 'quantity' => 1, 'unit_price' => 500, 'subtotal' => 500],
+    ['type' => 'part', 'description' => 'Brake pads', 'quantity' => 1, 'unit_price' => 750, 'subtotal' => 750],
 ]);
 $part = $shop->spareParts()->create(['name' => 'Browser Brake Pad', 'purchase_price' => 100,
     'selling_price' => 150, 'quantity' => 10, 'minimum_stock' => 2]);
@@ -66,5 +82,5 @@ $invoice = Invoice::query()->create([
 $invoice->items()->create(['description' => 'Browser brake service', 'quantity' => 2,
     'unit_price' => 250, 'subtotal' => 500]);
 echo json_encode(['database' => $database, 'password' => $password, 'shop' => $shop->id,
-    'vehicle' => $vehicle->id, 'service' => $service->id, 'repairJob' => $repairJob->id,
-    'part' => $part->id, 'invoice' => $invoice->id], JSON_THROW_ON_ERROR);
+    'vehicle' => $vehicle->id, 'service' => $service->id, 'repairJob' => $repairJob->id, 'diagnosisRepairJob' => $diagnosisJob->id,
+    'part' => $part->id, 'invoice' => $invoice->id, 'browserDocuments' => $browserDocumentIds], JSON_THROW_ON_ERROR);

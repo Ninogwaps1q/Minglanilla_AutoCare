@@ -23,8 +23,7 @@
             <div id="publicNavigation" class="collapse navbar-collapse">
                 <ul class="navbar-nav ms-lg-auto align-items-lg-center gap-lg-2">
                     <li class="nav-item"><a class="nav-link" href="{{ route('home') }}">Home</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ route('shops.index') }}">Shop directory</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ route('map.index') }}">Find nearby</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ route('shops.index') }}">Find a shop</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ route('home') }}#about">About</a></li>
                     <li class="nav-item d-flex align-items-center"><x-theme-toggle /></li>
                     @auth
@@ -51,8 +50,7 @@
             </div>
             <nav class="public-footer-links" aria-label="Footer navigation">
                 <strong>Explore</strong>
-                <a href="{{ route('shops.index') }}">Shop directory</a>
-                <a href="{{ route('map.index') }}">Find nearby shops</a>
+                <a href="{{ route('shops.index') }}">Shop directory &amp; map</a>
                 <a href="{{ route('home') }}#about">About the platform</a>
             </nav>
             <div class="public-footer-action">

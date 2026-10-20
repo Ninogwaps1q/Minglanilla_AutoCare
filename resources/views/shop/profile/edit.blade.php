@@ -43,7 +43,7 @@
                 </div></div>
             @endforeach
         </div>
-        @unless ($shop->hasCurrentVerifiedPermits())<p class="small text-secondary">Both required permits must be current and verified before admin can approve your shop. If a document is rejected or expired, upload a corrected copy below.</p>@endunless
+        @unless ($shop->hasCurrentVerifiedPermits())<p class="small text-secondary">@if ($shop->verification_status === 'approved') Your shop is approved, but its required permits are not currently verified. @else Both required permits must be current and verified before admin can approve your shop. @endif If a document is rejected or expired, upload a corrected copy below.</p>@endunless
         <form method="POST" enctype="multipart/form-data" action="{{ route('shop.documents.store') }}" class="row g-3 align-items-end mb-4">@csrf
             <div class="col-md-4"><label class="form-label" for="document_type">Document type</label><select class="form-select" id="document_type" name="document_type" required><option value="business_permit">Business permit</option><option value="bir_registration">BIR registration</option><option value="dti_registration">DTI registration</option><option value="mayors_permit">Mayor's permit</option><option value="other">Other</option></select></div>
             <div class="col-md-4"><label class="form-label" for="document">Document file</label><input class="form-control @error('document') is-invalid @enderror" id="document" type="file" name="document" accept="application/pdf,image/jpeg,image/png" required>@error('document')<div class="invalid-feedback">{{ $message }}</div>@enderror</div>

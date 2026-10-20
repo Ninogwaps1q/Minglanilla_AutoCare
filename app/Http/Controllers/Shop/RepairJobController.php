@@ -52,7 +52,7 @@ class RepairJobController extends Controller
     public function index(Request $request): View
     {
         $status = $request->query('status');
-        $status = in_array($status, ['waiting_approval', 'approved', 'repairing', 'waiting_parts', 'completed', 'released', 'cancelled'], true) ? $status : null;
+        $status = in_array($status, ['pending', 'diagnosis', 'waiting_approval', 'approved', 'repairing', 'in_progress', 'waiting_parts', 'completed', 'released', 'cancelled'], true) ? $status : null;
 
         return view('shop.repair-jobs.index', [
             'repairJobs' => $this->shop($request)->repairJobs()
@@ -126,7 +126,7 @@ class RepairJobController extends Controller
             if ($nextStatus === $repairJob->status && in_array($repairJob->status, ['completed', 'released', 'cancelled'], true)) {
                 return;
             }
-            if ($nextStatus !== $repairJob->status && ! array_key_exists($nextStatus, $repairJob->availableStatuses()) && ! ($nextStatus === 'in_progress' && ! in_array($repairJob->status, ['waiting_approval', 'completed', 'released', 'cancelled'], true))) {
+            if ($nextStatus !== $repairJob->status && ! array_key_exists($nextStatus, $repairJob->availableStatuses())) {
                 throw ValidationException::withMessages(['status' => 'This status change is not allowed for the current repair stage.']);
             }
             if (in_array($nextStatus, ['approved', 'repairing', 'in_progress', 'completed'], true) && ! in_array($repairJob->quotation?->status, ['accepted', 'approved'], true)) {
@@ -149,11 +149,13 @@ class RepairJobController extends Controller
             if (in_array($repairJob->status, ['completed', 'released', 'cancelled'], true)) {
                 $repairJob->technicianAssignments()->whereNull('completed_at')->update(['completed_at' => now()]);
             }
-            $repairJob->customer->notifications()->create([
-                'type' => 'repair_status', 'title' => 'Repair status updated',
-                'message' => "{$repairJob->job_number}: ".str_replace('_', ' ', $repairJob->status),
-                'data' => ['repair_job_id' => $repairJob->id],
-            ]);
+            if ($previousStatus !== $repairJob->status) {
+                $repairJob->customer->notifications()->create([
+                    'type' => 'repair_status', 'title' => 'Repair status updated',
+                    'message' => "{$repairJob->job_number}: ".str_replace('_', ' ', $repairJob->status),
+                    'data' => ['repair_job_id' => $repairJob->id],
+                ]);
+            }
 
             if ($repairJob->status === 'completed') {
                 if ($repairJob->actual_cost === null) {

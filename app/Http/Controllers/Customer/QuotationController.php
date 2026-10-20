@@ -79,7 +79,7 @@ class QuotationController extends Controller
                         ])->all());
                     }
                     $previousStatus = $repairJob->status;
-                    $nextStatus = $status === 'approved' ? 'in_progress' : 'approved';
+                    $nextStatus = 'approved';
                     $repairJob->update(['status' => $nextStatus,
                         'estimated_cost' => $quotation->total, 'actual_cost' => $quotation->total]);
                     if ($previousStatus !== $nextStatus) {

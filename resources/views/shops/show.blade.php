@@ -70,7 +70,7 @@
                     @else
                         <a class="btn btn-primary" href="{{ route('login') }}">Sign in to book or message</a>
                     @endauth
-                    <a class="btn btn-outline-secondary" href="{{ route('map.index') }}">View on map</a>
+                    <a class="btn btn-outline-secondary" href="{{ route('shops.index', ['search' => $shop->name]) }}#shop-map">View on map</a>
                 </div>
                 <h3 class="h6">Contact</h3>
                 <p class="mb-0">{{ $shop->phone }}<br>{{ $shop->email }}</p>

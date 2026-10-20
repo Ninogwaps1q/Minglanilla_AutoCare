@@ -1,0 +1,58 @@
+name: Application checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Reject committed secrets and private uploads
+        run: |
+          if git ls-files --error-unmatch .env >/dev/null 2>&1; then
+            echo 'Do not commit .env; use deployment secrets.'
+            exit 1
+          fi
+          if git ls-files -- storage/app/private | grep -v '^storage/app/private/.gitignore$' | grep -q .; then
+            echo 'Do not commit private shop documents or other private uploads.'
+            exit 1
+          fi
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, fileinfo, pdo_sqlite, pdo_mysql, gd, zip
+          coverage: none
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Install JavaScript dependencies
+        run: npm ci
+      - name: Audit PHP dependencies
+        run: composer audit --no-interaction
+      - name: Audit JavaScript dependencies
+        run: npm audit --audit-level=high
+      - name: Prepare application
+        run: |
+          cp .env.example .env
+          php artisan key:generate --no-interaction
+          php artisan storage:link --no-interaction
+      - name: Build frontend
+        run: npm run build
+      - name: Run PHP tests
+        run: php artisan test --compact
+      - name: Install Chrome for browser tests
+        run: npx playwright install --with-deps chrome
+      - name: Run isolated browser tests
+        run: npm run test:browser
+        env:
+          BROWSER_ISOLATED: '1'

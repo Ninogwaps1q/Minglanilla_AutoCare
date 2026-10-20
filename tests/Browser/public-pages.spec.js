@@ -14,6 +14,9 @@ for (const path of ['/', '/login', '/register', '/forgot-password', '/shops', '/
         if (path === '/') {
             await page.screenshot({ path: testInfo.outputPath('home.png'), fullPage: true });
         }
+        if (path === '/shops') {
+            await page.screenshot({ path: testInfo.outputPath('shop-directory.png'), fullPage: true });
+        }
     });
 }
 
@@ -54,9 +57,10 @@ test('nearby map uses permitted browser coordinates', async ({ page, context }) 
     await context.grantPermissions(['geolocation']);
     await context.setGeolocation({ latitude: 10.2443, longitude: 123.7898 });
     await page.goto('/map');
+    await expect(page).toHaveURL(/\/shops#shop-map$/);
     await expect(page.locator('#shop-map .leaflet-control-zoom')).toBeVisible();
     await page.getByRole('button', { name: 'Use my location', exact: true }).click();
-    await expect(page.locator('#location-status')).toHaveText('Results are sorted by distance.');
+    await expect(page.locator('#location-status')).toHaveText('Showing distances from your location.');
     await expect(page.locator('#latitude')).toHaveValue('10.2443');
     await expect(page.locator('#longitude')).toHaveValue('123.7898');
 });
@@ -68,7 +72,7 @@ test('nearby shop search filters the verified shop and shows its distance on the
     await context.setGeolocation({ latitude: 10.2443, longitude: 123.7898 });
     await page.goto('/map');
     await page.getByLabel('Service', { exact: true }).selectOption(String(fixture.service));
-    await page.getByRole('button', { name: 'Apply filters' }).click();
+    await page.getByRole('button', { name: 'Find shops' }).click();
     await expect(page).toHaveURL(new RegExp(`service=${fixture.service}`));
     await expect(page.locator('#shop-results article')).toHaveCount(1);
     await expect(page.locator('#shop-results')).toContainText('Browser Test AutoCare');
@@ -87,6 +91,15 @@ test('nearby map explains denied location access', async ({ page }) => {
     await page.getByRole('button', { name: 'Use my location', exact: true }).click();
     await expect(page.locator('#location-status')).toContainText('We could not access your location.');
     await expect(page.getByRole('button', { name: 'Use my location', exact: true })).toBeEnabled();
+});
+
+test('shop directory remains usable when the map provider is unavailable', async ({ page }) => {
+    test.skip(process.env.BROWSER_ISOLATED !== '1', 'Requires the disposable browser fixture');
+    await page.route('https://unpkg.com/leaflet@1.9.4/dist/*', route => route.abort());
+    await page.goto('/shops');
+    await expect(page.locator('#shop-map')).toContainText('The map could not load.');
+    await expect(page.locator('#shop-results')).toContainText('Browser Test AutoCare');
+    await expect(page.getByRole('link', { name: 'View shop' })).toBeVisible();
 });
 
 test('directory filter submits and can be cleared', async ({ page }) => {
@@ -126,7 +139,7 @@ test('mobile public navigation opens and closes', async ({ page }, testInfo) => 
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-expanded', 'true');
     await expect(page.locator('#publicNavigation')).toHaveClass(/\bshow\b/);
-    await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Shop directory', exact: true })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Find a shop', exact: true })).toBeVisible();
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
     await expect(page.locator('#publicNavigation')).not.toHaveClass(/\bshow\b/);

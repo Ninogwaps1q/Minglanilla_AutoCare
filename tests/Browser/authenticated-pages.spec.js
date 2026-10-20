@@ -14,7 +14,7 @@ async function signIn(page, role) {
 
 const pages = {
     customer: ['dashboard', 'customer/vehicles', 'customer/appointments', 'customer/appointments/create', 'customer/quotations', 'customer/repairs', 'customer/invoices', 'customer/reminders', 'customer/messages', 'customer/reviews', 'customer/notifications', 'customer/inspections', 'customer/emergency-requests', 'customer/ai-assistant', 'customer/profile', 'customer/favorites', 'customer/service-history'],
-    shop_owner: ['shop/dashboard', 'shop/profile', 'shop/services', 'shop/appointments', 'shop/repair-jobs', 'shop/quotations', 'shop/invoices', 'shop/inventory', 'shop/technicians', 'shop/messages', 'shop/reviews', 'shop/reports', 'shop/emergency-requests', 'shop/notifications'],
+    shop_owner: ['shop/dashboard', 'shop/profile', 'shop/services', 'shop/appointments', 'shop/passports/scan', 'shop/repair-jobs', 'shop/quotations', 'shop/invoices', 'shop/inventory', 'shop/technicians', 'shop/messages', 'shop/reviews', 'shop/reports', 'shop/emergency-requests', 'shop/notifications'],
     admin: ['admin/dashboard', 'admin/shops', 'admin/users', 'admin/services', 'admin/service-categories', 'admin/barangays', 'admin/reviews', 'admin/reports', 'admin/activity-logs', 'admin/monitoring'],
 };
 
@@ -61,6 +61,41 @@ for (const [role, paths] of Object.entries(pages)) {
         await page.screenshot({ path: testInfo.outputPath(role + '.png'), fullPage: true });
     });
 }
+
+test('shop can send itemized estimate, start approved repair, and issue its invoice', async ({ page, context }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop', 'The cross-role workflow runs once; page rendering runs at every viewport');
+    const fixture = await signIn(page, 'shop_owner');
+    await page.goto('/shop/repair-jobs?status=diagnosis');
+    const job = page.locator(`#repair-${fixture.diagnosisRepairJob}`);
+    await expect(job.getByRole('link', { name: 'Send estimate for approval' })).toBeVisible();
+    await expect(job.getByLabel('Next stage')).toHaveCount(0);
+    await job.getByRole('link', { name: 'Send estimate for approval' }).click();
+    await expect(page.getByText('PHP 1,250.00', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Send estimate to customer' }).click();
+    await expect(page.getByText('Quotation sent to the customer.')).toBeVisible();
+
+    await context.clearCookies();
+    await signIn(page, 'customer');
+    await page.goto('/customer/repairs');
+    await page.locator(`#repair-${fixture.diagnosisRepairJob}`).getByRole('button', { name: 'Approve estimate' }).click();
+    await expect(page.getByText('Quotation response saved.')).toBeVisible();
+
+    await context.clearCookies();
+    await signIn(page, 'shop_owner');
+    await page.goto('/shop/repair-jobs?status=approved');
+    const approvedJob = page.locator(`#repair-${fixture.diagnosisRepairJob}`);
+    await expect(approvedJob.getByRole('button', { name: 'Start repair' })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath('approved-repair-ready-to-start.png'), fullPage: true });
+    await approvedJob.getByRole('button', { name: 'Start repair' }).click();
+    await page.goto('/shop/repair-jobs?status=repairing');
+    const activeJob = page.locator(`#repair-${fixture.diagnosisRepairJob}`);
+    await activeJob.getByLabel('Next stage').selectOption('completed');
+    await activeJob.getByRole('button', { name: 'Update repair stage' }).click();
+    await page.goto('/shop/repair-jobs?status=completed');
+    await page.locator(`#repair-${fixture.diagnosisRepairJob}`).getByRole('button', { name: 'Issue invoice' }).click();
+    await expect(page).toHaveURL(/shop\/invoices$/);
+    await expect(page.getByText('PHP 1,250.00', { exact: true })).toBeVisible();
+});
 
 test('customer can share location and see the assigned roadside shop', async ({ page }, testInfo) => {
     await signIn(page, 'customer');
@@ -142,11 +177,31 @@ test('customer shares and revokes a temporary service passport for a verified sh
     try {
         const shopPage = await shopContext.newPage();
         await signIn(shopPage, 'shop_owner');
-        await shopPage.goto(sharedUrl);
+        await shopPage.goto('/shop/passports/scan');
+        await expect(shopPage.getByRole('heading', { name: 'Scan a service passport' })).toBeVisible();
+        expect(await shopPage.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+            await shopPage.evaluate(() => document.documentElement.clientWidth + 1)
+        );
+        await shopPage.screenshot({ path: testInfo.outputPath('shop-passport-scanner.png'), fullPage: true });
+        await shopPage.getByLabel("Customer's shop-sharing link").fill(sharedUrl);
+        await shopPage.getByRole('button', { name: 'Open service passport' }).click();
         await expect(shopPage.getByRole('heading', { name: 'Shared service passport' })).toBeVisible();
         await expect(shopPage.getByText('BROWSER-001')).toBeVisible();
         await expect(shopPage.getByRole('link', { name: 'Review shop appointments' })).toBeVisible();
         await shopPage.screenshot({ path: testInfo.outputPath('shop-shared-passport.png'), fullPage: true });
+
+        await shopPage.addInitScript((url) => {
+            window.BarcodeDetector = class {
+                static async getSupportedFormats() { return ['qr_code']; }
+                async detect() { return [{ rawValue: url }]; }
+            };
+            Object.defineProperty(navigator, 'mediaDevices', { value: { getUserMedia: async () => new MediaStream() } });
+            HTMLMediaElement.prototype.play = async function () {};
+            Object.defineProperty(HTMLMediaElement.prototype, 'readyState', { get: () => 2 });
+        }, sharedUrl);
+        await shopPage.getByRole('link', { name: 'Scan another passport' }).click();
+        await shopPage.getByRole('button', { name: 'Start camera' }).click();
+        await expect(shopPage.getByRole('heading', { name: 'Shared service passport' })).toBeVisible();
 
         page.once('dialog', dialog => dialog.accept());
         await page.getByRole('button', { name: 'Revoke access' }).click();
@@ -305,9 +360,16 @@ test('customer books, shop confirms, and admin monitors the same appointment', a
         await expect(row.locator('.badge')).toHaveText('Ready for repair');
         const startRepairLink = row.getByRole('link', { name: 'Start repair job' });
         await expect(startRepairLink).toBeVisible();
+        await expect(row.getByLabel('Appointment status')).toBeHidden();
         expect(await startRepairLink.evaluate(link => link.getBoundingClientRect().right <= document.documentElement.clientWidth + 1)).toBe(true);
+        await page.evaluate(() => localStorage.setItem('autocare-theme', 'dark'));
+        await page.reload();
+        await expect(startRepairLink).toBeVisible();
         await page.screenshot({ path: testInfo.outputPath('confirmed-shop-appointment.png'), fullPage: true });
+        await row.getByText('Other appointment actions').click();
+        await expect(row.getByLabel('Appointment status')).toBeVisible();
         await expect(row.getByRole('option', { name: 'Confirm', exact: true })).toHaveCount(0);
+        await page.evaluate(() => localStorage.removeItem('autocare-theme'));
 
         await context.clearCookies();
         await signIn(page, 'admin');
@@ -367,6 +429,21 @@ test('admin manages categories and suspends then restores a public shop', async 
     await shop.getByRole('button', { name: 'Reactivate shop' }).click();
     await expect(shop.getByRole('button', { name: 'Suspend shop', exact: true })).toBeVisible();
     expect((await page.request.get('/shops/' + fixture.shop)).status()).toBe(200);
+});
+
+test('admin Verify document sends the clicked verification status', async ({ page }, testInfo) => {
+    const fixture = await signIn(page, 'admin');
+    await page.goto('/admin/shops');
+    await page.getByText('Review documents', { exact: false }).click();
+
+    const documentId = fixture.browserDocuments[testInfo.project.name];
+    const reviewForm = page.locator(`form[action$="/admin/shop-documents/${documentId}"]`);
+    await reviewForm.getByRole('button', { name: 'Verify document' }).click();
+
+    await expect(page.getByText('Document review saved.')).toBeVisible();
+    const documentCard = page.locator('details .border.rounded.p-3.mb-2')
+        .filter({ has: page.locator(`a[href$="/admin/shop-documents/${documentId}"]`) });
+    await expect(documentCard).toContainText('verified');
 });
 
 test('shop owner records part usage for an active repair', async ({ page }) => {

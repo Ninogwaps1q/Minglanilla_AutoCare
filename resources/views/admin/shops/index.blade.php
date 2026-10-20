@@ -22,7 +22,13 @@
                     <div><h2 id="shop-review-{{ $shop->id }}" class="h5 mb-1">{{ $shop->name }}</h2><p class="text-secondary mb-0">{{ $shop->owner->name }} · {{ $shop->barangay->name }}</p></div>
                     <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-{{ $shop->verification_status === 'approved' ? 'success' : ($shop->verification_status === 'rejected' ? 'danger' : 'warning') }} text-capitalize">{{ $shop->verification_status }}</span><span class="badge text-bg-secondary text-capitalize">{{ $shop->shop_status }}</span></div>
                 </div>
-                @unless ($documentsComplete)<p class="small text-secondary">Approve shop becomes available after both current permits are verified.</p>@endunless
+                @unless ($documentsComplete)
+                    @if ($shop->verification_status === 'approved')
+                        <p class="small text-warning-emphasis">This shop is approved, but its required permits are not currently verified. Do not treat this as document verification.</p>
+                    @else
+                        <p class="small text-secondary">Approve shop becomes available after both current permits are verified.</p>
+                    @endif
+                @endunless
 
                 <div class="row g-2 mb-3" aria-label="Required permit checklist">
                     @foreach ($permitChecklist as $permit)

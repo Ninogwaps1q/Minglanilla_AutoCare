@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Database\Migrations\Migrator;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -22,6 +23,19 @@ class DeploymentCheck extends Command
             $databaseAvailable = false;
         }
 
+        $migrationsCurrent = false;
+        if ($databaseAvailable) {
+            try {
+                $migrator = app(Migrator::class);
+                if ($migrator->repositoryExists()) {
+                    $migrationFiles = $migrator->getMigrationFiles(array_merge($migrator->paths(), [database_path('migrations')]));
+                    $migrationsCurrent = count(array_diff(array_keys($migrationFiles), $migrator->getRepository()->getRan())) === 0;
+                }
+            } catch (Throwable) {
+                $migrationsCurrent = false;
+            }
+        }
+
         $publicDiskIsLocal = config('filesystems.disks.public.driver') === 'local';
         $publicStorageLinked = ! $publicDiskIsLocal || (
             realpath(public_path('storage')) !== false
@@ -30,6 +44,7 @@ class DeploymentCheck extends Command
         $checks = [
             ['App key is configured', filled(config('app.key')), 'Set APP_KEY with php artisan key:generate on the target host.'],
             ['Database connection works', $databaseAvailable, 'Configure the production database and apply migrations.'],
+            ['Database migrations are current', $migrationsCurrent, 'Run php artisan migrate:status, then apply pending migrations with php artisan migrate --force.'],
             ['Local public image link is valid', $publicStorageLinked, 'Run php artisan storage:link on the target host, or configure a shared object-storage disk.'],
             ['Storage and cache directories are writable', is_writable(storage_path()) && is_writable(storage_path('framework')) && is_writable(storage_path('logs')) && is_writable(base_path('bootstrap/cache')), 'Give the web and queue processes write access to storage/ and bootstrap/cache/.'],
         ];

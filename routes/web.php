@@ -55,6 +55,7 @@ use App\Http\Controllers\Shop\ShopDashboardController;
 use App\Http\Controllers\Shop\ShopDocumentController;
 use App\Http\Controllers\Shop\ShopManagementController;
 use App\Http\Controllers\Shop\TechnicianController;
+use App\Http\Controllers\Shop\VehiclePassportScannerController;
 use App\Http\Controllers\ShopMapController;
 use App\Http\Controllers\ShopRegistrationController;
 use Illuminate\Support\Facades\Route;
@@ -88,6 +89,8 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::post('/shop/register', [ShopRegistrationController::class, 'store'])->middleware(['auth', 'role:shop_owner'])->name('shop.register.store');
     Route::get('/shop/dashboard', ShopDashboardController::class)->middleware(['auth', 'role:shop_owner'])->name('shop.dashboard');
     Route::middleware(['auth', 'role:shop_owner'])->prefix('shop')->name('shop.')->group(function (): void {
+        Route::get('passports/scan', [VehiclePassportScannerController::class, 'index'])->name('passports.scan');
+        Route::post('passports/open', [VehiclePassportScannerController::class, 'open'])->middleware('throttle:30,1')->name('passports.open');
         Route::get('shared-passports/{passportShare}', SharedVehiclePassportController::class)->middleware(['signed', 'throttle:30,1'])->name('passports.shared');
         Route::get('quotations', [ShopQuotationController::class, 'index'])->name('quotations.index');
         Route::get('quotations/{quotation}/edit', [ShopQuotationController::class, 'edit'])->name('quotations.edit');

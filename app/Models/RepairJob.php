@@ -30,12 +30,10 @@ class RepairJob extends Model
         }
 
         return match ($this->status) {
-            'completed' => ['released' => 'Release vehicle'],
-            'released', 'cancelled' => [],
-            'waiting_approval' => ['cancelled' => 'Cancel'],
-            'approved', 'repairing', 'in_progress' => ['repairing' => 'Repairing', 'waiting_parts' => 'Waiting for parts', 'completed' => 'Complete', 'cancelled' => 'Cancel'],
+            'pending', 'diagnosis', 'waiting_approval', 'approved' => ['repairing' => 'Start repair', 'cancelled' => 'Cancel'],
+            'repairing', 'in_progress' => ['waiting_parts' => 'Waiting for parts', 'completed' => 'Complete repair', 'cancelled' => 'Cancel'],
             'waiting_parts' => ['repairing' => 'Resume repair', 'cancelled' => 'Cancel'],
-            default => ['diagnosis' => 'Diagnosis', 'repairing' => 'Repairing', 'completed' => 'Complete', 'cancelled' => 'Cancel'],
+            default => ['cancelled' => 'Cancel'],
         };
     }
 

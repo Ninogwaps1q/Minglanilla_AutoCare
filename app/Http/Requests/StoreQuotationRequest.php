@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\RepairJob;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -22,10 +23,13 @@ class StoreQuotationRequest extends FormRequest
      */
     public function rules(): array
     {
+        $repairJob = $this->route('repairJob');
+        $hasSavedWorkItems = $repairJob instanceof RepairJob && $repairJob->items()->exists();
+
         return [
             'valid_until' => ['nullable', 'date', 'after_or_equal:today'],
             'notes' => ['nullable', 'string', 'max:5000'],
-            'items' => ['required', 'array', 'min:1', 'max:50'],
+            'items' => [$hasSavedWorkItems ? 'sometimes' : 'required', 'array', 'min:1', 'max:50'],
             'items.*' => ['array:description,quantity,unit_price'],
             'items.*.description' => ['required', 'string', 'max:1000'],
             'items.*.quantity' => ['required', 'integer', 'min:1', 'max:10000'],

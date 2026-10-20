@@ -4,11 +4,11 @@ Laravel application for customers, auto shops, and administrators. It covers sho
 
 ## Requirements
 
-- PHP 8.2 or newer with the extensions required by `composer install`, including PDO MySQL, mbstring, fileinfo, and OpenSSL
-- Composer 2
-- Node.js `^20.19.0` or `>=22.12.0` and npm (required by the installed Vite version)
-- MySQL 8 for the intended production database; a local MariaDB setup can run the app, but MySQL 8 concurrency sign-off must be done separately
-- A web server that points its document root to `public/`
+-   PHP 8.2 or newer with the extensions required by `composer install`, including PDO MySQL, mbstring, fileinfo, and OpenSSL
+-   Composer 2
+-   Node.js `^20.19.0` or `>=22.12.0` and npm (required by the installed Vite version)
+-   MySQL 8 for the intended production database; a local MariaDB setup can run the app, but MySQL 8 concurrency sign-off must be done separately
+-   A web server that points its document root to `public/`
 
 ## Set up a development copy
 
@@ -49,10 +49,10 @@ If images do not appear:
 
 ## Optional integrations
 
-- AI assistant: set `AI_PROVIDER=gemini`, `GEMINI_API_KEY`, and `AI_MODEL` in `.env`. Keep the key server-side.
-- Password-reset email: `MAIL_MAILER=log` writes development mail to Laravel logs. Configure a real mail provider before inviting users, then send and redeem a test reset link.
-- Maps and browser location: geolocation requires the user's permission and HTTPS in production (localhost is suitable for local testing).
-- Background work: the default database queue requires a running `php artisan queue:work` process. Production also needs a scheduler that invokes `php artisan schedule:run` every minute.
+-   AI assistant: set `AI_PROVIDER=gemini`, `GEMINI_API_KEY`, and `AI_MODEL` in `.env`. Keep the key server-side.
+-   Password-reset email: `MAIL_MAILER=log` writes development mail to Laravel logs. Configure a real mail provider before inviting users, then send and redeem a test reset link.
+-   Maps and browser location: geolocation requires the user's permission and HTTPS in production (localhost is suitable for local testing).
+-   Background work: the default database queue requires a running `php artisan queue:work` process. Production also needs a scheduler that invokes `php artisan schedule:run` every minute.
 
 ## Tests
 
@@ -85,10 +85,10 @@ Do not point the browser tests at production. Their temporary database is delete
 
 Before switching traffic to a new host:
 
-1. Set `APP_ENV=production`, `APP_DEBUG=false`, a unique `APP_KEY`, an HTTPS `APP_URL`, real database credentials, and a working mail provider. Keep `.env` outside source control.
+1. Set `APP_ENV=production`, `APP_DEBUG=false`, an HTTPS `APP_URL`, real database credentials, and a working mail provider. Generate a unique `APP_KEY` for a new installation; preserve the original key when moving an existing installation so encrypted data remains readable. Keep `.env` outside source control.
 2. Run `composer install --no-dev --optimize-autoloader`, `npm ci`, `npm run build`, `php artisan migrate --force --no-interaction`, `php artisan storage:link`, and `php artisan optimize` on the target host. Ensure `storage/` and `bootstrap/cache/` are writable by the application.
 3. Start a supervised queue worker and configure the once-per-minute scheduler. Check `php artisan queue:failed` and `php artisan schedule:list`.
-4. Run `php artisan app:deployment-check --strict`. It checks configuration, database access, storage link, and writable directories, but it cannot prove external services are operating.
+4. Run `php artisan app:deployment-check --strict`. It checks configuration, database access and pending migrations, storage link, and writable directories, but it cannot prove external services are operating.
 5. Manually verify a delivered password-reset email, customer/shop/admin workflows, image upload and display, HTTPS, payment review, and a database **backup plus restore into a separate disposable database**. Do not restore over production as a test.
 6. On a private console, run `php artisan app:bootstrap-admin` to create the first production administrator. The local demo-account seeder intentionally does not create production users.
 

@@ -1,5 +1,5 @@
 <x-layouts.app title="Shared service passport">
-    <div class="page-heading"><h1>Shared service passport</h1><p>Read-only vehicle history shared by its owner. Access expires {{ $expiresAt->format('M j, Y g:i A') }}.</p></div>
+    <div class="page-heading d-flex flex-wrap justify-content-between gap-3"><div><h1>Shared service passport</h1><p>Read-only vehicle history shared by its owner. Access expires {{ $expiresAt->format('M j, Y g:i A') }}.</p></div><a class="btn btn-outline-primary align-self-start d-print-none" href="{{ route('shop.passports.scan') }}"><i class="bi bi-qr-code-scan me-2" aria-hidden="true"></i>Scan another passport</a></div>
     <section class="surface p-4 mb-4" aria-labelledby="shared-vehicle-title">
         <h2 id="shared-vehicle-title" class="h3">{{ $vehicle->year }} {{ $vehicle->make }} {{ $vehicle->model }}</h2>
         <p class="mb-3">{{ $vehicle->plate_number }} · {{ number_format($vehicle->current_mileage) }} km</p>

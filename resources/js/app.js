@@ -1,6 +1,10 @@
 import './bootstrap';
 import 'bootstrap';
 
+if (document.querySelector('[data-passport-scanner]')) {
+    import('./passport-scanner.js');
+}
+
 const systemTheme = window.matchMedia('(prefers-color-scheme: dark)');
 
 function applyTheme(theme, persist = false) {
@@ -94,6 +98,14 @@ document.querySelectorAll('form').forEach((form) => {
 
         const submitter = event.submitter;
         if (submitter instanceof HTMLButtonElement && !submitter.dataset.noLoading) {
+            if (submitter.name) {
+                // Disabled buttons are omitted from the form payload, so preserve the clicked action.
+                const submittedAction = document.createElement('input');
+                submittedAction.type = 'hidden';
+                submittedAction.name = submitter.name;
+                submittedAction.value = submitter.value;
+                form.append(submittedAction);
+            }
             submitter.disabled = true;
             submitter.setAttribute('aria-busy', 'true');
             submitter.dataset.originalLabel = submitter.innerHTML;

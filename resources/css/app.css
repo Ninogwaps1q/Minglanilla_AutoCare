@@ -531,6 +531,10 @@ h4 {
     font-size: 2rem;
 }
 
+.shop-directory-map {
+    height: clamp(18rem, 42vw, 27rem);
+}
+
 .shop-directory-logo,
 .shop-public-logo,
 .technician-avatar {
@@ -1907,6 +1911,21 @@ h4 {
     }
 }
 
+@media (max-width: 359px) {
+    .ai-floating-button {
+        right: .75rem;
+        width: 2.75rem;
+        height: 2.75rem;
+        padding: .375rem;
+    }
+
+    .ai-floating-icon {
+        width: 2rem;
+        height: 2rem;
+        flex-basis: 2rem;
+    }
+}
+
 /* Shared interaction quality for customer, shop, and administration workspaces. */
 .portal-content :is(.form-control, .form-select) {
     min-height: 2.75rem;
@@ -1963,6 +1982,88 @@ h4 {
     color: #475569;
     white-space: nowrap;
     text-overflow: ellipsis;
+}
+
+.appointment-filter {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    justify-content: space-between;
+    gap: .75rem 1.5rem;
+}
+
+.appointment-filter-fields {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem;
+}
+
+.appointment-filter-fields .form-select {
+    width: auto;
+    min-width: 10.5rem;
+}
+
+.appointment-filter-count {
+    margin: 0 0 .45rem;
+    color: var(--muted);
+    font-size: .875rem;
+}
+
+.appointment-action-cell {
+    min-width: 16rem;
+}
+
+.appointment-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: .5rem;
+}
+
+.appointment-main-action {
+    min-width: 9.5rem;
+}
+
+.appointment-more-actions {
+    width: 100%;
+    max-width: 18rem;
+    text-align: end;
+}
+
+.appointment-more-actions summary {
+    width: fit-content;
+    margin-left: auto;
+    color: var(--ink);
+    cursor: pointer;
+    font-size: .875rem;
+    text-decoration: underline;
+    text-underline-offset: .2em;
+}
+
+.appointment-more-actions summary:focus-visible {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: 3px;
+}
+
+.appointment-status-form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: .5rem;
+    width: 100%;
+    max-width: 18rem;
+}
+
+.appointment-more-actions .appointment-status-form {
+    margin-top: .65rem;
+}
+
+.appointment-status-form .form-select {
+    min-width: 0;
+}
+
+.appointment-status-form .btn {
+    white-space: nowrap;
 }
 
 @media (max-width: 767.98px) {
@@ -2033,6 +2134,32 @@ h4 {
 
     .appointment-table td[data-label="Next action"] .btn {
         width: 100%;
+    }
+
+    .appointment-action-cell {
+        min-width: 0;
+    }
+
+    .appointment-actions {
+        align-items: stretch;
+        margin-top: .25rem;
+    }
+
+    .appointment-more-actions,
+    .appointment-status-form {
+        max-width: none;
+    }
+
+    .appointment-more-actions {
+        text-align: start;
+    }
+
+    .appointment-more-actions summary {
+        margin-left: 0;
+    }
+
+    .appointment-status-form {
+        grid-template-columns: 1fr;
     }
 
     .portal-content :is(.btn, .form-control, .form-select) {
@@ -3193,6 +3320,40 @@ html[data-theme="dark"] .hero-route-icon,
 html[data-theme="dark"] .feature-icon {
     color: #fdba74;
     background: #3b271d;
+}
+
+.passport-scanner-preview {
+    display: grid;
+    place-items: center;
+    min-height: 18rem;
+    overflow: hidden;
+    border-radius: .875rem;
+    background: #101e32;
+    color: #e4ebf5;
+}
+
+.passport-scanner-preview video {
+    display: block;
+    width: 100%;
+    max-height: 27rem;
+    object-fit: contain;
+}
+
+.passport-scanner-preview [hidden] {
+    display: none;
+}
+
+.passport-scanner-placeholder {
+    display: grid;
+    justify-items: center;
+    gap: .75rem;
+    padding: 2rem;
+    text-align: center;
+}
+
+.passport-scanner-placeholder i {
+    font-size: 3rem;
+    line-height: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {
