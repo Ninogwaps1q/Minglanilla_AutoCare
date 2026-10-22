@@ -2,9 +2,12 @@
 
 use App\Http\Middleware\EnsureUserHasRole;
 use App\Http\Middleware\EnsureUserIsActive;
+use App\Services\Messaging\MessageStorage;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -20,5 +23,12 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function (QueryException $exception, Request $request) {
+            if (MessageStorage::isUnavailable($exception)
+                && ($request->routeIs('customer.messages.*') || $request->routeIs('shop.messages.*'))) {
+                return response()->view('errors.503', [], 503);
+            }
+
+            return null;
+        });
     })->create();

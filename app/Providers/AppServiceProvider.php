@@ -6,6 +6,8 @@ use App\Models\Message;
 use App\Services\AI\AiProviderInterface;
 use App\Services\AI\GeminiProvider;
 use App\Services\AI\OpenAiProvider;
+use App\Services\Messaging\MessageStorage;
+use Illuminate\Database\QueryException;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\View as ViewFacade;
 use Illuminate\Support\ServiceProvider;
@@ -38,24 +40,34 @@ class AppServiceProvider extends ServiceProvider
                 : 0);
 
             $unreadMessageCount = 0;
-            if ($user?->role === 'customer') {
-                $unreadMessageCount = Message::query()
-                    ->whereNull('read_at')
-                    ->where('sender_id', '!=', $user->id)
-                    ->whereHas('thread', fn ($query) => $query->where('customer_id', $user->id))
-                    ->count();
-            } elseif ($user?->role === 'shop_owner') {
-                $shopId = $user->shops()->value('id');
-                if ($shopId !== null) {
+            $messagesUnavailable = false;
+            try {
+                if ($user?->role === 'customer') {
                     $unreadMessageCount = Message::query()
                         ->whereNull('read_at')
                         ->where('sender_id', '!=', $user->id)
-                        ->whereHas('thread', fn ($query) => $query->where('shop_id', $shopId))
+                        ->whereHas('thread', fn ($query) => $query->where('customer_id', $user->id))
                         ->count();
+                } elseif ($user?->role === 'shop_owner') {
+                    $shopId = $user->shops()->value('id');
+                    if ($shopId !== null) {
+                        $unreadMessageCount = Message::query()
+                            ->whereNull('read_at')
+                            ->where('sender_id', '!=', $user->id)
+                            ->whereHas('thread', fn ($query) => $query->where('shop_id', $shopId))
+                            ->count();
+                    }
                 }
+            } catch (QueryException $exception) {
+                if (! MessageStorage::isUnavailable($exception)) {
+                    throw $exception;
+                }
+
+                $messagesUnavailable = true;
             }
 
             $view->with('unreadMessageCount', $unreadMessageCount);
+            $view->with('messagesUnavailable', $messagesUnavailable);
         });
     }
 }

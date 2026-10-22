@@ -131,6 +131,12 @@
                 @if (session('status'))
                     <div class="alert alert-success alert-dismissible fade show" role="status">{{ session('status') }}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Dismiss notification"></button></div>
                 @endif
+                @if ($messagesUnavailable ?? false)
+                    <div class='alert alert-warning' role='alert'>
+                        <i class='bi bi-exclamation-triangle me-2' aria-hidden='true'></i>
+                        Messages are temporarily unavailable. Your other account features are still available.
+                    </div>
+                @endif
                 {{ $slot }}
             </main>
             <footer class="portal-footer">Minglanilla AutoCare Hub · {{ $roleLabel }} workspace</footer>
