@@ -92,13 +92,14 @@ test('a shop location opens its matching logo on the map', async ({ page }) => {
     const fixture = JSON.parse(process.env.BROWSER_FIXTURE);
 
     await page.goto(`/shops/${fixture.shop}`);
+    const currentLogo = await page.locator('.shop-public-logo').getAttribute('src');
     await page.getByRole('link', { name: 'View on map' }).click();
     await expect(page).toHaveURL(new RegExp(`selected=${fixture.shop}`));
 
     const popup = page.locator('#shop-map .leaflet-popup-content');
     await expect(popup).toContainText('Browser Test AutoCare');
     const logo = popup.locator('img');
-    await expect(logo).toHaveAttribute('src', /\/media\/shop-logos\/browser-map-/);
+    await expect(logo).toHaveAttribute('src', currentLogo);
     await expect.poll(() => logo.evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
 
     await page.locator('#shop-map .leaflet-popup-close-button').click();

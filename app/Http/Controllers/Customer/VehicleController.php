@@ -72,14 +72,15 @@ class VehicleController extends Controller
     {
         $this->authorize('update', $vehicle);
         $attributes = $request->safe()->except('photo');
+        $previousPhoto = null;
         if ($request->hasFile('photo')) {
             $previousPhoto = $vehicle->photo;
             $attributes['photo'] = $request->file('photo')->store('vehicles', 'public');
-            if ($previousPhoto !== null) {
-                Storage::disk('public')->delete($previousPhoto);
-            }
         }
         $vehicle->update($attributes);
+        if ($previousPhoto !== null) {
+            Storage::disk('public')->delete($previousPhoto);
+        }
 
         return redirect()->route('customer.vehicles.show', $vehicle)->with('status', 'Vehicle updated successfully.');
     }
@@ -90,10 +91,10 @@ class VehicleController extends Controller
     public function destroy(Vehicle $vehicle): RedirectResponse
     {
         $this->authorize('delete', $vehicle);
+        $vehicle->delete();
         if ($vehicle->photo) {
             Storage::disk('public')->delete($vehicle->photo);
         }
-        $vehicle->delete();
 
         return redirect()->route('customer.vehicles.index')->with('status', 'Vehicle removed successfully.');
     }

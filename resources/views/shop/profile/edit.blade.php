@@ -1,4 +1,15 @@
 <x-layouts.app title="Shop profile">
+    @php
+        $missingShopLogo = $shop->logo && ! \Illuminate\Support\Facades\Storage::disk('public')->exists($shop->logo);
+        $missingShopCover = $shop->cover_photo && ! \Illuminate\Support\Facades\Storage::disk('public')->exists($shop->cover_photo);
+    @endphp
+    @if ($missingShopLogo || $missingShopCover)
+        <div class='alert alert-warning' role='status'>
+            <strong>Some saved shop photos are missing.</strong>
+            @if ($missingShopLogo)<p class='mb-1'>Choose a new shop logo below, then save your profile.</p>@endif
+            @if ($missingShopCover)<p class='mb-0'>Choose a new cover photo below, then save your profile.</p>@endif
+        </div>
+    @endif
     <div class="page-heading">
         <h1>Shop profile</h1>
         <p>Update the public information shown to customers after verification.</p>

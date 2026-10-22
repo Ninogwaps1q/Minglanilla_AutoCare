@@ -42,14 +42,15 @@ class TechnicianController extends Controller
     {
         abort_unless($technician->shop_id === $this->shop($request)->id, 404);
         $attributes = $request->safe()->except('photo');
+        $previousPhoto = null;
         if ($request->hasFile('photo')) {
             $previousPhoto = $technician->photo;
             $attributes['photo'] = $request->file('photo')->store('technicians', 'public');
-            if ($previousPhoto !== null) {
-                Storage::disk('public')->delete($previousPhoto);
-            }
         }
         $technician->update($attributes);
+        if ($previousPhoto !== null) {
+            Storage::disk('public')->delete($previousPhoto);
+        }
 
         return back()->with('status', 'Technician updated.');
     }

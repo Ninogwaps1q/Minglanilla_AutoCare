@@ -23,16 +23,17 @@ class ProfileController extends Controller
     {
         $user = $request->user();
         $attributes = $request->safe()->except('profile_photo');
+        $previousPhoto = null;
 
         if ($request->hasFile('profile_photo')) {
             $previousPhoto = $user->profile_photo;
             $attributes['profile_photo'] = $request->file('profile_photo')->store('profile-photos', 'public');
-            if ($previousPhoto !== null) {
-                Storage::disk('public')->delete($previousPhoto);
-            }
         }
 
         $user->update($attributes);
+        if ($previousPhoto !== null) {
+            Storage::disk('public')->delete($previousPhoto);
+        }
 
         return to_route('customer.profile.edit')->with('status', 'Your profile has been updated.');
     }

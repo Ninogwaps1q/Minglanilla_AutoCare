@@ -8,6 +8,7 @@ use App\Models\Shop;
 use App\Models\ShopService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class PublicShopController extends Controller
@@ -51,7 +52,9 @@ class PublicShopController extends Controller
                 'name' => $shop->name,
                 'latitude' => (float) $shop->latitude,
                 'longitude' => (float) $shop->longitude,
-                'logo_url' => $shop->logo ? route('media.image', ['directory' => 'shop-logos', 'filename' => basename($shop->logo)]) : null,
+                'logo_url' => $shop->logo && Storage::disk('public')->exists($shop->logo)
+                    ? route('media.image', ['directory' => 'shop-logos', 'filename' => basename($shop->logo)])
+                    : null,
                 'url' => route('shops.show', $shop),
             ])->values();
 

@@ -9,6 +9,7 @@ use App\Models\Shop;
 use App\Models\ShopService;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
 
@@ -30,6 +31,9 @@ it('shows only approved active shops in the directory', function () {
 });
 
 it('includes the selected public shop logo and location in the map', function () {
+    Storage::fake('public');
+    Storage::disk('public')->put('shop-logos/atlas.png', base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9JQqkAAAAASUVORK5CYII='));
+
     $shop = Shop::factory()->create([
         'name' => 'Atlas AutoCare',
         'logo' => 'shop-logos/atlas.png',

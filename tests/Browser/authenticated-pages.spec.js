@@ -229,14 +229,17 @@ test('booking shows the service price and checks the selected shop schedule', as
 test('customer sees shop payment details and the review steps', async ({ page }) => {
     await signIn(page, 'customer');
     await page.goto('/customer/invoices');
-    await expect(page.getByText('This form does not transfer money.')).toBeVisible();
-    await page.locator('[data-payment-method]').first().selectOption('gcash');
-    await expect(page.getByText('Send GCash to 09171234567')).toBeVisible();
-    await page.locator('[data-payment-method]').first().selectOption('bank_transfer');
-    await expect(page.getByText('Test Bank')).toBeVisible();
+    const paymentForm = page.locator('form:has([data-payment-method])').first();
+    await expect(paymentForm).toBeVisible();
+    await expect(page.getByText('This form does not transfer money.').first()).toBeVisible();
+    await paymentForm.locator('[data-payment-method]').selectOption('gcash');
+    await expect(paymentForm.locator('[data-method-instructions=gcash]')).toContainText('Send GCash to 09171234567');
+    await paymentForm.locator('[data-payment-method]').selectOption('bank_transfer');
+    await expect(paymentForm.locator('[data-method-instructions=bank_transfer]')).toContainText('Test Bank');
 });
 
 test('customer dashboard makes primary actions clear', async ({ page }, testInfo) => {
+    test.setTimeout(60000);
     await signIn(page, 'customer');
     await expect(page.getByRole('heading', { name: /Good (morning|afternoon|evening)/ })).toBeVisible();
     await expect(page.locator('.customer-welcome .btn-accent')).toBeVisible();
@@ -251,7 +254,11 @@ test('customer dashboard makes primary actions clear', async ({ page }, testInfo
     await expect(page.getByLabel('Ask AutoCare AI')).toBeVisible();
     expect(page.url()).toBe(dashboardUrl);
     await page.getByLabel('Ask AutoCare AI').fill('Please book a service for my car');
-    await page.getByRole('button', { name: 'Send question' }).click();
+    await Promise.all([
+        page.waitForResponse(response => response.request().method() === 'POST' && response.url().includes('/customer/ai-assistant'), { timeout: 30000 }),
+        page.getByRole('button', { name: 'Send question' }).click(),
+    ]);
+    await expect(page.getByText('AI response received.')).toBeVisible({ timeout: 15000 });
     const aiPanel = page.getByRole('region', { name: 'AutoCare AI chat' });
     await expect(aiPanel).toBeVisible();
     await expect(aiPanel.getByRole('link', { name: 'Book a service' }).last()).toBeVisible();

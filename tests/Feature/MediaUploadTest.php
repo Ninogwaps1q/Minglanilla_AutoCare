@@ -65,6 +65,33 @@ it('stores shop branding during registration and replaces it from the profile', 
     $this->get(route('shop.profile.edit'))->assertOk()->assertSee('/media/'.$shop->logo, false);
 });
 
+it('shows usable fallbacks and reupload guidance when saved shop images are missing', function () {
+    Storage::fake('public');
+    $owner = User::factory()->create(['role' => 'shop_owner']);
+    $shop = Shop::factory()->create([
+        'owner_id' => $owner->id,
+        'name' => 'Missing Image Shop',
+        'logo' => 'shop-logos/missing.png',
+        'cover_photo' => 'shop-covers/missing.png',
+        'latitude' => 10.25,
+        'longitude' => 123.79,
+        'verification_status' => 'approved',
+        'shop_status' => 'active',
+    ]);
+
+    $this->get(route('shops.show', $shop))
+        ->assertOk()
+        ->assertSee('aria-label="Missing Image Shop logo"', false)
+        ->assertDontSee('/media/shop-logos/missing.png')
+        ->assertDontSee('/media/shop-covers/missing.png');
+    $this->get(route('shops.index', ['selected' => $shop->id]))
+        ->assertViewHas('mapShops', fn ($shops): bool => $shops->first()['logo_url'] === null);
+    $this->actingAs($owner)->get(route('shop.profile.edit'))
+        ->assertOk()
+        ->assertSee('Choose a new shop logo below')
+        ->assertSee('Choose a new cover photo below');
+});
+
 it('stores and renders a technician photo only for the owning shop', function () {
     Storage::fake('public');
     $owner = User::factory()->create(['role' => 'shop_owner']);

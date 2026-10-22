@@ -25,20 +25,35 @@ class ShopManagementController extends Controller
     {
         $shop = $this->shop($request);
         $attributes = $request->safe()->except(['logo', 'cover_photo']);
+        $newPaths = [];
+        $previousPaths = [];
 
-        foreach (['logo' => 'shop-logos', 'cover_photo' => 'shop-covers'] as $field => $directory) {
-            if (! $request->hasFile($field)) {
-                continue;
+        try {
+            foreach (['logo' => 'shop-logos', 'cover_photo' => 'shop-covers'] as $field => $directory) {
+                if (! $request->hasFile($field)) {
+                    continue;
+                }
+
+                $attributes[$field] = $request->file($field)->store($directory, 'public');
+                if (! $attributes[$field]) {
+                    throw new \RuntimeException('Could not save the shop image. Please try again.');
+                }
+                $newPaths[] = $attributes[$field];
+                if ($shop->{$field}) {
+                    $previousPaths[] = $shop->{$field};
+                }
             }
 
-            $previousPath = $shop->{$field};
-            $attributes[$field] = $request->file($field)->store($directory, 'public');
-            if ($previousPath !== null) {
-                Storage::disk('public')->delete($previousPath);
+            if (! $shop->update($attributes)) {
+                throw new \RuntimeException('Could not update the shop profile. Please try again.');
             }
+        } catch (\Throwable $exception) {
+            Storage::disk('public')->delete($newPaths);
+
+            throw $exception;
         }
 
-        $shop->update($attributes);
+        Storage::disk('public')->delete($previousPaths);
 
         return back()->with('status', 'Shop profile updated.');
     }

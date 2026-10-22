@@ -1,5 +1,10 @@
+@php
+    $title ??= 'Service temporarily unavailable';
+    $message ??= 'The service is temporarily unavailable. Please try again shortly.';
+@endphp
+
 <x-error-page
     code='503'
-    title='Messages are temporarily unavailable'
-    message='We cannot load conversations right now. Please try again later; your other account features are still available.'
+    :title='$title'
+    :message='$message'
 />
