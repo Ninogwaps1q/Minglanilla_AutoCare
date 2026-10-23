@@ -1,6 +1,6 @@
 <x-layouts.app title="Repair jobs">
     <div class="page-heading d-flex flex-wrap justify-content-between gap-3"><div><h1>Repair jobs</h1><p>Manage diagnosis, customer approval, repairs, and vehicle release.</p></div><div><a class="btn btn-primary" href="{{ route('shop.repair-jobs.create') }}">Create repair job</a></div></div>
-    @if (request()->integer('appointment_id') > 0)<p><a href="{{ route('shop.repair-jobs.index') }}">View all repair jobs</a></p>@endif
+    @if (request()->integer('appointment_id') > 0 || request()->integer('repair_job_id') > 0)<p><a href="{{ route('shop.repair-jobs.index') }}">View all repair jobs</a></p>@endif
     @include('components.form-errors')
     <form method="GET" action="{{ route('shop.repair-jobs.index') }}" class="surface p-3 mb-3 d-flex flex-wrap align-items-end gap-2"><div><label for="repair-status-filter" class="form-label">Show repair jobs</label><select id="repair-status-filter" class="form-select" name="status"><option value="">All stages</option>@foreach (['pending' => 'New jobs', 'diagnosis' => 'Diagnosis', 'waiting_approval' => 'Waiting for approval', 'approved' => 'Ready to start', 'repairing' => 'Repairing', 'in_progress' => 'In progress (older jobs)', 'waiting_parts' => 'Waiting for parts', 'completed' => 'Completed', 'released' => 'Released', 'cancelled' => 'Cancelled'] as $value => $label)<option value="{{ $value }}" @selected($selectedStatus === $value)>{{ $label }}</option>@endforeach</select></div><button class="btn btn-outline-primary">Apply filter</button>@if ($selectedStatus)<a class="btn btn-link" href="{{ route('shop.repair-jobs.index') }}">Clear</a>@endif</form>
     @forelse ($repairJobs as $repairJob)
@@ -30,6 +30,38 @@
                 @endif
             </section>
             </details>
+            <details class="repair-details mb-3">
+                <summary>Before & after photos · {{ $repairJob->photos->count() }}</summary>
+                <p class="text-secondary small mt-3">Photos stay private to this customer, this shop, and admins.</p>
+                @if($repairJob->photos->isNotEmpty())
+                    <div class="repair-evidence-grid mb-3">
+                        @foreach($repairJob->photos as $photo)
+                            <figure class="mb-0"><a href="{{ route('repair-photos.show', $photo) }}" target="_blank" rel="noopener"><img class="repair-evidence-image" src="{{ route('repair-photos.show', $photo) }}" alt="{{ ucfirst($photo->stage) }} repair photo: {{ $photo->caption ?: $repairJob->vehicle->plate_number }}" loading="lazy"></a><figcaption class="small mt-1"><strong>{{ ucfirst($photo->stage) }}</strong>@if($photo->caption) · {{ $photo->caption }}@endif</figcaption></figure>
+                        @endforeach
+                    </div>
+                @else<p>No repair photos have been recorded yet.</p>@endif
+                @if($repairJob->status !== 'cancelled')
+                    <form method="POST" action="{{ route('shop.repair-photos.store', $repairJob) }}" enctype="multipart/form-data" class="row g-2 align-items-end">
+                        @csrf
+                        <div class="col-md-2"><label class="form-label" for="photo-stage-{{ $repairJob->id }}">Stage</label><select id="photo-stage-{{ $repairJob->id }}" name="stage" class="form-select" required>@if($repairJob->started_at || in_array($repairJob->status, ['repairing', 'in_progress', 'waiting_parts', 'completed', 'released'], true))<option value="after">After</option>@else<option value="before">Before</option>@endif</select></div>
+                        <div class="col-md-4"><label class="form-label" for="repair-photo-{{ $repairJob->id }}">Photo</label><input id="repair-photo-{{ $repairJob->id }}" name="photo" type="file" class="form-control" accept="image/jpeg,image/png,image/webp" required><small class="form-text">JPG, PNG, or WebP. Up to 5 MB.</small></div>
+                        <div class="col-md-4"><label class="form-label" for="photo-caption-{{ $repairJob->id }}">Caption (optional)</label><input id="photo-caption-{{ $repairJob->id }}" name="caption" class="form-control" maxlength="255" placeholder="What does this photo show?"></div>
+                        <div class="col-md-2 d-grid"><button class="btn btn-outline-primary">Add photo</button></div>
+                    </form>
+                @endif
+            </details>
+            @if(in_array($repairJob->status, ['completed', 'released'], true))
+                <details class="repair-details mb-3">
+                    <summary>Warranty {{ $repairJob->warranty ? '· issued' : '· not issued' }}</summary>
+                    @if($repairJob->warranty)
+                        <div class="mt-3"><p class="mb-1"><strong>Coverage:</strong> {{ $repairJob->warranty->coverage }}</p><p class="small text-secondary mb-0">Issued {{ $repairJob->warranty->valid_from->format('M j, Y') }} · Ends {{ $repairJob->warranty->valid_until->format('M j, Y') }}</p></div>
+                    @else
+                        <p class="text-secondary small mt-3">Issue a warranty only if your shop offers one for this completed repair. The customer will see exactly what is covered and when it ends.</p>
+                        <form method="POST" action="{{ route('shop.repair-warranties.store', $repairJob) }}" class="row g-2 align-items-end">@csrf<div class="col-md-7"><label class="form-label" for="warranty-coverage-{{ $repairJob->id }}">What is covered?</label><textarea id="warranty-coverage-{{ $repairJob->id }}" name="coverage" class="form-control" rows="2" minlength="10" maxlength="2000" required></textarea></div><div class="col-md-3"><label class="form-label" for="warranty-days-{{ $repairJob->id }}">Duration in days</label><input id="warranty-days-{{ $repairJob->id }}" name="duration_days" class="form-control" type="number" min="1" max="730" required></div><div class="col-md-2 d-grid"><button class="btn btn-outline-primary">Issue warranty</button></div></form>
+                    @endif
+                </details>
+            @endif
+            @if($repairJob->serviceCases->isNotEmpty())<p class="small mb-3"><a href="{{ route('shop.service-cases.index') }}">{{ $repairJob->serviceCases->count() }} customer aftercare {{ str('request')->plural($repairJob->serviceCases->count()) }} for this repair</a></p>@endif
             <div class="d-flex flex-wrap gap-2 mb-3">
                 @if (! in_array($repairJob->status, ['completed', 'released', 'cancelled'], true) && ! in_array($repairJob->quotation?->status, ['sent', 'accepted', 'approved'], true))<a class="btn btn-primary" href="{{ route('shop.quotations.create', $repairJob) }}">Send estimate for approval</a>@endif
                 @if (! in_array($repairJob->status, ['completed', 'released', 'cancelled'], true))<a class="btn btn-outline-secondary" href="{{ route('shop.inspections.create', $repairJob) }}">Record inspection</a>@endif

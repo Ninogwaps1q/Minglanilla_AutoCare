@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Database\Factories\RepairJobFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -11,6 +13,9 @@ use Illuminate\Support\Collection;
 
 class RepairJob extends Model
 {
+    /** @use HasFactory<RepairJobFactory> */
+    use HasFactory;
+
     /** @return array<string, string> */
     public function availableStatuses(): array
     {
@@ -87,6 +92,21 @@ class RepairJob extends Model
     public function items(): HasMany
     {
         return $this->hasMany(RepairJobItem::class);
+    }
+
+    public function photos(): HasMany
+    {
+        return $this->hasMany(RepairPhoto::class)->oldest();
+    }
+
+    public function warranty(): HasOne
+    {
+        return $this->hasOne(RepairWarranty::class);
+    }
+
+    public function serviceCases(): HasMany
+    {
+        return $this->hasMany(ServiceCase::class)->latest();
     }
 
     public function statusHistories(): HasMany

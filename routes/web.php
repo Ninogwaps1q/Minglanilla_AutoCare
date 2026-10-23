@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\BarangayController;
 use App\Http\Controllers\Admin\MonitoringController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\ReviewModerationController;
+use App\Http\Controllers\Admin\ServiceCaseController as AdminServiceCaseController;
 use App\Http\Controllers\Admin\ServiceCatalogController;
 use App\Http\Controllers\Admin\ServiceCategoryController;
 use App\Http\Controllers\Admin\ShopDocumentVerificationController;
@@ -31,13 +32,16 @@ use App\Http\Controllers\Customer\ProfileController;
 use App\Http\Controllers\Customer\QuotationController as CustomerQuotationController;
 use App\Http\Controllers\Customer\RepairJobController as CustomerRepairJobController;
 use App\Http\Controllers\Customer\ReviewController as CustomerReviewController;
+use App\Http\Controllers\Customer\ServiceCaseController as CustomerServiceCaseController;
 use App\Http\Controllers\Customer\ServiceHistoryController;
+use App\Http\Controllers\Customer\ServiceOverviewController;
 use App\Http\Controllers\Customer\VehicleController;
 use App\Http\Controllers\Customer\VehiclePassportController;
 use App\Http\Controllers\Customer\VehiclePassportShareController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PublicImageController;
 use App\Http\Controllers\PublicShopController;
+use App\Http\Controllers\RepairPhotoViewController;
 use App\Http\Controllers\Shop\AppointmentController as ShopAppointmentController;
 use App\Http\Controllers\Shop\EmergencyRequestController as ShopEmergencyRequestController;
 use App\Http\Controllers\Shop\InspectionController as ShopInspectionController;
@@ -48,13 +52,17 @@ use App\Http\Controllers\Shop\NotificationController as ShopNotificationControll
 use App\Http\Controllers\Shop\QuotationController as ShopQuotationController;
 use App\Http\Controllers\Shop\RepairJobController;
 use App\Http\Controllers\Shop\RepairJobItemController;
+use App\Http\Controllers\Shop\RepairPhotoController;
+use App\Http\Controllers\Shop\RepairWarrantyController;
 use App\Http\Controllers\Shop\ReportController as ShopReportController;
 use App\Http\Controllers\Shop\ReviewController as ShopReviewController;
+use App\Http\Controllers\Shop\ServiceCaseController as ShopServiceCaseController;
 use App\Http\Controllers\Shop\SharedVehiclePassportController;
 use App\Http\Controllers\Shop\ShopDashboardController;
 use App\Http\Controllers\Shop\ShopDocumentController;
 use App\Http\Controllers\Shop\ShopManagementController;
 use App\Http\Controllers\Shop\TechnicianController;
+use App\Http\Controllers\Shop\TodayWorkController;
 use App\Http\Controllers\Shop\VehiclePassportScannerController;
 use App\Http\Controllers\ShopMapController;
 use App\Http\Controllers\ShopRegistrationController;
@@ -84,11 +92,15 @@ Route::get('/verify-email', EmailVerificationPromptController::class)->middlewar
 Route::get('/verify-email/{id}/{hash}', VerifyEmailController::class)->middleware(['auth', 'signed', 'throttle:6,1'])->name('verification.verify');
 Route::post('/email/verification-notification', [EmailVerificationPromptController::class, 'store'])->middleware(['auth', 'throttle:6,1'])->name('verification.send');
 Route::middleware(['auth', 'verified'])->group(function (): void {
+    Route::get('/repair-photos/{repairPhoto}', RepairPhotoViewController::class)->name('repair-photos.show');
     Route::get('/dashboard', DashboardController::class)->middleware('auth')->name('dashboard');
     Route::get('/shop/register', [ShopRegistrationController::class, 'create'])->middleware(['auth', 'role:shop_owner'])->name('shop.register');
     Route::post('/shop/register', [ShopRegistrationController::class, 'store'])->middleware(['auth', 'role:shop_owner'])->name('shop.register.store');
     Route::get('/shop/dashboard', ShopDashboardController::class)->middleware(['auth', 'role:shop_owner'])->name('shop.dashboard');
     Route::middleware(['auth', 'role:shop_owner'])->prefix('shop')->name('shop.')->group(function (): void {
+        Route::get('today-work', TodayWorkController::class)->name('today-work.index');
+        Route::get('service-cases', [ShopServiceCaseController::class, 'index'])->name('service-cases.index');
+        Route::patch('service-cases/{serviceCase}', [ShopServiceCaseController::class, 'update'])->name('service-cases.update');
         Route::get('passports/scan', [VehiclePassportScannerController::class, 'index'])->name('passports.scan');
         Route::post('passports/open', [VehiclePassportScannerController::class, 'open'])->middleware('throttle:30,1')->name('passports.open');
         Route::get('shared-passports/{passportShare}', SharedVehiclePassportController::class)->middleware(['signed', 'throttle:30,1'])->name('passports.shared');
@@ -112,6 +124,8 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         Route::get('repair-jobs/create', [RepairJobController::class, 'create'])->name('repair-jobs.create');
         Route::post('repair-jobs', [RepairJobController::class, 'store'])->name('repair-jobs.store');
         Route::patch('repair-jobs/{repairJob}', [RepairJobController::class, 'update'])->name('repair-jobs.update');
+        Route::post('repair-jobs/{repairJob}/photos', [RepairPhotoController::class, 'store'])->name('repair-photos.store');
+        Route::post('repair-jobs/{repairJob}/warranty', [RepairWarrantyController::class, 'store'])->name('repair-warranties.store');
         Route::post('repair-jobs/{repairJob}/items', [RepairJobItemController::class, 'store'])->name('repair-job-items.store');
         Route::delete('repair-job-items/{repairJobItem}', [RepairJobItemController::class, 'destroy'])->name('repair-job-items.destroy');
         Route::get('repair-jobs/{repairJob}/quotation', [ShopQuotationController::class, 'create'])->name('quotations.create');
@@ -144,6 +158,8 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     });
     Route::get('/admin/dashboard', DashboardController::class)->middleware(['auth', 'role:admin'])->name('admin.dashboard');
     Route::get('/admin/monitoring', [MonitoringController::class, 'index'])->middleware(['auth', 'role:admin'])->name('admin.monitoring.index');
+    Route::get('/admin/service-cases', [AdminServiceCaseController::class, 'index'])->middleware(['auth', 'role:admin'])->name('admin.service-cases.index');
+    Route::patch('/admin/service-cases/{serviceCase}', [AdminServiceCaseController::class, 'update'])->middleware(['auth', 'role:admin'])->name('admin.service-cases.update');
     Route::resource('admin/services', ServiceCatalogController::class)->only(['index', 'store', 'edit', 'update'])->names('admin.services')->middleware(['auth', 'role:admin']);
     Route::resource('admin/service-categories', ServiceCategoryController::class)->parameters(['service-categories' => 'category'])->only(['index', 'store', 'update', 'destroy'])->names('admin.service-categories')->middleware(['auth', 'role:admin']);
     Route::resource('/admin/barangays', BarangayController::class)->only(['index', 'store', 'update'])->middleware(['auth', 'role:admin']);
@@ -161,6 +177,9 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::patch('/admin/reviews/{review}', [ReviewModerationController::class, 'update'])->middleware(['auth', 'role:admin'])->name('admin.reviews.update');
     Route::get('/admin/activity-logs', [ActivityLogController::class, 'index'])->middleware(['auth', 'role:admin'])->name('admin.activity-logs.index');
     Route::prefix('customer')->middleware(['auth', 'role:customer'])->name('customer.')->group(function (): void {
+        Route::get('services', ServiceOverviewController::class)->name('services.index');
+        Route::get('service-cases', [CustomerServiceCaseController::class, 'index'])->name('service-cases.index');
+        Route::post('repair-jobs/{repairJob}/service-cases', [CustomerServiceCaseController::class, 'store'])->name('service-cases.store');
         Route::get('ai-assistant', [AiAssistantController::class, 'index'])->name('ai-assistant.index');
         Route::get('emergency-requests', [CustomerEmergencyRequestController::class, 'index'])->name('emergency-requests.index');
         Route::post('emergency-requests', [CustomerEmergencyRequestController::class, 'store'])->middleware('throttle:5,1')->name('emergency-requests.store');

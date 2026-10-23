@@ -13,9 +13,9 @@ async function signIn(page, role) {
 }
 
 const pages = {
-    customer: ['dashboard', 'customer/vehicles', 'customer/appointments', 'customer/appointments/create', 'customer/quotations', 'customer/repairs', 'customer/invoices', 'customer/reminders', 'customer/messages', 'customer/reviews', 'customer/notifications', 'customer/inspections', 'customer/emergency-requests', 'customer/ai-assistant', 'customer/profile', 'customer/favorites', 'customer/service-history'],
-    shop_owner: ['shop/dashboard', 'shop/profile', 'shop/services', 'shop/appointments', 'shop/passports/scan', 'shop/repair-jobs', 'shop/quotations', 'shop/invoices', 'shop/inventory', 'shop/technicians', 'shop/messages', 'shop/reviews', 'shop/reports', 'shop/emergency-requests', 'shop/notifications'],
-    admin: ['admin/dashboard', 'admin/shops', 'admin/users', 'admin/services', 'admin/service-categories', 'admin/barangays', 'admin/reviews', 'admin/reports', 'admin/activity-logs', 'admin/monitoring'],
+    customer: ['dashboard', 'customer/vehicles', 'customer/appointments', 'customer/appointments/create', 'customer/quotations', 'customer/repairs', 'customer/invoices', 'customer/reminders', 'customer/messages', 'customer/reviews', 'customer/notifications', 'customer/inspections', 'customer/emergency-requests', 'customer/ai-assistant', 'customer/profile', 'customer/favorites', 'customer/service-history', 'customer/services', 'customer/service-cases'],
+    shop_owner: ['shop/dashboard', 'shop/profile', 'shop/services', 'shop/appointments', 'shop/passports/scan', 'shop/repair-jobs', 'shop/quotations', 'shop/invoices', 'shop/inventory', 'shop/technicians', 'shop/messages', 'shop/reviews', 'shop/reports', 'shop/emergency-requests', 'shop/notifications', 'shop/today-work', 'shop/service-cases'],
+    admin: ['admin/dashboard', 'admin/shops', 'admin/users', 'admin/services', 'admin/service-categories', 'admin/barangays', 'admin/reviews', 'admin/reports', 'admin/activity-logs', 'admin/monitoring', 'admin/service-cases'],
 };
 
 for (const [role, paths] of Object.entries(pages)) {
@@ -59,6 +59,45 @@ for (const [role, paths] of Object.entries(pages)) {
         }
         expect(errors).toEqual([]);
         await page.screenshot({ path: testInfo.outputPath(role + '.png'), fullPage: true });
+    });
+}
+
+for (const [role, path] of [['shop_owner', '/shop/reports'], ['admin', '/admin/reports']]) {
+    test(role + ' report controls filter dates and show status charts in both themes', async ({ page }, testInfo) => {
+        const errors = [];
+        page.on('pageerror', error => errors.push(error.message));
+        await signIn(page, role);
+        await page.goto(path);
+        await page.getByRole('link', { name: 'Last 7 days', exact: true }).click();
+        await expect(page.getByRole('link', { name: 'Last 7 days', exact: true })).toHaveAttribute('aria-current', 'true');
+        const status = page.getByRole('region', { name: 'Appointment status breakdown' });
+        await expect(status.locator('.report-doughnut__total strong')).toHaveText('2');
+        await expect(status.locator('.report-status-legend')).toContainText('50.0%');
+
+        for (const theme of ['light', 'dark']) {
+            await page.evaluate(value => localStorage.setItem('autocare-theme', value), theme);
+            await page.reload();
+            await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+            const canvas = page.locator('[data-report-status-chart]');
+            await expect(canvas).toBeVisible();
+            await expect.poll(() => canvas.evaluate(element =>
+                [...element.getContext('2d').getImageData(0, 0, element.width, element.height).data].some(value => value > 0)
+            )).toBe(true);
+            expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+                await page.evaluate(() => document.documentElement.clientWidth + 1)
+            );
+            await page.screenshot({ path: testInfo.outputPath(role + '-reports-' + theme + '.png'), fullPage: true });
+        }
+
+        await page.getByLabel('From', { exact: true }).fill('2001-01-01');
+        await page.getByLabel('To', { exact: true }).fill('2001-01-07');
+        await page.getByRole('button', { name: 'Apply range' }).click();
+        await expect(status).toContainText('No appointments in this date range');
+        await expect(page.locator('[data-report-status-chart]')).toHaveCount(0);
+        const pdfUrl = new URL(await page.getByRole('link', { name: 'Download PDF' }).getAttribute('href'));
+        expect(pdfUrl.searchParams.get('from')).toBe('2001-01-01');
+        expect(pdfUrl.searchParams.get('to')).toBe('2001-01-07');
+        expect(errors).toEqual([]);
     });
 }
 

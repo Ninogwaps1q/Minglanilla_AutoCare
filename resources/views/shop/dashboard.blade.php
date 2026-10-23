@@ -34,7 +34,8 @@
                     @else
                         <a class="btn btn-accent" href="{{ route('shop.appointments.index') }}"><i class="bi bi-calendar-check me-2" aria-hidden="true"></i>Review appointments</a>
                     @endif
-                    <a class="btn btn-light" href="{{ route('shop.repair-jobs.index') }}">View repair jobs</a>
+                    <a class="btn btn-light" href="{{ route('shop.today-work.index') }}">Open today's work</a>
+                    <a class="btn btn-outline-light" href="{{ route('shop.repair-jobs.index') }}">View repair jobs</a>
                 </div>
             </div>
             <x-uploaded-image class="workspace-shop-logo" :path="$shop->logo" :alt="$shop->name . ' logo'"

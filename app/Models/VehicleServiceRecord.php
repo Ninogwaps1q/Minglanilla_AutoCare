@@ -28,4 +28,9 @@ class VehicleServiceRecord extends Model
     {
         return $this->belongsTo(User::class, 'customer_id');
     }
+
+    public function repairJob(): BelongsTo
+    {
+        return $this->belongsTo(RepairJob::class);
+    }
 }

@@ -56,9 +56,10 @@ class RepairJobController extends Controller
 
         return view('shop.repair-jobs.index', [
             'repairJobs' => $this->shop($request)->repairJobs()
-                ->with(['customer', 'vehicle', 'appointment', 'invoice.issuedBy', 'invoice.payments.customer', 'invoice.payments.reviewedBy', 'items', 'quotation.approvalRecords.customer', 'statusHistories.changedBy', 'technicianAssignments.technician'])
+                ->with(['customer', 'vehicle', 'appointment', 'photos', 'warranty', 'serviceCases', 'invoice.issuedBy', 'invoice.payments.customer', 'invoice.payments.reviewedBy', 'items', 'quotation.approvalRecords.customer', 'statusHistories.changedBy', 'technicianAssignments.technician'])
                 ->when($status, fn ($query) => $query->where('status', $status))
                 ->when($request->integer('appointment_id') > 0, fn ($query) => $query->where('appointment_id', $request->integer('appointment_id')))
+                ->when($request->integer('repair_job_id') > 0, fn ($query) => $query->whereKey($request->integer('repair_job_id')))
                 ->latest()
                 ->paginate(10)->withQueryString(),
             'technicians' => $this->shop($request)->technicians()->where('status', 'active')->orderBy('name')->get(),

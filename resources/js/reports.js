@@ -6,6 +6,43 @@ document.addEventListener('DOMContentLoaded', () => {
     const chartTextColor = () => document.documentElement.dataset.theme === 'dark' ? '#b8c7dc' : '#64748b';
     const chartGridColor = () => document.documentElement.dataset.theme === 'dark' ? 'rgb(148 163 184 / 16%)' : 'rgb(100 116 139 / 14%)';
 
+    document.querySelectorAll('[data-report-status-chart]').forEach((canvas) => {
+        const values = JSON.parse(canvas.dataset.values ?? '[]');
+        const total = values.reduce((sum, value) => sum + Number(value), 0);
+
+        if (total === 0) return;
+
+        new Chart(canvas, {
+            type: 'doughnut',
+            data: {
+                labels: JSON.parse(canvas.dataset.labels ?? '[]'),
+                datasets: [{
+                    data: values,
+                    backgroundColor: JSON.parse(canvas.dataset.colors ?? '[]'),
+                    borderWidth: 0,
+                    hoverOffset: 3,
+                }],
+            },
+            options: {
+                maintainAspectRatio: false,
+                cutout: '76%',
+                animation: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? false : { duration: 450 },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label(context) {
+                                const count = Number(context.raw);
+                                return context.label + ': ' + count.toLocaleString('en-PH')
+                                    + ' (' + (count / total * 100).toFixed(1) + '%)';
+                            },
+                        },
+                    },
+                },
+            },
+        });
+    });
+
     document.querySelectorAll('[data-report-chart]').forEach((canvas) => {
         const labels = JSON.parse(canvas.dataset.labels ?? '[]');
         const values = JSON.parse(canvas.dataset.values ?? '[]');

@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\Message;
+use App\Models\ServiceCase;
 use App\Services\AI\AiProviderInterface;
 use App\Services\AI\GeminiProvider;
 use App\Services\AI\OpenAiProvider;
@@ -68,6 +69,9 @@ class AppServiceProvider extends ServiceProvider
 
             $view->with('unreadMessageCount', $unreadMessageCount);
             $view->with('messagesUnavailable', $messagesUnavailable);
+            $view->with('openComplaintCount', $user?->isAdmin()
+                ? ServiceCase::query()->where('type', 'complaint')->whereIn('status', ['open', 'reviewing'])->count()
+                : 0);
         });
     }
 }

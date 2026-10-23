@@ -3,7 +3,7 @@
         <h1>My repairs</h1>
         <p>Review estimates, approve work, and track your vehicle's repair status.</p>
     </div>
-    @if (request()->integer('appointment_id') > 0)<p><a href="{{ route('customer.repairs.index') }}">View all repairs</a></p>@endif
+    @if (request()->integer('appointment_id') > 0 || request()->integer('repair_job_id') > 0)<p><a href="{{ route('customer.repairs.index') }}">View all repairs</a></p>@endif
     <x-form-errors />
     @forelse ($repairJobs as $repairJob)
         <article id="repair-{{ $repairJob->id }}" class="surface p-4 mb-3" aria-labelledby="repair-title-{{ $repairJob->id }}">
@@ -41,6 +41,29 @@
                 <p class="mb-3"><strong>Technician{{ $repairJob->technicianAssignments->count() > 1 ? 's' : '' }}:</strong> {{ $repairJob->technicianAssignments->pluck('technician.name')->unique()->implode(', ') }}</p>
             @endif
             <x-repair-timeline :repair-job="$repairJob" />
+            @if($repairJob->photos->isNotEmpty())
+                <details class="repair-details mb-3"><summary>Before & after photos · {{ $repairJob->photos->count() }}</summary><div class="repair-evidence-grid mt-3">@foreach($repairJob->photos as $photo)<figure class="mb-0"><a href="{{ route('repair-photos.show', $photo) }}" target="_blank" rel="noopener"><img class="repair-evidence-image" src="{{ route('repair-photos.show', $photo) }}" alt="{{ ucfirst($photo->stage) }} repair photo: {{ $photo->caption ?: $repairJob->vehicle->plate_number }}" loading="lazy"></a><figcaption class="small mt-1"><strong>{{ ucfirst($photo->stage) }}</strong>@if($photo->caption) · {{ $photo->caption }}@endif</figcaption></figure>@endforeach</div></details>
+            @endif
+            @if(in_array($repairJob->status, ['completed', 'released'], true))
+                <section class="border rounded p-3 mb-3" aria-label="Warranty and aftercare">
+                    <h3 class="h6">Warranty & aftercare</h3>
+                    @if($repairJob->warranty)
+                        <p class="mb-1"><strong>{{ $repairJob->warranty->valid_until->isBefore(today()) ? 'Warranty ended' : 'Warranty active until '.$repairJob->warranty->valid_until->format('M j, Y') }}</strong></p>
+                        <p class="text-secondary mb-2">{{ $repairJob->warranty->coverage }}</p>
+                    @else
+                        <p class="text-secondary mb-2">No warranty has been issued for this repair.</p>
+                    @endif
+                    @if($repairJob->serviceCases->isNotEmpty())<p class="small"><a href="{{ route('customer.service-cases.index') }}">Track {{ $repairJob->serviceCases->count() }} aftercare {{ str('request')->plural($repairJob->serviceCases->count()) }}</a></p>@endif
+                    <details><summary>Request a follow-up or report a concern</summary>
+                        <form method="POST" action="{{ route('customer.service-cases.store', $repairJob) }}" class="row g-3 mt-1">@csrf
+                            <div class="col-md-4"><label class="form-label" for="case-type-{{ $repairJob->id }}">Request type</label><select id="case-type-{{ $repairJob->id }}" class="form-select" name="type" required><option value="follow_up">Follow-up repair</option>@if($repairJob->warranty && ! $repairJob->warranty->valid_until->isBefore(today()))<option value="warranty_claim">Warranty claim</option>@endif<option value="complaint">Complaint for admin review</option></select></div>
+                            <div class="col-md-8"><label class="form-label" for="case-subject-{{ $repairJob->id }}">Short subject</label><input id="case-subject-{{ $repairJob->id }}" class="form-control" name="subject" maxlength="150" required placeholder="Example: Noise returned after the repair"></div>
+                            <div class="col-12"><label class="form-label" for="case-description-{{ $repairJob->id }}">What happened?</label><textarea id="case-description-{{ $repairJob->id }}" class="form-control" name="description" rows="3" minlength="10" maxlength="3000" required placeholder="Describe the issue and when it started."></textarea></div>
+                            <div class="col-12"><button class="btn btn-outline-primary">Send request</button></div>
+                        </form>
+                    </details>
+                </section>
+            @endif
             <dl class="row mb-0">
                 <dt class="col-sm-4">Estimated cost</dt>
                 <dd class="col-sm-8">{{ $repairJob->estimated_cost !== null ? 'PHP '.number_format($repairJob->estimated_cost, 2) : 'Awaiting estimate' }}</dd>

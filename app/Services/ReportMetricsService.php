@@ -11,6 +11,7 @@ use App\Models\Shop;
 use App\Models\SparePart;
 use App\Models\User;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 class ReportMetricsService
@@ -38,18 +39,19 @@ class ReportMetricsService
             'metrics' => [
                 'Active customers' => User::query()->where('role', 'customer')->where('status', 'active')->count(),
                 'Approved shops' => Shop::query()->where('verification_status', 'approved')->where('shop_status', 'active')->count(),
-                'Appointments' => Appointment::query()->whereBetween('appointment_date', [$from->toDateString(), $to->toDateString()])->count(),
+                'Appointments' => $this->appointments($from, $to)->count(),
                 'Confirmed payments' => Payment::query()->where('status', 'confirmed')->whereBetween('payment_date', [$from, $to])->sum('amount'),
                 'Completed repairs' => RepairJob::query()->whereIn('status', ['completed', 'released'])->whereBetween('completed_at', [$from, $to])->count(),
                 'Emergency requests' => EmergencyRequest::query()->whereBetween('requested_at', [$from, $to])->count(),
                 'Published reviews' => Review::query()->where('status', 'published')->whereBetween('created_at', [$from, $to])->count(),
             ],
             'shopStatuses' => Shop::query()->selectRaw('verification_status, count(*) as total')->groupBy('verification_status')->orderBy('verification_status')->get(),
+            'appointmentStatusCounts' => $this->appointmentStatusCounts($from, $to),
             'topShops' => Payment::query()->selectRaw('shop_id, sum(amount) as revenue')->where('status', 'confirmed')->whereBetween('payment_date', [$from, $to])->with('shop:id,name')->groupBy('shop_id')->orderByDesc('revenue')->limit(5)->get(),
-            'recentAppointments' => Appointment::query()->with(['customer:id,name', 'shop:id,name', 'service:id,name'])->whereBetween('appointment_date', [$from->toDateString(), $to->toDateString()])->orderByDesc('appointment_date')->limit(10)->get(),
-            'appointmentSeries' => $this->dailySeries(Appointment::query()->whereBetween('appointment_date', [$from->toDateString(), $to->toDateString()]), 'appointment_date', $from, $to),
+            'recentAppointments' => $this->appointments($from, $to)->with(['customer:id,name', 'shop:id,name', 'service:id,name'])->orderByDesc('appointment_date')->limit(10)->get(),
+            'appointmentSeries' => $this->dailySeries($this->appointments($from, $to), 'appointment_date', $from, $to),
             'revenueSeries' => $this->dailySeries(Payment::query()->where('status', 'confirmed')->whereBetween('payment_date', [$from, $to]), 'payment_date', $from, $to, 'amount'),
-            'popularServices' => Appointment::query()->whereBetween('appointment_date', [$from->toDateString(), $to->toDateString()])->selectRaw('service_id, count(*) as total')->with('service:id,name')->groupBy('service_id')->orderByDesc('total')->limit(5)->get(),
+            'popularServices' => $this->appointments($from, $to)->selectRaw('service_id, count(*) as total')->with('service:id,name')->groupBy('service_id')->orderByDesc('total')->limit(5)->get(),
         ];
     }
 
@@ -63,22 +65,55 @@ class ReportMetricsService
                 'revenueSeries' => $this->emptySeries($from, $to),
                 'popularServices' => collect(),
                 'lowStockParts' => collect(),
+                'recentAppointments' => collect(),
+                'appointmentStatusCounts' => [],
             ];
         }
 
         return [
             'metrics' => [
-                'Appointments' => $shop->appointments()->whereBetween('appointment_date', [$from->toDateString(), $to->toDateString()])->count(),
+                'Appointments' => $this->appointments($from, $to, $shop)->count(),
                 'Completed repairs' => $shop->repairJobs()->whereIn('status', ['completed', 'released'])->whereBetween('completed_at', [$from, $to])->count(),
                 'Confirmed revenue' => Payment::query()->whereBelongsTo($shop)->where('status', 'confirmed')->whereBetween('payment_date', [$from, $to])->sum('amount'),
                 'Low-stock parts' => SparePart::query()->whereBelongsTo($shop)->whereColumn('quantity', '<=', 'minimum_stock')->count(),
-                'Customers served' => Appointment::query()->whereBelongsTo($shop)->whereBetween('appointment_date', [$from->toDateString(), $to->toDateString()])->distinct()->count('customer_id'),
+                'Customers served' => $this->appointments($from, $to, $shop)->distinct()->count('customer_id'),
             ],
-            'appointmentSeries' => $this->dailySeries($shop->appointments()->whereBetween('appointment_date', [$from->toDateString(), $to->toDateString()]), 'appointment_date', $from, $to),
+            'appointmentSeries' => $this->dailySeries($this->appointments($from, $to, $shop), 'appointment_date', $from, $to),
             'revenueSeries' => $this->dailySeries(Payment::query()->whereBelongsTo($shop)->where('status', 'confirmed')->whereBetween('payment_date', [$from, $to]), 'payment_date', $from, $to, 'amount'),
-            'popularServices' => Appointment::query()->whereBelongsTo($shop)->whereBetween('appointment_date', [$from->toDateString(), $to->toDateString()])->selectRaw('service_id, count(*) as total')->with('service:id,name')->groupBy('service_id')->orderByDesc('total')->limit(5)->get(),
+            'popularServices' => $this->appointments($from, $to, $shop)->selectRaw('service_id, count(*) as total')->with('service:id,name')->groupBy('service_id')->orderByDesc('total')->limit(5)->get(),
             'lowStockParts' => SparePart::query()->whereBelongsTo($shop)->whereColumn('quantity', '<=', 'minimum_stock')->orderBy('quantity')->limit(5)->get(['id', 'name', 'quantity', 'minimum_stock']),
+            'recentAppointments' => $this->appointments($from, $to, $shop)->with(['customer:id,name', 'service:id,name'])->orderByDesc('appointment_date')->limit(6)->get(),
+            'appointmentStatusCounts' => $this->appointmentStatusCounts($from, $to, $shop),
         ];
+    }
+
+    /** @return Builder<Appointment> */
+    private function appointments(CarbonImmutable $from, CarbonImmutable $to, ?Shop $shop = null): Builder
+    {
+        $query = Appointment::query()
+            ->where('appointment_date', '>=', $from->toDateString())
+            ->where('appointment_date', '<', $to->addDay()->toDateString());
+
+        if ($shop !== null) {
+            $query->whereBelongsTo($shop);
+        }
+
+        return $query;
+    }
+
+    /** @return array<string, int> */
+    private function appointmentStatusCounts(CarbonImmutable $from, CarbonImmutable $to, ?Shop $shop = null): array
+    {
+        $counts = $this->appointments($from, $to, $shop)->selectRaw('status, count(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status')
+            ->map(fn ($total): int => (int) $total)
+            ->all();
+
+        return array_replace(
+            array_fill_keys(['pending', 'confirmed', 'in_progress', 'completed', 'cancelled'], 0),
+            $counts,
+        );
     }
 
     /** @return array{labels: array<int, string>, values: array<int, float>} */

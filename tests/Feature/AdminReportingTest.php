@@ -94,6 +94,47 @@ it('lets a shop owner download only their own performance report', function () {
     ]);
 });
 
+it('counts appointment statuses within the selected dates and report scope', function (string $role, int $confirmedCount) {
+    $fixture = reportingFixture();
+    $otherShop = Shop::factory()->create();
+    $service = Service::factory()->create();
+    $viewer = $role === 'admin' ? User::factory()->create(['role' => 'admin']) : $fixture['shop']->owner;
+
+    foreach ([
+        [$fixture['shop']->id, '2026-10-01', 'pending'],
+        [$fixture['shop']->id, '2026-10-31', 'completed'],
+        [$fixture['shop']->id, '2026-09-30', 'cancelled'],
+        [$fixture['shop']->id, '2026-11-01', 'cancelled'],
+        [$otherShop->id, '2026-10-15', 'confirmed'],
+    ] as [$shopId, $date, $status]) {
+        Appointment::query()->create([
+            'customer_id' => $fixture['customer']->id,
+            'shop_id' => $shopId,
+            'vehicle_id' => $fixture['vehicle']->id,
+            'service_id' => $service->id,
+            'appointment_date' => $date,
+            'appointment_time' => '10:00',
+            'status' => $status,
+        ]);
+    }
+
+    $response = $this->actingAs($viewer)->get(route($role === 'admin' ? 'admin.reports.index' : 'shop.reports.index', [
+        'from' => '2026-10-01',
+        'to' => '2026-10-31',
+    ]));
+
+    $response->assertOk()->assertViewHas('appointmentStatusCounts', [
+        'pending' => 1,
+        'confirmed' => $confirmedCount,
+        'in_progress' => 0,
+        'completed' => 1,
+        'cancelled' => 0,
+    ])->assertSee('Appointment status')
+        ->assertViewHas('metrics', fn (array $metrics): bool => $metrics['Appointments'] === 2 + $confirmedCount)
+        ->assertViewHas('appointmentSeries', fn (array $series): bool => $series['values'][0] === 1.0 && $series['values'][30] === 1.0)
+        ->assertViewHas('recentAppointments', fn ($appointments): bool => $appointments->count() === 2 + $confirmedCount);
+})->with(['platform report' => ['admin', 1], 'own shop report' => ['shop_owner', 0]]);
+
 it('rejects invalid report date ranges', function () {
     $admin = User::factory()->create(['role' => 'admin']);
 

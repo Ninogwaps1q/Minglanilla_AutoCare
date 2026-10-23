@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Appointment;
 use App\Models\Barangay;
 use App\Models\Invoice;
 use App\Models\RepairJob;
@@ -68,6 +69,17 @@ $vehicle = Vehicle::factory()->create(['customer_id' => $users['customer']->id, 
 $category = ServiceCategory::factory()->create();
 $service = Service::factory()->create(['category_id' => $category->id, 'name' => 'Browser Oil Change']);
 ShopService::query()->create(['shop_id' => $shop->id, 'service_id' => $service->id, 'price' => 900, 'availability' => true]);
+foreach (['confirmed' => '09:00', 'pending' => '11:00'] as $status => $time) {
+    Appointment::query()->create([
+        'customer_id' => $users['customer']->id,
+        'shop_id' => $shop->id,
+        'vehicle_id' => $vehicle->id,
+        'service_id' => $service->id,
+        'appointment_date' => now()->subDays(2)->toDateString(),
+        'appointment_time' => $time,
+        'status' => $status,
+    ]);
+}
 $repairJob = RepairJob::query()->create([
     'customer_id' => $users['customer']->id, 'shop_id' => $shop->id, 'vehicle_id' => $vehicle->id,
     'job_number' => 'JOB-BROWSER-STOCK', 'status' => 'repairing', 'description' => 'Brake maintenance',
