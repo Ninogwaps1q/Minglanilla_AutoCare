@@ -40,6 +40,11 @@
             @if ($repairJob->technicianAssignments->isNotEmpty())
                 <p class="mb-3"><strong>Technician{{ $repairJob->technicianAssignments->count() > 1 ? 's' : '' }}:</strong> {{ $repairJob->technicianAssignments->pluck('technician.name')->unique()->implode(', ') }}</p>
             @endif
+            @if (in_array($repairJob->status, ['completed', 'released'], true))<x-repair-handover :repair-job="$repairJob" context="customer" />@endif
+            @if (in_array($repairJob->quotation?->status, ['accepted', 'approved'], true))
+                <p class="price-agreement mb-3"><strong>Approved price: PHP {{ number_format($repairJob->quotation->total, 2) }}</strong><span>The shop's invoice must match this estimate. Additional work needs a separate estimate and your approval.</span></p>
+            @endif
+            <x-service-journey :repair-job="$repairJob" />
             <x-repair-timeline :repair-job="$repairJob" />
             @if($repairJob->photos->isNotEmpty())
                 <details class="repair-details mb-3"><summary>Before & after photos · {{ $repairJob->photos->count() }}</summary><div class="repair-evidence-grid mt-3">@foreach($repairJob->photos as $photo)<figure class="mb-0"><a href="{{ route('repair-photos.show', $photo) }}" target="_blank" rel="noopener"><img class="repair-evidence-image" src="{{ route('repair-photos.show', $photo) }}" alt="{{ ucfirst($photo->stage) }} repair photo: {{ $photo->caption ?: $repairJob->vehicle->plate_number }}" loading="lazy"></a><figcaption class="small mt-1"><strong>{{ ucfirst($photo->stage) }}</strong>@if($photo->caption) · {{ $photo->caption }}@endif</figcaption></figure>@endforeach</div></details>

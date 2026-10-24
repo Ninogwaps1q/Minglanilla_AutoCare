@@ -57,6 +57,13 @@
                 class="bi bi-chevron-right ms-auto" aria-hidden="true"></i></a>@endforeach</div>
         </section>
 
+        <x-action-queue :items="[
+            ['count' => $metrics['Waiting approval'], 'label' => 'Booking requests', 'detail' => 'Confirm or decline a customer visit.', 'href' => route('shop.appointments.index', ['status' => 'pending'])],
+            ['count' => $confirmedAppointmentCount, 'label' => 'Visits ready for a job', 'detail' => 'Open a confirmed visit and start diagnosis.', 'href' => route('shop.appointments.index', ['status' => 'confirmed'])],
+            ['count' => $approvedRepairCount, 'label' => 'Approved repairs', 'detail' => 'Start work at the customer-approved price.', 'href' => route('shop.repair-jobs.index', ['status' => 'approved'])],
+            ['count' => $pendingPaymentCount, 'label' => 'Payments to confirm', 'detail' => 'Verify money received before approving.', 'href' => route('shop.invoices.index', ['status' => 'pending'])],
+        ]" :empty-route="route('shop.today-work.index')" empty-label="Open work list" />
+
         <div class="row g-4">
             <div class="col-xl-7">
                 <section class="surface p-4 h-100" aria-labelledby="today-schedule-title">

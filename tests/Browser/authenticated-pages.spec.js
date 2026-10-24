@@ -172,6 +172,30 @@ for (const [role, notificationsPath] of [['customer', '/customer/notifications']
         await expect(page.locator('.portal-topbar .portal-notifications-link')).toBeVisible();
         await page.screenshot({ path: testInfo.outputPath(role + '-notifications-dark.png'), fullPage: false });
     });
+
+    test(role + ' can filter and bulk-update notifications without overflow', async ({ page }, testInfo) => {
+        await signIn(page, role);
+        await page.goto(notificationsPath);
+        const markAllUnread = page.getByRole('button', { name: 'Mark all as unread' });
+        if (await markAllUnread.isEnabled()) {
+            await markAllUnread.click();
+        }
+        await page.locator('.notification-item').filter({ hasText: 'Browser older update' })
+            .getByRole('button', { name: 'Mark as read' }).click();
+        await expect(page.locator('.notification-item.is-unread').first()).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Mark all as read' })).toBeEnabled();
+        await expect(markAllUnread).toBeEnabled();
+        await page.getByRole('link', { name: /Unread/ }).last().click();
+        await expect(page).toHaveURL(/filter=unread/);
+        await expect(page.getByText('Browser older update')).toHaveCount(0);
+        await page.getByRole('button', { name: 'Mark all as read' }).click();
+        await expect(page.getByRole('heading', { name: 'All caught up' })).toBeVisible();
+        await expect(page.locator('.notification-summary')).toHaveText('0 unread');
+        await page.getByRole('button', { name: 'Mark all as unread' }).click();
+        await expect(page.getByText('Browser older update')).toBeVisible();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => document.documentElement.clientWidth + 1));
+        await page.screenshot({ path: testInfo.outputPath(role + '-notifications-unread-' + testInfo.project.name + '.png'), fullPage: false });
+    });
 }
 
 test('customer creates a vehicle and opens its private passport', async ({ page }, testInfo) => {
@@ -292,16 +316,32 @@ test('customer dashboard makes primary actions clear', async ({ page }, testInfo
     await expect(page.getByRole('region', { name: 'AutoCare AI chat' })).toBeVisible();
     await expect(page.getByLabel('Ask AutoCare AI')).toBeVisible();
     expect(page.url()).toBe(dashboardUrl);
+    await page.route('**/customer/ai-assistant', async route => {
+        await new Promise(resolve => setTimeout(resolve, 400));
+        await route.continue();
+    });
     await page.getByLabel('Ask AutoCare AI').fill('Please book a service for my car');
-    await Promise.all([
-        page.waitForResponse(response => response.request().method() === 'POST' && response.url().includes('/customer/ai-assistant'), { timeout: 30000 }),
-        page.getByRole('button', { name: 'Send question' }).click(),
-    ]);
-    await expect(page.getByText('AI response received.')).toBeVisible({ timeout: 15000 });
+    const responsePromise = page.waitForResponse(response => response.request().method() === 'POST' && response.url().includes('/customer/ai-assistant'), { timeout: 30000 });
+    await page.getByRole('button', { name: 'Send question' }).click();
+    await expect(page.locator('.ai-widget-typing')).toBeVisible();
+    await responsePromise;
     const aiPanel = page.getByRole('region', { name: 'AutoCare AI chat' });
     await expect(aiPanel).toBeVisible();
+    await expect(aiPanel.getByText('I found your vehicle', { exact: false })).toBeVisible();
     await expect(aiPanel.getByRole('link', { name: 'Book a service' }).last()).toBeVisible();
+    await expect(page.locator('.ai-widget-typing')).toBeHidden();
     expect(page.url()).toBe(dashboardUrl);
+    await page.unroute('**/customer/ai-assistant');
+    await page.route('**/customer/ai-assistant', route => route.fulfill({
+        status: 503, contentType: 'application/json',
+        body: JSON.stringify({ message: 'AI Assistant is temporarily unavailable.' }),
+    }), { times: 1 });
+    await page.getByLabel('Ask AutoCare AI').fill('Explain brake fluid');
+    await page.getByRole('button', { name: 'Send question' }).click();
+    await expect(aiPanel.getByRole('alert')).toContainText('AI Assistant is temporarily unavailable.');
+    await expect(page.getByLabel('Ask AutoCare AI')).toHaveValue('Explain brake fluid');
+    await expect(page.getByRole('button', { name: 'Send question' })).toBeEnabled();
+    await expect(aiPanel.getByText('Explain brake fluid')).toHaveCount(0);
     await page.getByRole('button', { name: 'Close AutoCare AI chat' }).click();
     await expect(page.getByRole('region', { name: 'AutoCare AI chat' })).toBeHidden();
     await expect(page.getByRole('heading', { name: 'What’s next' })).toBeVisible();
@@ -338,10 +378,16 @@ test('AI assistant starts without saved database chat history', async ({ page },
     await expect(page.getByRole('heading', { name: 'Ask AutoCare AI' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'How can I help with your vehicle today?' })).toBeVisible();
     await expect(page.locator('.ai-message-user')).toHaveCount(0);
-    await expect(page.locator('.ai-message-assistant')).toHaveCount(0);
+    await expect(page.locator('.ai-message-assistant:not(.ai-message-typing)')).toHaveCount(0);
     await expect(page.getByLabel('Your question for AutoCare AI')).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => document.documentElement.clientWidth + 1));
     await page.screenshot({ path: testInfo.outputPath('ai-assistant.png'), fullPage: true });
+    const pageUrl = page.url();
+    await page.locator('.ai-composer [data-ai-prompt]').nth(1).click();
+    await expect(page.locator('.ai-message-assistant:not(.ai-message-typing)')).toHaveCount(1);
+    await expect(page.locator('.ai-command-action').filter({ hasText: 'Book a service' })).toBeVisible();
+    await expect(page.getByLabel('Your question for AutoCare AI')).toBeEmpty();
+    expect(page.url()).toBe(pageUrl);
 });
 
 test('shop and admin dashboards make daily priorities clear', async ({ page }, testInfo) => {
@@ -519,6 +565,46 @@ test('customer and shop owner can download their invoice PDF', async ({ page }) 
     }
 });
 
+test('messages show the correct shop and customer identities on every viewport', async ({ page }, testInfo) => {
+    await signIn(page, 'customer');
+    await page.goto('/customer/messages');
+    const shopContact = page.locator('.message-contact').first();
+    await expect(shopContact.getByRole('img', { name: 'Browser Test AutoCare logo' })).toBeVisible();
+    await expect(shopContact).toContainText('Browser Test AutoCare');
+    await shopContact.click();
+    await expect(page.getByRole('heading', { name: 'Browser Test AutoCare' })).toBeVisible();
+    await expect(page.locator('[data-ai-widget]')).toHaveCount(0);
+    await expect(page.locator('.message-row.is-incoming')).toBeVisible();
+    await expect(page.locator('.message-row.is-own').first()).toBeVisible();
+    const sentMessage = `Browser message from ${testInfo.project.name}`;
+    await page.locator('.message-compose textarea').fill(sentMessage);
+    await page.locator('.message-compose button').click();
+    await expect(page.locator('.message-row.is-own').last()).toContainText(sentMessage);
+    await page.locator('.message-compose button').click({ trial: true });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => document.documentElement.clientWidth + 1));
+    await page.screenshot({ path: testInfo.outputPath('customer-conversation.png'), fullPage: true });
+    await page.evaluate(() => localStorage.setItem('autocare-theme', 'dark'));
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await expect(page.locator('.message-compose label')).toContainText('Your message');
+    await page.locator('.message-compose button').click({ trial: true });
+    await page.screenshot({ path: testInfo.outputPath('customer-conversation-dark.png'), fullPage: true });
+
+    await page.context().clearCookies();
+    await signIn(page, 'shop_owner');
+    await page.goto('/shop/messages');
+    const customerContact = page.locator('.message-contact').first();
+    await expect(customerContact.getByRole('img', { name: 'Browser customer profile photo' })).toBeVisible();
+    await expect(customerContact).toContainText('Browser customer');
+    await expect(customerContact).toContainText(sentMessage);
+    await customerContact.click();
+    await expect(page.getByRole('heading', { name: 'Browser customer' })).toBeVisible();
+    await expect(page.locator('.message-row.is-incoming').first()).toBeVisible();
+    await expect(page.locator('.message-row.is-own').first()).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => document.documentElement.clientWidth + 1));
+    await page.screenshot({ path: testInfo.outputPath('shop-conversation.png'), fullPage: true });
+});
+
 test('uploaded customer and shop images render from public storage', async ({ page }) => {
     const fixture = await signIn(page, 'customer');
     const image = {
@@ -547,4 +633,30 @@ test('uploaded customer and shop images render from public storage', async ({ pa
         await expect(page.locator(selector)).toBeVisible();
         expect(await page.locator(selector).evaluate(element => element.complete && element.naturalWidth > 0)).toBe(true);
     }
+});
+
+test('admin can resolve and dismiss complaints with a clear reason on every viewport', async ({ page }, testInfo) => {
+    await page.addInitScript(() => localStorage.setItem('autocare-theme', 'dark'));
+    const fixture = await signIn(page, 'admin');
+    await page.goto('/admin/service-cases');
+    await expect(page.getByRole('heading', { name: 'Complaint resolution' })).toBeVisible();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await page.screenshot({ path: testInfo.outputPath('admin-complaints-dark.png'), fullPage: false });
+
+    const resolveCase = page.locator('#complaint-' + fixture.complaintCases[testInfo.project.name].resolved);
+    const resolveReason = resolveCase.getByLabel('Reason for your decision');
+    await resolveCase.getByRole('button', { name: 'Resolve complaint' }).click();
+    await expect(resolveReason).toBeFocused();
+    await expect(resolveCase.locator('.badge')).toHaveText('Open');
+    await resolveReason.fill('The shop will inspect the vehicle again at no cost.');
+    await resolveCase.getByRole('button', { name: 'Resolve complaint' }).click();
+    await expect(resolveCase.locator('.badge')).toHaveText('Resolved');
+    await expect(resolveCase).toContainText('The shop will inspect the vehicle again at no cost.');
+
+    const dismissCase = page.locator('#complaint-' + fixture.complaintCases[testInfo.project.name].dismissed);
+    await dismissCase.getByLabel('Reason for your decision').fill('The available evidence does not support further action.');
+    await dismissCase.getByRole('button', { name: 'Dismiss complaint' }).click();
+    await expect(dismissCase.locator('.badge')).toHaveText('Dismissed');
+    await expect(dismissCase).toContainText('The available evidence does not support further action.');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => document.documentElement.clientWidth + 1));
 });

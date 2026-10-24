@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\Message;
 use App\Models\ServiceCase;
 use App\Services\AI\AiProviderInterface;
+use App\Services\AI\AiServiceStatus;
 use App\Services\AI\GeminiProvider;
 use App\Services\AI\OpenAiProvider;
 use App\Services\Messaging\MessageStorage;
@@ -23,7 +24,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->bind(AiProviderInterface::class, fn (): AiProviderInterface => match (config('ai.provider')) {
             'openai' => new OpenAiProvider,
-            default => new GeminiProvider,
+            default => new GeminiProvider(new AiServiceStatus),
         });
     }
 

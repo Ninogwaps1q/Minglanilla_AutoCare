@@ -42,6 +42,29 @@ class RepairJob extends Model
         };
     }
 
+    /** @return array<int, array{label: string, state: string}> */
+    public function serviceStages(): array
+    {
+        if ($this->status === 'cancelled') {
+            return [];
+        }
+
+        $diagnosed = filled($this->diagnosis) || ! in_array($this->status, ['pending', 'diagnosis'], true);
+        $estimateApproved = in_array($this->quotation?->status, ['accepted', 'approved'], true);
+        $repairStarted = $this->started_at !== null || in_array($this->status, ['repairing', 'in_progress', 'waiting_parts', 'completed', 'released'], true);
+        $repairFinished = in_array($this->status, ['completed', 'released'], true);
+        $paymentConfirmed = $this->invoice?->status === 'paid';
+
+        return [
+            ['label' => $this->appointment_id ? 'Booking' : 'Repair opened', 'state' => 'complete'],
+            ['label' => 'Diagnosis', 'state' => $diagnosed ? 'complete' : 'current'],
+            ['label' => 'Estimate approval', 'state' => $estimateApproved ? 'complete' : ($diagnosed ? 'current' : 'upcoming')],
+            ['label' => 'Repair', 'state' => $repairFinished ? 'complete' : ($estimateApproved || $repairStarted ? 'current' : 'upcoming')],
+            ['label' => 'Payment', 'state' => $paymentConfirmed ? 'complete' : ($repairFinished ? 'current' : 'upcoming')],
+            ['label' => 'Vehicle release', 'state' => $this->status === 'released' ? 'complete' : ($repairFinished && $paymentConfirmed ? 'current' : 'upcoming')],
+        ];
+    }
+
     public function quotation(): BelongsTo
     {
         return $this->belongsTo(Quotation::class);

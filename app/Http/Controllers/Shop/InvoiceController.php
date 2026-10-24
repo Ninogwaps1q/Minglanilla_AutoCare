@@ -23,7 +23,7 @@ class InvoiceController extends Controller
     {
         abort_unless($invoice->shop_id === $this->shop($request)->id, 404);
 
-        return view('shop.invoices.show', ['invoice' => $invoice->load(['shop', 'customer', 'repairJob', 'items', 'payments'])]);
+        return view('shop.invoices.show', ['invoice' => $invoice->load(['shop', 'customer', 'repairJob.quotation', 'items', 'payments'])]);
     }
 
     public function pdf(Request $request, Invoice $invoice): Response
@@ -39,9 +39,11 @@ class InvoiceController extends Controller
     {
         return view('shop.invoices.index', [
             'invoices' => $this->shop($request)->invoices()
-                ->with(['customer', 'repairJob', 'payments'])
+                ->when($request->integer('focus') > 0, fn ($query) => $query->whereKey($request->integer('focus')))
+                ->when($request->query('status') === 'pending', fn ($query) => $query->whereHas('payments', fn ($payments) => $payments->where('status', 'pending')))
+                ->with(['customer', 'repairJob.quotation', 'payments'])
                 ->latest()
-                ->paginate(10),
+                ->paginate(10)->withQueryString(),
         ]);
     }
 

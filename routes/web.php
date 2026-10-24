@@ -140,7 +140,11 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         Route::get('messages', [ShopMessageController::class, 'index'])->name('messages.index');
         Route::get('messages/{thread}', [ShopMessageController::class, 'show'])->name('messages.show');
         Route::post('messages/{thread}', [ShopMessageController::class, 'store'])->name('messages.store');
+        Route::post('messages/{thread}/updates', [ShopMessageController::class, 'updates'])->name('messages.updates');
         Route::get('notifications', [ShopNotificationController::class, 'index'])->name('notifications.index');
+        Route::get('notifications/counts', [ShopNotificationController::class, 'counts'])->name('notifications.counts');
+        Route::post('notifications/{notification}/open', [ShopNotificationController::class, 'open'])->name('notifications.open');
+        Route::patch('notifications/bulk', [ShopNotificationController::class, 'updateReadState'])->name('notifications.bulk-update');
         Route::patch('notifications/{notification}', [ShopNotificationController::class, 'update'])->name('notifications.update');
         Route::get('inventory', [InventoryController::class, 'index'])->name('inventory.index');
         Route::post('inventory', [InventoryController::class, 'store'])->name('inventory.store');
@@ -201,6 +205,9 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         Route::post('favorites/{shop}', [FavoriteController::class, 'store'])->name('favorites.store');
         Route::delete('favorites/{shop}', [FavoriteController::class, 'destroy'])->name('favorites.destroy');
         Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
+        Route::get('notifications/counts', [NotificationController::class, 'counts'])->name('notifications.counts');
+        Route::post('notifications/{notification}/open', [NotificationController::class, 'open'])->name('notifications.open');
+        Route::patch('notifications/bulk', [NotificationController::class, 'updateReadState'])->name('notifications.bulk-update');
         Route::patch('notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
         Route::get('appointments', [CustomerAppointmentController::class, 'index'])->name('appointments.index');
         Route::get('appointments/availability', [CustomerAppointmentController::class, 'availability'])->name('appointments.availability');
@@ -224,5 +231,6 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         Route::get('messages', [CustomerMessageController::class, 'index'])->name('messages.index');
         Route::get('messages/shop/{shop}', [CustomerMessageController::class, 'show'])->name('messages.show');
         Route::post('messages/{thread}', [CustomerMessageController::class, 'store'])->name('messages.store');
+        Route::post('messages/{thread}/updates', [CustomerMessageController::class, 'updates'])->name('messages.updates');
     });
 });

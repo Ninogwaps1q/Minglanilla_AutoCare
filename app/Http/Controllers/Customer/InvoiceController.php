@@ -21,9 +21,10 @@ class InvoiceController extends Controller
         return view('customer.invoices.index', [
             'invoices' => Invoice::query()
                 ->whereBelongsTo($request->user(), 'customer')
-                ->with(['shop', 'repairJob', 'items', 'payments'])
+                ->when($request->integer('focus') > 0, fn ($query) => $query->whereKey($request->integer('focus')))
+                ->with(['shop', 'repairJob.quotation', 'items', 'payments'])
                 ->latest()
-                ->paginate(10),
+                ->paginate(10)->withQueryString(),
         ]);
     }
 
@@ -31,7 +32,7 @@ class InvoiceController extends Controller
     {
         abort_unless($invoice->customer_id === $request->user()->id, 404);
 
-        return view('customer.invoices.show', ['invoice' => $invoice->load(['shop', 'customer', 'repairJob', 'items', 'payments'])]);
+        return view('customer.invoices.show', ['invoice' => $invoice->load(['shop', 'customer', 'repairJob.quotation', 'items', 'payments'])]);
     }
 
     public function pdf(Request $request, Invoice $invoice): Response

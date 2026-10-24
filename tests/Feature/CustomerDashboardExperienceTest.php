@@ -72,7 +72,7 @@ it('shows only the signed-in customers next service and billing attention', func
         ->assertSee('Easy Oil Change')
         ->assertSee('Friendly AutoCare')
         ->assertSee('EASY-101')
-        ->assertSee('Unpaid invoices')
+        ->assertSee('Bills to pay')
         ->assertSee('Review payments')
         ->assertDontSee('Private other customer note');
 });

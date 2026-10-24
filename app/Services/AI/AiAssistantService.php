@@ -15,7 +15,14 @@ class AiAssistantService
      */
     public function respond(User $user, array $history, string $message): array
     {
-        $action = $this->navigationAction($message);
+        $command = Str::lower(Str::transliterate($message));
+        $guided = $this->guidedAction($user, $command);
+
+        if ($guided !== null) {
+            return $guided;
+        }
+
+        $action = $this->navigationAction($command);
 
         if ($action !== null) {
             return [
@@ -38,11 +45,113 @@ class AiAssistantService
         return ['message' => $reply, 'action' => null];
     }
 
-    /** @return array{name: string, reply: string, label: string, route: string, icon: string}|null */
-    private function navigationAction(string $message): ?array
+    /** @return array{message: string, action: array{label: string, url: string, icon: string}}|null */
+    private function guidedAction(User $user, string $command): ?array
     {
-        $command = Str::lower(Str::transliterate($message));
+        if (Str::contains($command, ['status', 'progress', 'latest', 'paid', 'balance'])) {
+            if (Str::contains($command, ['repair', 'repiar'])) {
+                return $this->repairStatus($user);
+            }
+            if (Str::contains($command, ['appointment', 'booking'])) {
+                return $this->appointmentStatus($user);
+            }
+            if (Str::contains($command, ['invoice', 'bill', 'payment'])) {
+                return $this->invoiceStatus($user);
+            }
+        }
 
+        if (Str::contains($command, ['follow-up', 'follow up', 'complaint', 'warranty claim'])) {
+            return $this->followUpGuide($user);
+        }
+
+        if (Str::contains($command, ['book service', 'book a service', 'book appointment', 'book an appointment', 'new appointment', 'schedule service', 'schedule an appointment', 'pa book', 'magpa book'])) {
+            return $this->bookingGuide($user);
+        }
+
+        return null;
+    }
+
+    /** @return array{message: string, action: array{label: string, url: string, icon: string}} */
+    private function repairStatus(User $user): array
+    {
+        $repair = $user->repairJobs()->with(['vehicle:id,plate_number'])->latest('updated_at')->first();
+
+        return [
+            'message' => $repair
+                ? 'Your latest repair '.$repair->job_number.' for '.($repair->vehicle?->plate_number ?? 'your vehicle').' is '.str_replace('_', ' ', $repair->status).'. Open its record for the full progress and any estimate that needs your approval.'
+                : 'You do not have a repair job yet. Open Repair progress to check again after a shop starts one.',
+            'action' => [
+                'label' => 'Open repair progress',
+                'url' => route('customer.repairs.index', $repair ? ['repair_job_id' => $repair->id] : []),
+                'icon' => 'tools',
+            ],
+        ];
+    }
+
+    /** @return array{message: string, action: array{label: string, url: string, icon: string}} */
+    private function appointmentStatus(User $user): array
+    {
+        $appointment = $user->appointments()->with(['shop:id,name'])->latest('created_at')->first();
+
+        return [
+            'message' => $appointment
+                ? 'Your latest appointment request #'.$appointment->id.' with '.($appointment->shop?->name ?? 'the shop').' is '.str_replace('_', ' ', $appointment->status).'. The requested visit is '.$appointment->appointment_date->format('M j, Y').' at '.$appointment->appointment_time->format('g:i A').'. Open the appointment for the latest details.'
+                : 'You do not have an appointment yet. Open Appointments to request one.',
+            'action' => ['label' => 'Open my appointments', 'url' => route('customer.appointments.index'), 'icon' => 'calendar-check'],
+        ];
+    }
+
+    /** @return array{message: string, action: array{label: string, url: string, icon: string}} */
+    private function invoiceStatus(User $user): array
+    {
+        $invoice = $user->invoices()->latest('created_at')->first();
+
+        return [
+            'message' => $invoice
+                ? 'Your latest invoice '.$invoice->invoice_number.' is '.str_replace('_', ' ', $invoice->status).'. Total: PHP '.number_format((float) $invoice->total, 2).'. Remaining confirmed balance: PHP '.number_format($invoice->remainingBalance(), 2).'. Review the bill before making a payment.'
+                : 'You do not have an invoice yet. Bills appear after a shop issues one for your service.',
+            'action' => ['label' => 'View bills and payments', 'url' => route('customer.invoices.index'), 'icon' => 'receipt'],
+        ];
+    }
+
+    /** @return array{message: string, action: array{label: string, url: string, icon: string}} */
+    private function followUpGuide(User $user): array
+    {
+        $repair = $user->repairJobs()->whereIn('status', ['completed', 'released'])->latest('completed_at')->first();
+
+        return [
+            'message' => $repair
+                ? 'You can request aftercare for completed repair '.$repair->job_number.'. Open the repair, choose Follow-up, Warranty claim, or Complaint, then review your subject and description before you submit. Nothing is sent from this chat.'
+                : 'A follow-up request becomes available after a repair is completed. Open Repair progress to check your jobs.',
+            'action' => [
+                'label' => $repair ? 'Review aftercare form' : 'Open repair progress',
+                'url' => route('customer.repairs.index', $repair ? ['repair_job_id' => $repair->id] : []),
+                'icon' => 'chat-left-text',
+            ],
+        ];
+    }
+
+    /** @return array{message: string, action: array{label: string, url: string, icon: string}} */
+    private function bookingGuide(User $user): array
+    {
+        $vehicles = $user->vehicles()->orderBy('id')->limit(2)->get(['id', 'plate_number']);
+        $vehicle = $vehicles->count() === 1 ? $vehicles->first() : null;
+
+        return [
+            'message' => $vehicle
+                ? 'I found your vehicle '.$vehicle->plate_number.'. Open the booking form to review the shop, service, date, time, and listed price. Your request is sent only when you select Request appointment.'
+                : 'I can start your service booking. You will still choose the shop, vehicle, service, date, and time before submitting.',
+            'action' => [
+                'label' => 'Book a service',
+                'url' => route('customer.appointments.create', $vehicle ? ['vehicle_id' => $vehicle->id] : []),
+                'icon' => 'calendar-plus',
+            ],
+        ];
+    }
+
+    /** @return array{name: string, reply: string, label: string, route: string, icon: string}|null */
+    private function navigationAction(string $command): ?array
+    {
         $actions = [
             ['terms' => ['roadside', 'emergency', 'nasiraan', 'tabang sa dalan'], 'name' => 'roadside', 'reply' => 'I can take you to Roadside Help. Use the button below to start or review an emergency request.', 'label' => 'Open Roadside Help', 'route' => 'customer.emergency-requests.index', 'icon' => 'life-preserver'],
             ['terms' => ['nearby shop', 'find shop', 'find a shop', 'pangita shop', 'map'], 'name' => 'find_shops', 'reply' => 'Open the shop directory to filter approved shops and view them on the map.', 'label' => 'Find service shops', 'route' => 'shops.index', 'icon' => 'geo-alt'],

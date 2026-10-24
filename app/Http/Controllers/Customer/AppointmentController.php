@@ -23,6 +23,7 @@ class AppointmentController extends Controller
         return view('customer.appointments.index', [
             'appointments' => $request->user()->appointments()
                 ->with(['shop', 'vehicle', 'service', 'repairJob'])
+                ->when($request->integer('focus') > 0, fn ($query) => $query->whereKey($request->integer('focus')))
                 ->when($status, fn ($query) => $query->where('status', $status))
                 ->orderBy('appointment_date')
                 ->orderBy('appointment_time')
@@ -51,6 +52,11 @@ class AppointmentController extends Controller
 
     public function create(Request $request): View
     {
+        $vehicles = $request->user()->vehicles()->orderBy('plate_number')->get();
+        $selectedVehicleId = $vehicles->contains('id', $request->integer('vehicle_id'))
+            ? $request->integer('vehicle_id')
+            : null;
+
         return view('customer.appointments.create', [
             'shops' => Shop::query()
                 ->where('verification_status', 'approved')
@@ -58,8 +64,9 @@ class AppointmentController extends Controller
                 ->with(['services.service'])
                 ->orderBy('name')
                 ->get(),
-            'vehicles' => $request->user()->vehicles()->orderBy('plate_number')->get(),
+            'vehicles' => $vehicles,
             'selectedShopId' => $request->integer('shop_id'),
+            'selectedVehicleId' => $selectedVehicleId,
         ]);
     }
 

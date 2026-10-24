@@ -28,6 +28,8 @@ class ShopDashboardController extends Controller
             'todayAppointments' => $shop->appointments()->with(['customer:id,name', 'vehicle:id,plate_number', 'service:id,name'])->whereDate('appointment_date', today())->orderBy('appointment_time')->limit(5)->get(),
             'activeRepairs' => $shop->repairJobs()->with(['customer:id,name', 'vehicle:id,plate_number'])->whereNotIn('status', ['completed', 'released', 'cancelled'])->latest()->limit(4)->get(),
             'pendingPaymentCount' => Payment::query()->where('shop_id', $shop->id)->where('status', 'pending')->count(),
+            'confirmedAppointmentCount' => $shop->appointments()->where('status', 'confirmed')->whereDoesntHave('repairJob')->count(),
+            'approvedRepairCount' => $shop->repairJobs()->where('status', 'approved')->count(),
         ]);
     }
 }

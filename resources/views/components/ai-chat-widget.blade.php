@@ -38,12 +38,17 @@
 
         <form class="ai-widget-composer" method="POST" action="{{ route('customer.ai-assistant.store') }}">
             @csrf
+            <div class='ai-suggestions' role='group' aria-label='Suggested questions'>
+                <button type='button' data-ai-prompt='Show my latest repair status'>Repair status</button>
+                <button type='button' data-ai-prompt='Book a service'>Book service</button>
+                <button type='button' data-ai-prompt='Show my latest invoice status'>My bill</button>
+            </div>
             <input type="hidden" name="widget" value="1">
-            @error('message')<p class="ai-widget-error" role="alert">{{ $message }}</p>@enderror
+            <p class="ai-widget-error" role="alert" @unless ($errors->has('message')) hidden @endunless>{{ $errors->first('message') }}</p>
             <div>
                 <label class="visually-hidden" for="ai-widget-message">Ask AutoCare AI</label>
-                <textarea id="ai-widget-message" name="message" rows="1" maxlength="2000" placeholder="Type a message" aria-required="true">{{ old('message') }}</textarea>
-                <button type="submit" aria-label="Send question" disabled><i class="bi bi-send-fill" aria-hidden="true"></i></button>
+                <textarea id="ai-widget-message" name="message" rows="1" maxlength="2000" placeholder="Type a message" required>{{ old('message') }}</textarea>
+                <button type="submit" aria-label="Send question"><i class="bi bi-send-fill" aria-hidden="true"></i></button>
             </div>
             <small>Guidance only. Consult a technician for mechanical concerns.</small>
         </form>
@@ -54,74 +59,3 @@
         <span class="ai-floating-copy"><strong>Ask AutoCare AI</strong><small>Need help?</small></span>
     </button>
 </div>
-
-@pushOnce('scripts')
-    <script>
-        document.querySelectorAll('[data-ai-widget]').forEach((widget) => {
-            const panel = widget.querySelector('.ai-widget-panel');
-            const launcher = widget.querySelector('.ai-floating-button');
-            const closeButton = widget.querySelector('.ai-widget-close');
-            const messages = widget.querySelector('.ai-widget-messages');
-            const input = widget.querySelector('textarea');
-            const form = widget.querySelector('.ai-widget-composer');
-            const sendButton = form.querySelector('button[type="submit"]');
-            const typingIndicator = widget.querySelector('.ai-widget-typing');
-
-            const updateComposer = () => {
-                input.style.height = 'auto';
-                input.style.height = `${Math.min(input.scrollHeight, 96)}px`;
-                sendButton.disabled = input.value.trim() === '';
-            };
-
-            const setOpen = (open) => {
-                panel.hidden = !open;
-                launcher.setAttribute('aria-expanded', String(open));
-                launcher.classList.toggle('is-hidden', open);
-                if (open) {
-                    messages.scrollTop = messages.scrollHeight;
-                    input.focus({ preventScroll: true });
-                }
-            };
-
-            launcher.addEventListener('click', () => setOpen(true));
-            closeButton.addEventListener('click', () => {
-                setOpen(false);
-                launcher.focus();
-            });
-            document.addEventListener('keydown', (event) => {
-                if (event.key === 'Escape' && !panel.hidden) {
-                    setOpen(false);
-                    launcher.focus();
-                }
-            });
-
-            input.addEventListener('input', updateComposer);
-            input.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter' && !event.shiftKey) {
-                    event.preventDefault();
-                    if (!sendButton.disabled) {
-                        form.requestSubmit();
-                    }
-                }
-            });
-
-            form.addEventListener('submit', (event) => {
-                const message = input.value.trim();
-                if (!message) {
-                    event.preventDefault();
-                    input.focus();
-                    return;
-                }
-
-                sendButton.disabled = true;
-                input.readOnly = true;
-                typingIndicator.hidden = false;
-                messages.append(typingIndicator);
-                messages.scrollTo({ top: messages.scrollHeight, behavior: 'smooth' });
-            });
-
-            updateComposer();
-            setOpen(widget.dataset.open === 'true');
-        });
-    </script>
-@endPushOnce

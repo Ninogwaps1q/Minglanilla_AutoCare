@@ -10,6 +10,6 @@ class ServiceHistoryController extends Controller
 {
     public function index(): View
     {
-        return view('customer.service-history.index', ['records' => VehicleServiceRecord::query()->whereBelongsTo(auth()->user(), 'customer')->with(['vehicle', 'shop'])->latest('service_date')->paginate(20)]);
+        return view('customer.service-history.index', ['records' => VehicleServiceRecord::query()->whereBelongsTo(auth()->user(), 'customer')->with(['vehicle', 'shop', 'repairJob.warranty', 'repairJob.invoice'])->latest('service_date')->paginate(20)]);
     }
 }

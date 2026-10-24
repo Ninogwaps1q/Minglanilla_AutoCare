@@ -35,6 +35,11 @@ class ServiceCaseController extends Controller
         $data = $request->validate([
             'status' => ['required', Rule::in(['reviewing', 'resolved', 'dismissed'])],
             'admin_resolution' => ['required_if:status,resolved,dismissed', 'nullable', 'string', 'min:10', 'max:3000'],
+        ], [
+            'status.required' => 'Choose an action for this complaint.',
+            'status.in' => 'Choose a valid complaint action.',
+            'admin_resolution.required_if' => 'Write a reason before resolving or dismissing this complaint.',
+            'admin_resolution.min' => 'Write at least 10 characters so the customer and shop understand your decision.',
         ]);
 
         DB::transaction(function () use ($serviceCase, $request, $data): void {
@@ -63,6 +68,12 @@ class ServiceCaseController extends Controller
             }
         });
 
-        return back()->with('status', 'Complaint status and resolution saved.');
+        $message = match ($data['status']) {
+            'resolved' => 'Complaint resolved. The customer and shop have been notified.',
+            'dismissed' => 'Complaint dismissed. The customer and shop have been notified.',
+            default => 'Complaint marked as reviewing. The customer and shop have been notified.',
+        };
+
+        return back()->with('status', $message);
     }
 }

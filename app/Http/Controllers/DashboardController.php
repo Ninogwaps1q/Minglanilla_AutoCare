@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Appointment;
 use App\Models\EmergencyRequest;
 use App\Models\Payment;
+use App\Models\Quotation;
 use App\Models\RepairJob;
+use App\Models\ServiceCase;
 use App\Models\Shop;
 use App\Models\User;
 use App\Models\Vehicle;
@@ -39,6 +41,11 @@ class DashboardController extends Controller
                 'activeRepair' => $user->repairJobs()->with(['shop:id,name', 'vehicle:id,plate_number'])->whereNotIn('status', ['completed', 'released', 'cancelled'])->latest()->first(),
                 'primaryVehicle' => $user->vehicles()->latest()->first(),
                 'unpaidInvoiceCount' => $user->invoices()->where('status', 'unpaid')->count(),
+                'pendingEstimateCount' => Quotation::query()->where('customer_id', $user->id)->where('status', 'sent')
+                    ->where(fn ($query) => $query->whereNull('valid_until')->orWhereDate('valid_until', '>=', today()))->count(),
+                'paymentDueCount' => $user->invoices()->where('status', 'unpaid')
+                    ->whereDoesntHave('payments', fn ($query) => $query->where('status', 'pending'))->count(),
+                'paymentReviewCount' => Payment::query()->where('customer_id', $user->id)->where('status', 'pending')->count(),
             ];
         }
 
@@ -49,6 +56,7 @@ class DashboardController extends Controller
                 'activeRepairCount' => RepairJob::query()->whereNotIn('status', ['completed', 'released', 'cancelled'])->count(),
                 'pendingPaymentCount' => Payment::query()->where('status', 'pending')->count(),
                 'activeEmergencyCount' => EmergencyRequest::query()->whereNotIn('status', ['completed', 'cancelled'])->count(),
+                'openComplaintCount' => ServiceCase::query()->where('type', 'complaint')->whereIn('status', ['open', 'reviewing'])->count(),
             ];
         }
 

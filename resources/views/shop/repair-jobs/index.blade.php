@@ -69,6 +69,8 @@
                 @if ($repairJob->invoice)<a class="btn btn-outline-primary" href="{{ route('shop.invoices.show', $repairJob->invoice) }}">View invoice</a>@endif
             </div>
             @if ($repairJob->status === 'waiting_approval')<p class="text-secondary">{{ $repairJob->quotation?->status === 'sent' ? 'Estimate sent. '.$repairJob->customer->name.' can approve it in My repairs or Estimates.' : 'No estimate has been sent for this repair. Send one so the customer can approve it.' }}</p>@endif
+            @if (in_array($repairJob->status, ['completed', 'released'], true))<x-repair-handover :repair-job="$repairJob" context="shop" />@endif
+            <x-service-journey :repair-job="$repairJob" />
             <x-repair-timeline :repair-job="$repairJob" />
             @php($nextStages = collect($repairJob->availableStatuses())->except('cancelled'))
             @if ($nextStages->isNotEmpty())

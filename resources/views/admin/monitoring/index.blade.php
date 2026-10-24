@@ -5,6 +5,27 @@
             <a class="btn {{ $key === $module ? 'btn-primary' : 'btn-outline-secondary' }}" href="{{ route('admin.monitoring.index', ['module' => $key]) }}" @if ($key === $module) aria-current="page" @endif>{{ $definition[0] }}</a>
         @endforeach
     </nav>
+    @php
+        $aiState = $aiService['configured'] ? $aiService['state'] : 'unconfigured';
+        $aiLabels = ['healthy' => 'Available', 'not_checked' => 'Not checked yet', 'unconfigured' => 'Not configured', 'rate_limited' => 'Rate limited', 'provider_busy' => 'Provider busy', 'connection_error' => 'Connection problem', 'configuration_error' => 'Configuration problem', 'model_unavailable' => 'Model unavailable', 'invalid_request' => 'Request rejected', 'no_reply' => 'No reply received', 'provider_error' => 'Provider error'];
+    @endphp
+    <section class='surface p-4 mb-4' aria-labelledby='ai-service-heading'>
+        <div class='d-flex flex-wrap justify-content-between align-items-start gap-3'>
+            <div><h2 id='ai-service-heading' class='h5 mb-1'>AI assistant service</h2><p class='mb-0 text-secondary'>Last observed provider response, not a live availability check.</p></div>
+            <span class='badge {{ $aiState === 'healthy' ? 'text-bg-success' : ($aiState === 'not_checked' ? 'text-bg-secondary' : 'text-bg-warning') }}'>{{ $aiLabels[$aiState] ?? 'Needs attention' }}</span>
+        </div>
+        <p class='mb-0 mt-3'>Provider: {{ ucfirst((string) $aiService['provider']) }} | Current model: {{ $aiService['current_model'] }}
+            @if ($aiService['checked_at']) | Last checked: {{ \Illuminate\Support\Carbon::parse($aiService['checked_at'])->format('M j, Y g:i A') }} @endif
+            @if ($aiService['http_status']) | HTTP {{ $aiService['http_status'] }} @endif
+        </p>
+        @if ($aiState === 'rate_limited')
+            <p class='mb-0 mt-2'>Requests may be limited by quota. Check your Gemini usage and try again later.</p>
+        @elseif ($aiState === 'unconfigured')
+            <p class='mb-0 mt-2'>Set the Gemini API key on the server to enable free-form answers. Booking and status shortcuts still work.</p>
+        @elseif (in_array($aiState, ['provider_busy', 'connection_error'], true))
+            <p class='mb-0 mt-2'>The assistant retries temporary provider failures automatically. Check connectivity if this continues.</p>
+        @endif
+    </section>
     <div class="surface p-4 mb-4">
         <form method="GET" action="{{ route('admin.monitoring.index') }}" class="row g-3 align-items-end">
             <input type="hidden" name="module" value="{{ $module }}">

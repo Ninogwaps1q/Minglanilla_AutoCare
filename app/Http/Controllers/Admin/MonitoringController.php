@@ -9,13 +9,14 @@ use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Quotation;
 use App\Models\RepairJob;
+use App\Services\AI\AiServiceStatus;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class MonitoringController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, AiServiceStatus $aiServiceStatus): View
     {
         $modules = [
             'appointments' => ['Appointments', Appointment::class, 'shop', ['pending', 'confirmed', 'in_progress', 'completed', 'cancelled']],
@@ -42,6 +43,14 @@ class MonitoringController extends Controller
                 });
             })->latest('id')->paginate(20)->withQueryString();
 
-        return view('admin.monitoring.index', compact('modules', 'module', 'label', 'statuses', 'filters', 'records', 'shopRelation'));
+        return view('admin.monitoring.index', [
+            ...compact('modules', 'module', 'label', 'statuses', 'filters', 'records', 'shopRelation'),
+            'aiService' => [
+                ...$aiServiceStatus->snapshot(),
+                'provider' => config('ai.provider'),
+                'current_model' => config('ai.model'),
+                'configured' => is_string(config('ai.api_key')) && trim(config('ai.api_key')) !== '',
+            ],
+        ]);
     }
 }

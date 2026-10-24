@@ -103,8 +103,9 @@ it('lets only admins resolve complaints and records the decision history', funct
     ])->assertSessionHasErrors('status');
     $this->actingAs($admin)->patch(route('admin.service-cases.update', $case), [
         'status' => 'resolved',
-    ])->assertSessionHasErrors('admin_resolution');
-    $this->get(route('admin.service-cases.index'))->assertSee('Unresolved repair')->assertSee('1 need review');
+    ])->assertSessionHasErrors(['admin_resolution' => 'Write a reason before resolving or dismissing this complaint.']);
+    $this->get(route('admin.service-cases.index'))->assertSee('Unresolved repair')->assertSee('1 complaint needs review')
+        ->assertSee('Resolve complaint')->assertSee('Dismiss complaint');
     $this->patch(route('admin.service-cases.update', $case), [
         'status' => 'resolved', 'admin_resolution' => 'The shop will inspect the vehicle again without a diagnostic fee.',
     ])->assertRedirect();
@@ -112,6 +113,50 @@ it('lets only admins resolve complaints and records the decision history', funct
     $this->assertDatabaseHas('service_cases', ['id' => $case->id, 'status' => 'resolved', 'resolved_by' => $admin->id]);
     $this->assertDatabaseHas('service_case_events', ['service_case_id' => $case->id, 'to_status' => 'resolved', 'actor_id' => $admin->id]);
     $this->actingAs($customer)->get(route('customer.service-cases.index'))->assertSee('The shop will inspect the vehicle again');
+});
+
+it('requires a clear reason before dismissing a complaint and records the final outcome', function () {
+    [$customer, $owner, $shop, $job] = aftercareFixture();
+    $admin = User::factory()->create(['role' => 'admin']);
+    $case = ServiceCase::factory()->forRepair($job)->create(['type' => 'complaint', 'subject' => 'Disputed repair']);
+
+    $this->actingAs($admin)->patch(route('admin.service-cases.update', $case), [
+        'case_id' => $case->id, 'status' => 'dismissed',
+    ])->assertSessionHasErrors(['admin_resolution' => 'Write a reason before resolving or dismissing this complaint.']);
+    $this->assertDatabaseHas('service_cases', ['id' => $case->id, 'status' => 'open']);
+    $this->assertDatabaseCount('service_case_events', 0);
+
+    $this->patch(route('admin.service-cases.update', $case), [
+        'case_id' => $case->id, 'status' => 'dismissed', 'admin_resolution' => 'Short',
+    ])->assertSessionHasErrors(['admin_resolution' => 'Write at least 10 characters so the customer and shop understand your decision.']);
+
+    $this->patch(route('admin.service-cases.update', $case), [
+        'case_id' => $case->id, 'status' => 'dismissed',
+        'admin_resolution' => 'The submitted evidence does not support a further repair claim.',
+    ])->assertRedirect()->assertSessionHas('status', 'Complaint dismissed. The customer and shop have been notified.');
+
+    $this->assertDatabaseHas('service_cases', ['id' => $case->id, 'status' => 'dismissed', 'resolved_by' => $admin->id]);
+    $this->assertDatabaseHas('service_case_events', ['service_case_id' => $case->id, 'to_status' => 'dismissed', 'actor_id' => $admin->id]);
+    expect($customer->notifications()->count())->toBe(1);
+    expect($owner->notifications()->count())->toBe(1);
+
+    $this->patch(route('admin.service-cases.update', $case), [
+        'status' => 'resolved', 'admin_resolution' => 'A second decision should not be saved.',
+    ])->assertSessionHasErrors('status');
+    $this->assertDatabaseCount('service_case_events', 1);
+});
+
+it('lets an admin mark a complaint as reviewing without a closing reason', function () {
+    [$customer, $owner, $shop, $job] = aftercareFixture();
+    $admin = User::factory()->create(['role' => 'admin']);
+    $case = ServiceCase::factory()->forRepair($job)->create(['type' => 'complaint']);
+
+    $this->actingAs($admin)->patch(route('admin.service-cases.update', $case), [
+        'status' => 'reviewing',
+    ])->assertRedirect()->assertSessionHas('status', 'Complaint marked as reviewing. The customer and shop have been notified.');
+
+    $this->assertDatabaseHas('service_cases', ['id' => $case->id, 'status' => 'reviewing', 'admin_resolution' => null]);
+    $this->assertDatabaseHas('service_case_events', ['service_case_id' => $case->id, 'to_status' => 'reviewing']);
 });
 
 /** @return array{User, User, Shop, RepairJob} */

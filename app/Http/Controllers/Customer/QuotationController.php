@@ -45,6 +45,7 @@ class QuotationController extends Controller
     {
         return view('customer.quotations.index', [
             'quotations' => Quotation::query()->whereBelongsTo($request->user(), 'customer')
+                ->when($request->integer('focus') > 0, fn ($query) => $query->whereKey($request->integer('focus')))
                 ->with(['shop', 'vehicle', 'items'])
                 ->latest()
                 ->get(),

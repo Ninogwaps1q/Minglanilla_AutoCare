@@ -15,7 +15,9 @@ class MaintenanceReminderController extends Controller
     public function index(Request $request): View
     {
         return view('customer.reminders.index', [
-            'reminders' => $request->user()->maintenanceReminders()->with('vehicle')->latest('reminder_date')->get(),
+            'reminders' => $request->user()->maintenanceReminders()
+                ->when($request->integer('focus') > 0, fn ($query) => $query->whereKey($request->integer('focus')))
+                ->with('vehicle')->latest('reminder_date')->get(),
             'vehicles' => $request->user()->vehicles()->orderBy('plate_number')->get(),
             'schedules' => $request->user()->vehicles()->with(['maintenanceSchedules.service'])->get()->pluck('maintenanceSchedules')->flatten()->sortBy('next_service_date'),
             'recommendations' => $request->user()->maintenanceRecommendations()->with(['vehicle', 'serviceCategory'])->latest('generated_at')->get(),

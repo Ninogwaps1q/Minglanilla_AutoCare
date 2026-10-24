@@ -19,3 +19,7 @@ Schedule::command('app:send-maintenance-reminders')
 Schedule::command('app:reassign-unanswered-emergency-requests')
     ->everyFiveMinutes()
     ->withoutOverlapping(5);
+
+if (config('backup.enabled')) {
+    Schedule::command('app:backup')->dailyAt('02:30')->withoutOverlapping(180);
+}

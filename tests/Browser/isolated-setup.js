@@ -54,5 +54,11 @@ export default async function setup() {
             && existsSync(logoPath)) {
             unlinkSync(logoPath);
         }
+        const customerPhotoPath = resolve('storage/app/public', fixture.customerPhoto);
+        if (/^profile-photos\/browser-customer-[a-f0-9]{16}\.png$/.test(fixture.customerPhoto)
+            && customerPhotoPath.startsWith(resolve('storage/app/public/profile-photos') + sep)
+            && existsSync(customerPhotoPath)) {
+            unlinkSync(customerPhotoPath);
+        }
     };
 }

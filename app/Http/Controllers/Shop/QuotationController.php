@@ -20,7 +20,9 @@ class QuotationController extends Controller
     public function index(Request $request): View
     {
         return view('shop.quotations.index', ['quotations' => Quotation::query()
-            ->where('shop_id', $this->shop($request)->id)->with(['customer', 'vehicle', 'items'])->latest()->paginate()]);
+            ->where('shop_id', $this->shop($request)->id)
+            ->when($request->integer('focus') > 0, fn ($query) => $query->whereKey($request->integer('focus')))
+            ->with(['customer', 'vehicle', 'items'])->latest()->paginate()->withQueryString()]);
     }
 
     public function edit(Request $request, Quotation $quotation): View

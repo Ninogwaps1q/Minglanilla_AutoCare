@@ -1,5 +1,8 @@
 import './bootstrap';
 import 'bootstrap';
+import './ai-chat';
+import './activity-counts';
+import './message-updates';
 
 if (document.querySelector('[data-passport-scanner]')) {
     import('./passport-scanner.js');

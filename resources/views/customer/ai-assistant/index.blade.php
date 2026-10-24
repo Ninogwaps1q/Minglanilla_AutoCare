@@ -43,12 +43,27 @@
                     </div>
                 </div>
             @endforelse
+            <article class="ai-message ai-message-assistant ai-message-typing" role="status" aria-label="AutoCare AI is typing" hidden>
+                <span class="ai-avatar" aria-hidden="true"><i class="bi bi-stars"></i></span>
+                <div class="ai-message-content">
+                    <div class="ai-message-meta"><strong>AutoCare AI</strong></div>
+                    <span class="ai-typing-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+                    <span class="visually-hidden">AutoCare AI is typing</span>
+                </div>
+            </article>
             <div id="conversation-end" aria-hidden="true"></div>
         </div>
 
         <form class="ai-composer" method="POST" action="{{ route('customer.ai-assistant.store') }}">
             @csrf
+            <div class='ai-suggestions' role='group' aria-label='Suggested questions'>
+                <button type='button' data-ai-prompt='Show my latest repair status'>Repair status</button>
+                <button type='button' data-ai-prompt='Book a service'>Book service</button>
+                <button type='button' data-ai-prompt='Show my latest invoice status'>My bill</button>
+                <button type='button' data-ai-prompt='I need a follow-up for my repair'>Follow-up</button>
+            </div>
             <x-form-errors />
+            <p class="ai-composer-error" role="alert" hidden></p>
             <label class="form-label" for="message">Your question for AutoCare AI</label>
             <div class="ai-composer-control">
                 <textarea class="form-control" id="message" name="message" rows="2" maxlength="2000" placeholder="Ask about your booking, repair, or vehicle care…" required>{{ old('message') }}</textarea>
@@ -60,12 +75,4 @@
         </form>
     </section>
 
-    @push('scripts')
-        <script>
-            const messageList = document.querySelector('.ai-message-list');
-            if (messageList) {
-                messageList.scrollTop = messageList.scrollHeight;
-            }
-        </script>
-    @endpush
 </x-layouts.app>

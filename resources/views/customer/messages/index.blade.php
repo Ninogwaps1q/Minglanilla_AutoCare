@@ -1,36 +1,36 @@
 <x-layouts.app title="Messages">
-    <div class="page-heading">
+    <div class="page-heading message-page-heading">
         <h1>Messages</h1>
-        <p>Ask shops about your vehicle and keep track of their replies.</p>
+        <p>Talk with service shops and find their replies in one place.</p>
         <span class="notification-summary">{{ $unreadMessageCount }} unread {{ \Illuminate\Support\Str::plural('message', $unreadMessageCount) }}</span>
     </div>
 
-    <section class="surface mb-4" aria-label="Conversations">
-        <div class="list-group list-group-flush">
-            @forelse ($threads as $thread)
-                <a class="list-group-item list-group-item-action py-3" href="{{ route('customer.messages.show', $thread->shop) }}">
-                    <span class="d-flex flex-wrap align-items-center justify-content-between gap-2">
-                        <strong>{{ $thread->shop->name }}</strong>
-                        @if ($thread->unread_messages_count > 0)
-                            <span class="badge text-bg-primary">{{ $thread->unread_messages_count }} unread</span>
-                        @endif
-                    </span>
-                    <span class="d-block text-secondary mt-1 message-thread-preview">{{ $thread->messages->first()?->message ?? 'Start a conversation' }}</span>
-                </a>
-            @empty
-                <div class="p-4 text-secondary">No conversations yet. Choose a shop below to send your first message.</div>
-            @endforelse
-        </div>
-    </section>
+    <div class="message-center message-center-index">
+        <section class="message-directory" aria-labelledby="customer-conversations-heading">
+            <header class="message-directory-header">
+                <h2 id="customer-conversations-heading">Conversations</h2>
+                <span>{{ $threads->count() }} chats</span>
+            </header>
+            <x-message-contact-list :threads="$threads" context="customer" />
+        </section>
 
-    <section class="surface p-4" aria-labelledby="start-conversation-heading">
-        <h2 class="h5" id="start-conversation-heading">Start a conversation</h2>
-        <div class="d-flex flex-wrap gap-2">
-            @forelse ($shops as $shop)
-                <a class="btn btn-outline-primary" href="{{ route('customer.messages.show', $shop) }}">Message {{ $shop->name }}</a>
-            @empty
-                <span class="text-secondary">No approved shops are available right now.</span>
-            @endforelse
-        </div>
-    </section>
+        <section class="message-discovery" aria-labelledby="start-conversation-heading">
+            <div class="message-discovery-heading">
+                <span class="message-discovery-icon"><i class="bi bi-chat-dots" aria-hidden="true"></i></span>
+                <h2 id="start-conversation-heading">Start a conversation</h2>
+                <p>Choose a shop to ask about services, availability, or your vehicle.</p>
+            </div>
+            <div class="message-shop-list">
+                @forelse ($shops as $shop)
+                    <a class="message-shop-link" href="{{ route('customer.messages.show', $shop) }}">
+                        <x-uploaded-image class="message-avatar" :path="$shop->logo" :alt="$shop->name.' logo'" fallback-icon="shop" />
+                        <span><strong>{{ $shop->name }}</strong><small>Open chat</small></span>
+                        <i class="bi bi-arrow-right" aria-hidden="true"></i>
+                    </a>
+                @empty
+                    <p class="message-discovery-empty">No other approved shops to message right now. Your existing chats are on the left.</p>
+                @endforelse
+            </div>
+        </section>
+    </div>
 </x-layouts.app>

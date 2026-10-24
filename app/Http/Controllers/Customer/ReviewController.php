@@ -17,7 +17,9 @@ class ReviewController extends Controller
     public function index(Request $request): View
     {
         return view('customer.reviews.index', [
-            'repairJobs' => RepairJob::query()->whereBelongsTo($request->user(), 'customer')->whereIn('status', ['completed', 'released'])->with(['shop', 'review'])->latest('completed_at')->get(),
+            'repairJobs' => RepairJob::query()->whereBelongsTo($request->user(), 'customer')->whereIn('status', ['completed', 'released'])
+                ->when($request->integer('focus') > 0, fn ($query) => $query->whereHas('review', fn ($review) => $review->whereKey($request->integer('focus'))))
+                ->with(['shop', 'review'])->latest('completed_at')->get(),
         ]);
     }
 

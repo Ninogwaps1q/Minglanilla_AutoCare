@@ -53,3 +53,53 @@ it('keeps the precise accessible count when the visible badge reaches 99 plus', 
         ->assertSee('99+')
         ->assertSee('101 unread');
 });
+
+it('lets customers update all notification read states without touching another account', function () {
+    $customer = User::factory()->create(['role' => 'customer']);
+    $otherCustomer = User::factory()->create(['role' => 'customer']);
+    $customer->notifications()->createMany(array_fill(0, 17, [
+        'type' => 'status', 'title' => 'Service update', 'message' => 'Your appointment changed.',
+    ]));
+    $otherNotification = $otherCustomer->notifications()->create([
+        'type' => 'status', 'title' => 'Private update', 'message' => 'Keep private.',
+    ]);
+
+    $this->actingAs($customer)
+        ->patch(route('customer.notifications.bulk-update'), ['state' => 'read'])
+        ->assertRedirect()
+        ->assertSessionHas('status');
+
+    expect($customer->notifications()->whereNull('read_at')->count())->toBe(0)
+        ->and($otherNotification->fresh()->read_at)->toBeNull();
+
+    $this->get(route('customer.notifications.index', ['filter' => 'unread']))
+        ->assertSee('All caught up')
+        ->assertDontSee('Service update');
+
+    $this->patch(route('customer.notifications.bulk-update'), ['state' => 'unread'])->assertRedirect();
+    expect($customer->notifications()->whereNull('read_at')->count())->toBe(17);
+    $this->get(route('customer.notifications.index'))->assertSee('17 unread');
+});
+
+it('lets shop owners update all notifications and rejects invalid bulk states', function () {
+    $owner = User::factory()->create(['role' => 'shop_owner']);
+    Shop::factory()->create(['owner_id' => $owner->id, 'verification_status' => 'approved', 'shop_status' => 'active']);
+    $owner->notifications()->create(['type' => 'status', 'title' => 'New booking', 'message' => 'A customer booked.']);
+    $owner->notifications()->create(['type' => 'status', 'title' => 'Old booking', 'message' => 'Already read.', 'read_at' => now()]);
+
+    $this->actingAs($owner)->get(route('shop.notifications.index', ['filter' => 'unread']))
+        ->assertSee('New booking')
+        ->assertDontSee('Old booking')
+        ->assertSee('Mark all as read')
+        ->assertSee('Mark all as unread');
+
+    $this->patch(route('shop.notifications.bulk-update'), ['state' => 'invalid'])
+        ->assertSessionHasErrors('state');
+    expect($owner->notifications()->whereNull('read_at')->count())->toBe(1);
+
+    $this->patch(route('shop.notifications.bulk-update'), ['state' => 'read'])->assertRedirect();
+    expect($owner->notifications()->whereNull('read_at')->count())->toBe(0);
+
+    $this->patch(route('shop.notifications.bulk-update'), ['state' => 'unread'])->assertRedirect();
+    expect($owner->notifications()->whereNull('read_at')->count())->toBe(2);
+});

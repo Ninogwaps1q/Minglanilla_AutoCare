@@ -18,7 +18,9 @@ class EmergencyRequestController extends Controller
 
     public function index(Request $request): View
     {
-        $requests = $request->user()->emergencyRequests()->with(['vehicle', 'assignedShop'])->latest('requested_at')->get();
+        $requests = $request->user()->emergencyRequests()
+            ->when($request->integer('focus') > 0, fn ($query) => $query->whereKey($request->integer('focus')))
+            ->with(['vehicle', 'assignedShop'])->latest('requested_at')->get();
         $dispatchAttempts = DB::table('emergency_dispatch_attempts')
             ->join('shops', 'shops.id', '=', 'emergency_dispatch_attempts.shop_id')
             ->whereIn('emergency_request_id', $requests->modelKeys())

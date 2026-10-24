@@ -55,6 +55,11 @@
             </div>
         </section>
 
+        <x-action-queue :items="[
+            ['count' => $pendingEstimateCount, 'label' => 'Estimates to approve', 'detail' => 'Review the itemized price before the shop starts.', 'href' => route('customer.quotations.index')],
+            ['count' => $paymentDueCount, 'label' => 'Bills to pay', 'detail' => 'Open your invoice and record a payment.', 'href' => route('customer.invoices.index')],
+        ]" :empty-route="route('customer.services.index')" empty-label="View my services" />
+
         <div class="row g-4">
             <div class="col-xl-8">
                 <section class="surface p-4 h-100" aria-labelledby="next-step-title">
@@ -129,9 +134,9 @@
                     @endif
                 </section>
                 <section class="surface p-4" aria-labelledby="attention-title">
-                    <h2 id="attention-title" class="h5">Need attention</h2>
+                    <h2 id="attention-title" class="h5">Keep track</h2>
                     <a class="attention-link" href="{{ route('customer.invoices.index') }}"><span><i class="bi bi-receipt"
-                                aria-hidden="true"></i>Unpaid invoices</span><strong>{{ $unpaidInvoiceCount }}</strong></a>
+                                aria-hidden="true"></i>Payments under shop review</span><strong>{{ $paymentReviewCount }}</strong></a>
                     <a class="attention-link" href="{{ route('customer.notifications.index') }}"><span><i class="bi bi-bell"
                                 aria-hidden="true"></i>Updates</span><i class="bi bi-chevron-right"
                             aria-hidden="true"></i></a>
@@ -160,6 +165,10 @@
                     class="workspace-stat" href="{{ $route }}"><i class="bi bi-{{ $icon }}"
                         aria-hidden="true"></i><span><strong>{{ $value }}</strong>{{ $label }}</span><i
             class="bi bi-chevron-right ms-auto" aria-hidden="true"></i></a>@endforeach</section>
+        <x-action-queue :items="[
+            ['count' => $metrics['Pending verifications'], 'label' => 'Shop registrations', 'detail' => 'Review businesses waiting to join.', 'href' => route('admin.shops.index', ['status' => 'pending'])],
+            ['count' => $openComplaintCount, 'label' => 'Customer complaints', 'detail' => 'Read evidence and record a resolution.', 'href' => route('admin.service-cases.index')],
+        ]" :empty-route="route('admin.monitoring.index')" empty-label="Open operations monitor" />
         <div class="row g-4">
             <div class="col-xl-7">
                 <section class="surface p-4 h-100" aria-labelledby="pending-shops-title">

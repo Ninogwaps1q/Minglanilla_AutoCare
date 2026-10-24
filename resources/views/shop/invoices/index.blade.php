@@ -2,6 +2,11 @@
     <div class="page-heading"><h1>Bills and payments</h1><p>Confirm a payment only after you have received the money. Explain any rejection so the customer knows what to correct.</p></div>
     <x-form-errors />
 
+    <nav class="notification-filters mb-3" aria-label="Filter invoices">
+        <a class="notification-filter {{ request()->query('status') === 'pending' ? '' : 'is-active' }}" href="{{ route('shop.invoices.index') }}">All invoices</a>
+        <a class="notification-filter {{ request()->query('status') === 'pending' ? 'is-active' : '' }}" href="{{ route('shop.invoices.index', ['status' => 'pending']) }}">Payments awaiting review</a>
+    </nav>
+
     <div class="d-grid gap-3">
         @forelse ($invoices as $invoice)
             <article class="surface p-4">

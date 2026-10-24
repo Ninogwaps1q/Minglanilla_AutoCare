@@ -3,8 +3,10 @@
 use App\Models\Appointment;
 use App\Models\Barangay;
 use App\Models\Invoice;
+use App\Models\MessageThread;
 use App\Models\RepairJob;
 use App\Models\Service;
+use App\Models\ServiceCase;
 use App\Models\ServiceCategory;
 use App\Models\Shop;
 use App\Models\ShopService;
@@ -41,6 +43,12 @@ foreach (['customer', 'shop_owner', 'admin'] as $role) {
         'name' => 'Browser '.str_replace('_', ' ', $role),
     ]);
 }
+foreach (['customer', 'shop_owner'] as $role) {
+    $users[$role]->notifications()->createMany([
+        ['type' => 'status', 'title' => 'Browser new update', 'message' => 'A new update needs your attention.'],
+        ['type' => 'status', 'title' => 'Browser older update', 'message' => 'This update was already read.', 'read_at' => now()],
+    ]);
+}
 $barangay = Barangay::factory()->create();
 $logoPath = 'shop-logos/browser-map-'.bin2hex(random_bytes(8)).'.png';
 $logoContents = file_get_contents(public_path('images/Minglanilla AutoCare Hub Logo.png'));
@@ -66,6 +74,16 @@ foreach (['desktop', 'mobile', 'small-mobile'] as $viewport) {
     ])->id;
 }
 $vehicle = Vehicle::factory()->create(['customer_id' => $users['customer']->id, 'plate_number' => 'BROWSER-001']);
+$customerPhotoPath = 'profile-photos/browser-customer-'.bin2hex(random_bytes(8)).'.png';
+if (! Storage::disk('public')->put($customerPhotoPath, $logoContents)) {
+    throw new RuntimeException('Could not prepare the browser customer photo.');
+}
+$users['customer']->update(['profile_photo' => $customerPhotoPath]);
+$messageThread = MessageThread::query()->create(['customer_id' => $users['customer']->id, 'shop_id' => $shop->id]);
+$messageThread->messages()->createMany([
+    ['sender_id' => $users['customer']->id, 'message' => 'Can you inspect my brakes?'],
+    ['sender_id' => $users['shop_owner']->id, 'message' => 'Yes, we can help with that.'],
+]);
 $category = ServiceCategory::factory()->create();
 $service = Service::factory()->create(['category_id' => $category->id, 'name' => 'Browser Oil Change']);
 ShopService::query()->create(['shop_id' => $shop->id, 'service_id' => $service->id, 'price' => 900, 'availability' => true]);
@@ -92,6 +110,24 @@ $diagnosisJob->items()->createMany([
     ['type' => 'labor', 'description' => 'Brake labor', 'quantity' => 1, 'unit_price' => 500, 'subtotal' => 500],
     ['type' => 'part', 'description' => 'Brake pads', 'quantity' => 1, 'unit_price' => 750, 'subtotal' => 750],
 ]);
+$browserComplaintCases = [];
+foreach (['desktop', 'mobile', 'small-mobile'] as $viewport) {
+    foreach (['resolved', 'dismissed'] as $outcome) {
+        $complaintJob = RepairJob::query()->create([
+            'customer_id' => $users['customer']->id, 'shop_id' => $shop->id, 'vehicle_id' => $vehicle->id,
+            'job_number' => 'JOB-BROWSER-'.strtoupper($viewport).'-'.strtoupper($outcome),
+            'status' => 'completed', 'description' => 'Browser complaint repair',
+            'started_at' => now()->subDay(), 'completed_at' => now(),
+        ]);
+        $browserComplaintCases[$viewport][$outcome] = ServiceCase::query()->create([
+            'repair_job_id' => $complaintJob->id, 'customer_id' => $users['customer']->id,
+            'shop_id' => $shop->id, 'type' => 'complaint',
+            'subject' => 'Browser '.$viewport.' '.$outcome.' complaint',
+            'description' => 'The customer reported an issue after the repair.',
+            'status' => 'open',
+        ])->id;
+    }
+}
 $part = $shop->spareParts()->create(['name' => 'Browser Brake Pad', 'purchase_price' => 100,
     'selling_price' => 150, 'quantity' => 10, 'minimum_stock' => 2]);
 $invoice = Invoice::query()->create([
@@ -101,5 +137,7 @@ $invoice = Invoice::query()->create([
 $invoice->items()->create(['description' => 'Browser brake service', 'quantity' => 2,
     'unit_price' => 250, 'subtotal' => 500]);
 echo json_encode(['database' => $database, 'password' => $password, 'shop' => $shop->id, 'logo' => $logoPath,
+    'customerPhoto' => $customerPhotoPath,
     'vehicle' => $vehicle->id, 'service' => $service->id, 'repairJob' => $repairJob->id, 'diagnosisRepairJob' => $diagnosisJob->id,
-    'part' => $part->id, 'invoice' => $invoice->id, 'browserDocuments' => $browserDocumentIds], JSON_THROW_ON_ERROR);
+    'part' => $part->id, 'invoice' => $invoice->id, 'browserDocuments' => $browserDocumentIds,
+    'complaintCases' => $browserComplaintCases], JSON_THROW_ON_ERROR);

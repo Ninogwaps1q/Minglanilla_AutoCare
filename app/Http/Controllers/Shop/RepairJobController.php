@@ -130,6 +130,10 @@ class RepairJobController extends Controller
             if ($nextStatus !== $repairJob->status && ! array_key_exists($nextStatus, $repairJob->availableStatuses())) {
                 throw ValidationException::withMessages(['status' => 'This status change is not allowed for the current repair stage.']);
             }
+            if ($nextStatus === 'completed' && in_array($repairJob->quotation?->status, ['accepted', 'approved'], true) && $repairJob->items()->exists()
+                && (int) round((float) $repairJob->items()->sum('subtotal') * 100) !== (int) round((float) $repairJob->quotation->total * 100)) {
+                throw ValidationException::withMessages(['status' => 'The repair items no longer match the approved estimate. Resolve the price difference before completing the job.']);
+            }
             if (in_array($nextStatus, ['approved', 'repairing', 'in_progress', 'completed'], true) && ! in_array($repairJob->quotation?->status, ['accepted', 'approved'], true)) {
                 throw ValidationException::withMessages(['status' => 'Send an estimate and wait for the customer to approve it before repair work proceeds.']);
             }
@@ -166,6 +170,9 @@ class RepairJobController extends Controller
                     $repairJob->update(['completed_at' => now()]);
                 }
                 $repairJob->appointment?->update(['status' => 'completed']);
+                $parts = $repairJob->items()->where('type', 'part')->orderBy('id')->get(['description', 'quantity', 'subtotal']);
+                $partsCost = round((float) $parts->sum('subtotal'), 2);
+                $totalCost = (float) ($repairJob->actual_cost ?? 0);
                 VehicleServiceRecord::query()->firstOrCreate(
                     ['repair_job_id' => $repairJob->id],
                     [
@@ -175,8 +182,10 @@ class RepairJobController extends Controller
                         'service_date' => today(),
                         'service_type' => 'Repair job '.$repairJob->job_number,
                         'description' => $repairJob->description,
-                        'labor_cost' => $repairJob->actual_cost ?? 0,
-                        'total_cost' => $repairJob->actual_cost ?? 0,
+                        'parts_used' => $parts->map(fn ($part): string => $part->quantity.' x '.$part->description)->implode(', '),
+                        'labor_cost' => max(0, round($totalCost - $partsCost, 2)),
+                        'parts_cost' => $partsCost,
+                        'total_cost' => $totalCost,
                         'technician_notes' => $repairJob->technician_notes,
                     ],
                 );

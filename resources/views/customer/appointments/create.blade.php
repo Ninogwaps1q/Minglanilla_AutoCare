@@ -40,7 +40,7 @@
                 <select id="vehicle_id" class="form-select @error('vehicle_id') is-invalid @enderror" name="vehicle_id" required>
                     <option value="">Choose a vehicle</option>
                     @foreach ($vehicles as $vehicle)
-                        <option value="{{ $vehicle->id }}" @selected(old('vehicle_id') == $vehicle->id)>{{ $vehicle->plate_number }} — {{ $vehicle->make }} {{ $vehicle->model }}</option>
+                        <option value="{{ $vehicle->id }}" @selected(old('vehicle_id', $selectedVehicleId) == $vehicle->id)>{{ $vehicle->plate_number }} — {{ $vehicle->make }} {{ $vehicle->model }}</option>
                     @endforeach
                 </select>
                 @error('vehicle_id')<div class="invalid-feedback">{{ $message }}</div>@enderror

@@ -37,7 +37,7 @@
         <title>{{ $title ? $title.' · ' : '' }}{{ config('app.name', 'Minglanilla AutoCare Hub') }}</title>
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="portal-shell role-{{ $role }}">
+    <body class="portal-shell role-{{ $role }}" @if (in_array($role, ['customer', 'shop_owner'], true)) data-activity-counts-url="{{ route($role === 'customer' ? 'customer.notifications.counts' : 'shop.notifications.counts') }}" @endif>
         <a class="skip-link" href="#main-content">Skip to content</a>
         <aside class="offcanvas-lg offcanvas-start portal-sidebar" tabindex="-1" id="portalNavigation" aria-labelledby="navigationTitle">
             <div class="offcanvas-header">
@@ -137,6 +137,16 @@
                         Messages are temporarily unavailable. Your other account features are still available.
                     </div>
                 @endif
+                @if (request()->integer('focus') > 0 && in_array(request()->route()?->getName(), [
+                    'customer.appointments.index', 'shop.appointments.index',
+                    'customer.quotations.index', 'shop.quotations.index',
+                    'customer.invoices.index', 'shop.invoices.index',
+                    'customer.service-cases.index', 'shop.service-cases.index',
+                    'customer.emergency-requests.index', 'shop.emergency-requests.index',
+                    'customer.reminders.index', 'customer.reviews.index', 'shop.reviews.index',
+                ], true))
+                    <div class="notification-focus-bar">Showing the update you opened. <a href="{{ route(request()->route()->getName()) }}">View all</a></div>
+                @endif
                 {{ $slot }}
             </main>
             <footer class="portal-footer">Minglanilla AutoCare Hub · {{ $roleLabel }} workspace</footer>
@@ -149,7 +159,7 @@
                 <a href="{{ route('customer.vehicles.index') }}" class="{{ request()->routeIs('customer.vehicles.*') ? 'active' : '' }}"><i class="bi bi-car-front" aria-hidden="true"></i><span>Garage</span></a>
                 <a href="{{ route('customer.repairs.index') }}" class="{{ request()->routeIs('customer.repairs.*') ? 'active' : '' }}"><i class="bi bi-tools" aria-hidden="true"></i><span>Repairs</span></a>
             </nav>
-            @unless (request()->routeIs('customer.ai-assistant.*'))
+            @unless (request()->routeIs('customer.ai-assistant.*') || request()->routeIs('customer.messages.show'))
                 <x-ai-chat-widget />
             @endunless
         @elseif ($role === 'shop_owner')

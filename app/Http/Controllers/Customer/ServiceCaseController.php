@@ -18,7 +18,8 @@ class ServiceCaseController extends Controller
     {
         return view('customer.service-cases.index', [
             'cases' => ServiceCase::query()->where('customer_id', $request->user()->id)
-                ->with(['repairJob.vehicle', 'shop', 'events.actor'])->latest()->paginate(10),
+                ->when($request->integer('focus') > 0, fn ($query) => $query->whereKey($request->integer('focus')))
+                ->with(['repairJob.vehicle', 'shop', 'events.actor'])->latest()->paginate(10)->withQueryString(),
         ]);
     }
 
