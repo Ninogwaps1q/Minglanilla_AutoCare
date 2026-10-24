@@ -27,3 +27,8 @@ it('reports a pending migration before deployment', function () {
         ->toContain('[PASS] Database connection works')
         ->toContain('[FAIL] Database migrations are current');
 });
+
+it('refuses an unsupported backup database without touching application data', function () {
+    expect(Artisan::call('app:backup'))->toBe(1);
+    expect(Artisan::output())->toContain('supports MySQL and MariaDB only');
+});

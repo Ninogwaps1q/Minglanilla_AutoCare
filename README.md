@@ -4,7 +4,7 @@ Laravel application for customers, auto shops, and administrators. It covers sho
 
 ## Requirements
 
--   PHP 8.2 or newer with the extensions required by `composer install`, including PDO MySQL, mbstring, fileinfo, and OpenSSL
+-   PHP 8.2 or newer with the extensions required by `composer install`, including PDO MySQL, mbstring, fileinfo, OpenSSL, and ZipArchive for backups
 -   Composer 2
 -   Node.js `^20.19.0` or `>=22.12.0` and npm (required by the installed Vite version)
 -   MySQL 8 for the intended production database; a local MariaDB setup can run the app, but MySQL 8 concurrency sign-off must be done separately
@@ -81,6 +81,12 @@ Remove-Item Env:BROWSER_ISOLATED
 
 Do not point the browser tests at production. Their temporary database is deleted when the run completes.
 
+## Private backups and recovery
+
+Run `php artisan app:backup` to create a ZIP under `storage/app/private/backups`. It includes a consistent MySQL/MariaDB dump, `storage/app/public` uploads, and `storage/app/private` files, excluding old backups. The dump uses `mysqldump`; set `BACKUP_DUMP_BINARY` to its absolute executable path if it is not on PATH (for example `C:\xampp\mysql\bin\mysqldump.exe`). A failed dump leaves no completed ZIP. Set `BACKUP_ENABLED=true` only after a manual backup succeeds; the scheduler then runs it daily at 02:30 server time. Keep this directory outside the web root, restrict access, and transfer copies to an encrypted off-host location. Backups have no automatic deletion policy; monitor storage and apply your own retention policy.
+
+To verify recovery, copy a backup to a safe test machine, inspect `manifest.json`, check `database.sql` against its SHA-256 hash, and restore the SQL **only into a new disposable database**. Extract `uploads/public` and `uploads/private` to that test installation's `storage/app` directories, then run `php artisan storage:link` and check a real image and protected document. Never overwrite the production database during a restore drill. Preserve `APP_KEY` separately in a secret manager because the archive does not include `.env` or encryption keys.
+
 ## Production checklist
 
 Before switching traffic to a new host:
@@ -89,7 +95,7 @@ Before switching traffic to a new host:
 2. Run `composer install --no-dev --optimize-autoloader`, `npm ci`, `npm run build`, `php artisan migrate --force --no-interaction`, `php artisan storage:link`, and `php artisan optimize` on the target host. Ensure `storage/` and `bootstrap/cache/` are writable by the application.
 3. Start a supervised queue worker and configure the once-per-minute scheduler. Check `php artisan queue:failed` and `php artisan schedule:list`.
 4. Run `php artisan app:deployment-check --strict`. It checks configuration, database access and pending migrations, storage link, and writable directories, but it cannot prove external services are operating.
-5. Manually verify a delivered password-reset email, customer/shop/admin workflows, image upload and display, HTTPS, payment review, and a database **backup plus restore into a separate disposable database**. Do not restore over production as a test.
+5. Manually verify a delivered password-reset email, customer/shop/admin workflows, image upload and display, HTTPS, payment review, and a database **backup plus restore into a separate disposable database**. Do not restore over production as a test. Run a short real-user usability session on desktop and mobile; automated browser checks cannot prove that the interface is easy to understand.
 6. On a private console, run `php artisan app:bootstrap-admin` to create the first production administrator. The local demo-account seeder intentionally does not create production users.
 
 This repository previously tracked `.env`; removing it from the current Git index does not erase old commits. Rotate any real keys or passwords that were committed, and coordinate history cleanup before publishing the repository.

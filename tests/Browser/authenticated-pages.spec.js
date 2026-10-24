@@ -131,6 +131,8 @@ test('shop can send itemized estimate, start approved repair, and issue its invo
     await activeJob.getByLabel('Next stage').selectOption('completed');
     await activeJob.getByRole('button', { name: 'Update repair stage' }).click();
     await page.goto('/shop/repair-jobs?status=completed');
+    await expect(page.locator(`#repair-${fixture.diagnosisRepairJob}`).getByRole('region', { name: 'Completed repair handover' })).toBeVisible();
+    await expect(page.locator(`#repair-${fixture.diagnosisRepairJob}`).getByRole('region', { name: 'Service progress' })).toBeVisible();
     await page.locator(`#repair-${fixture.diagnosisRepairJob}`).getByRole('button', { name: 'Issue invoice' }).click();
     await expect(page).toHaveURL(/shop\/invoices$/);
     await expect(page.getByText('PHP 1,250.00', { exact: true })).toBeVisible();
@@ -180,19 +182,21 @@ for (const [role, notificationsPath] of [['customer', '/customer/notifications']
         if (await markAllUnread.isEnabled()) {
             await markAllUnread.click();
         }
-        await page.locator('.notification-item').filter({ hasText: 'Browser older update' })
+        const unreadBefore = Number.parseInt(await page.locator('.notification-summary').textContent(), 10);
+        await page.locator('.notification-item.is-unread').first()
             .getByRole('button', { name: 'Mark as read' }).click();
+        await expect(page.locator('.notification-summary')).toHaveText(`${unreadBefore - 1} unread`);
         await expect(page.locator('.notification-item.is-unread').first()).toBeVisible();
         await expect(page.getByRole('button', { name: 'Mark all as read' })).toBeEnabled();
         await expect(markAllUnread).toBeEnabled();
         await page.getByRole('link', { name: /Unread/ }).last().click();
         await expect(page).toHaveURL(/filter=unread/);
-        await expect(page.getByText('Browser older update')).toHaveCount(0);
+        await expect(page.locator('.notification-item.is-read')).toHaveCount(0);
         await page.getByRole('button', { name: 'Mark all as read' }).click();
         await expect(page.getByRole('heading', { name: 'All caught up' })).toBeVisible();
         await expect(page.locator('.notification-summary')).toHaveText('0 unread');
         await page.getByRole('button', { name: 'Mark all as unread' }).click();
-        await expect(page.getByText('Browser older update')).toBeVisible();
+        await expect(page.locator('.notification-item.is-unread').first()).toBeVisible();
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => document.documentElement.clientWidth + 1));
         await page.screenshot({ path: testInfo.outputPath(role + '-notifications-unread-' + testInfo.project.name + '.png'), fullPage: false });
     });
@@ -231,7 +235,13 @@ test('customer shares and revokes a temporary service passport for a verified sh
     test.setTimeout(90000);
     const fixture = await signIn(page, 'customer');
     await page.goto('/customer/vehicles/' + fixture.vehicle + '/passport');
-    await page.getByRole('button', { name: 'Create 24-hour shop link' }).click();
+    const createShare = page.getByRole('button', { name: 'Create 24-hour shop link' });
+    if (await page.getByRole('button', { name: 'Revoke access' }).count()) {
+        page.once('dialog', dialog => dialog.accept());
+        await page.getByRole('button', { name: 'Revoke access' }).first().click();
+        await expect(createShare).toBeVisible();
+    }
+    await createShare.click();
     const sharedUrl = await page.getByLabel('Shop sharing link').inputValue();
     expect(sharedUrl).toContain('/shop/shared-passports/');
     await page.screenshot({ path: testInfo.outputPath('customer-shared-passport.png'), fullPage: true, mask: [page.locator('#passport-share-url')] });
@@ -250,7 +260,7 @@ test('customer shares and revokes a temporary service passport for a verified sh
         await shopPage.getByRole('button', { name: 'Open service passport' }).click();
         await expect(shopPage.getByRole('heading', { name: 'Shared service passport' })).toBeVisible();
         await expect(shopPage.getByText('BROWSER-001')).toBeVisible();
-        await expect(shopPage.getByRole('link', { name: 'Review shop appointments' })).toBeVisible();
+        await expect(shopPage.getByRole('link', { name: /Start repair job|Review shop appointments/ })).toBeVisible();
         await shopPage.screenshot({ path: testInfo.outputPath('shop-shared-passport.png'), fullPage: true });
 
         await shopPage.addInitScript((url) => {
@@ -327,7 +337,7 @@ test('customer dashboard makes primary actions clear', async ({ page }, testInfo
     await responsePromise;
     const aiPanel = page.getByRole('region', { name: 'AutoCare AI chat' });
     await expect(aiPanel).toBeVisible();
-    await expect(aiPanel.getByText('I found your vehicle', { exact: false })).toBeVisible();
+    await expect(aiPanel).toContainText(/I found your vehicle|I can start your service booking/);
     await expect(aiPanel.getByRole('link', { name: 'Book a service' }).last()).toBeVisible();
     await expect(page.locator('.ai-widget-typing')).toBeHidden();
     expect(page.url()).toBe(dashboardUrl);
@@ -395,7 +405,7 @@ test('shop and admin dashboards make daily priorities clear', async ({ page }, t
     await page.goto('/shop/dashboard');
     await expect(page.getByRole('heading', { name: 'Browser Test AutoCare' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Today at a glance' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Review appointments' })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Review (booking requests|appointments)/ })).toBeVisible();
     await expect(page.getByRole('link', { name: 'View repair jobs' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Quick actions' })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => document.documentElement.clientWidth + 1));

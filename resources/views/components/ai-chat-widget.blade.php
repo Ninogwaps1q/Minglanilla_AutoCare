@@ -54,7 +54,7 @@
         </form>
     </section>
 
-    <button class="ai-floating-button" type="button" aria-controls="ai-widget-panel" aria-expanded="false" aria-label="Open AutoCare AI assistant">
+    <button class="ai-floating-button" type="button" aria-controls="ai-widget-panel" aria-expanded="false" aria-label="Open AutoCare AI assistant" disabled>
         <span class="ai-floating-icon"><i class="bi bi-stars" aria-hidden="true"></i></span>
         <span class="ai-floating-copy"><strong>Ask AutoCare AI</strong><small>Need help?</small></span>
     </button>

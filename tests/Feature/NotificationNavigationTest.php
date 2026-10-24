@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\MessageThread;
 use App\Models\Shop;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -102,4 +103,36 @@ it('lets shop owners update all notifications and rejects invalid bulk states', 
 
     $this->patch(route('shop.notifications.bulk-update'), ['state' => 'unread'])->assertRedirect();
     expect($owner->notifications()->whereNull('read_at')->count())->toBe(2);
+});
+
+it('opens a notification at its related conversation and never opens another users update', function () {
+    $customer = User::factory()->create(['role' => 'customer']);
+    $otherCustomer = User::factory()->create(['role' => 'customer']);
+    $owner = User::factory()->create(['role' => 'shop_owner']);
+    $shop = Shop::factory()->create(['owner_id' => $owner->id, 'verification_status' => 'approved', 'shop_status' => 'active']);
+    $thread = MessageThread::query()->create(['customer_id' => $customer->id, 'shop_id' => $shop->id]);
+    $update = $customer->notifications()->create(['type' => 'message_received', 'title' => 'New message', 'message' => 'Hello', 'data' => ['thread_id' => $thread->id]]);
+
+    $this->actingAs($otherCustomer)->post(route('customer.notifications.open', $update))->assertNotFound();
+    expect($update->fresh()->read_at)->toBeNull();
+
+    $this->actingAs($customer)->post(route('customer.notifications.open', $update))
+        ->assertRedirect(route('customer.messages.show', $shop));
+    expect($update->fresh()->read_at)->not->toBeNull();
+});
+
+it('returns role scoped live notification and message counts', function () {
+    $customer = User::factory()->create(['role' => 'customer']);
+    $otherCustomer = User::factory()->create(['role' => 'customer']);
+    $owner = User::factory()->create(['role' => 'shop_owner']);
+    $shop = Shop::factory()->create(['owner_id' => $owner->id, 'verification_status' => 'approved', 'shop_status' => 'active']);
+    $thread = MessageThread::query()->create(['customer_id' => $customer->id, 'shop_id' => $shop->id]);
+    $thread->messages()->create(['sender_id' => $owner->id, 'message' => 'Ready for pickup']);
+    $customer->notifications()->create(['type' => 'status', 'title' => 'Ready', 'message' => 'Your car is ready.']);
+    $otherCustomer->notifications()->create(['type' => 'status', 'title' => 'Private', 'message' => 'Private update.']);
+
+    $this->actingAs($customer)->getJson(route('customer.notifications.counts'))
+        ->assertOk()->assertJsonPath('notifications', 1)->assertJsonPath('messages', 1);
+    $this->actingAs($owner)->getJson(route('shop.notifications.counts'))
+        ->assertOk()->assertJsonPath('notifications', 0)->assertJsonPath('messages', 0);
 });

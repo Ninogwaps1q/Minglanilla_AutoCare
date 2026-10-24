@@ -277,6 +277,32 @@ it('guides an itemized diagnosis through estimate approval, repair start, comple
 
     expect($job->fresh()->invoice->total)->toBe('1250.00');
     expect($job->fresh()->invoice->status)->toBe('unpaid');
+    $this->assertDatabaseHas('vehicle_service_records', [
+        'repair_job_id' => $job->id,
+        'parts_used' => '1 x Brake pads',
+        'parts_cost' => 750,
+        'labor_cost' => 500,
+        'total_cost' => 1250,
+    ]);
+    expect(collect($job->fresh()->serviceStages())->firstWhere('label', 'Payment')['state'])->toBe('current');
+});
+
+it('blocks completion if saved work no longer matches the customer approved price', function () {
+    $fixture = repairFixture();
+    $job = $fixture['repairJob'];
+    $job->items()->create(['type' => 'labor', 'description' => 'Inspection', 'quantity' => 1, 'unit_price' => 500, 'subtotal' => 500]);
+    $quotation = Quotation::query()->create([
+        'customer_id' => $fixture['customer']->id, 'shop_id' => $fixture['shop']->id,
+        'vehicle_id' => $fixture['vehicle']->id, 'quotation_number' => 'QT-MISMATCH',
+        'subtotal' => 600, 'total' => 600, 'status' => 'sent',
+    ]);
+    $job->update(['quotation_id' => $quotation->id, 'actual_cost' => 500]);
+
+    $this->actingAs($fixture['customer'])->patch(route('customer.quotations.update', $quotation), ['status' => 'accepted'])->assertRedirect();
+    $this->actingAs($fixture['owner'])->patch(route('shop.repair-jobs.update', $job), ['status' => 'repairing'])->assertSessionHasNoErrors();
+    $this->patch(route('shop.repair-jobs.update', $job), ['status' => 'completed'])->assertSessionHasErrors('status');
+    expect($job->fresh()->status)->toBe('repairing');
+    $this->assertDatabaseMissing('vehicle_service_records', ['repair_job_id' => $job->id]);
 });
 
 it('uses saved repair items instead of a different submitted price when sending an estimate', function () {

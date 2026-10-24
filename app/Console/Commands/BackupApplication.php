@@ -45,6 +45,7 @@ class BackupApplication extends Command
         $archivePath = $directory.DIRECTORY_SEPARATOR.'autocare-'.$suffix.'.zip';
         $zip = new ZipArchive;
         $zipOpen = false;
+        $backupPrefix = strtolower(rtrim(str_replace('\\', '/', realpath($directory) ?: $directory), '/').'/');
 
         try {
             $command = [config('backup.dump_binary', 'mysqldump'), '--single-transaction', '--quick', '--routines', '--triggers', '--events', '--default-character-set=utf8mb4'];
@@ -84,11 +85,13 @@ class BackupApplication extends Command
                 $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS));
                 foreach ($files as $file) {
                     $path = $file->getPathname();
-                    if (! $file->isFile() || $file->isLink() || str_starts_with($path, $directory.DIRECTORY_SEPARATOR)) {
+                    $normalizedPath = str_replace('\\', '/', $file->getRealPath() ?: $path);
+                    if (! $file->isFile() || $file->isLink() || str_starts_with(strtolower($normalizedPath), $backupPrefix)) {
                         continue;
                     }
 
-                    if (! $zip->addFile($path, 'uploads/'.$area.'/'.str_replace('\\', '/', substr($path, strlen($root) + 1)))) {
+                    $relativePath = substr(str_replace('\\', '/', $path), strlen(str_replace('\\', '/', $root)) + 1);
+                    if (! $zip->addFile($path, 'uploads/'.$area.'/'.$relativePath)) {
                         throw new \RuntimeException('Could not add an uploaded file to the backup archive.');
                     }
                     $fileCount++;

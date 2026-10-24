@@ -98,3 +98,19 @@ it('shows the customer profile photo and name throughout the shop inbox and conv
     $this->get(route('shop.messages.show', $thread))
         ->assertOk()->assertSee('Mara Customer profile photo')->assertSee('Is my repair done?');
 });
+
+it('sends and polls messages in JSON only for conversation participants', function () {
+    $customer = User::factory()->create(['role' => 'customer']);
+    $otherCustomer = User::factory()->create(['role' => 'customer']);
+    $owner = User::factory()->create(['role' => 'shop_owner']);
+    $shop = Shop::factory()->create(['owner_id' => $owner->id, 'verification_status' => 'approved', 'shop_status' => 'active']);
+    $thread = MessageThread::query()->create(['customer_id' => $customer->id, 'shop_id' => $shop->id]);
+
+    $this->actingAs($otherCustomer)->postJson(route('customer.messages.store', $thread), ['message' => 'Unauthorized'])->assertNotFound();
+    $this->actingAs($customer)->postJson(route('customer.messages.store', $thread), ['message' => 'Please check my brakes'])
+        ->assertCreated()->assertJsonPath('message.mine', true)->assertJsonPath('message.body', 'Please check my brakes');
+    $this->actingAs($owner)->postJson(route('shop.messages.updates', $thread), ['after_id' => 0])
+        ->assertOk()->assertJsonPath('messages.0.body', 'Please check my brakes')->assertJsonPath('messages.0.mine', false);
+    expect($thread->messages()->firstOrFail()->read_at)->not->toBeNull();
+    $this->actingAs($otherCustomer)->postJson(route('customer.messages.updates', $thread), ['after_id' => 0])->assertNotFound();
+});

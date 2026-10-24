@@ -195,6 +195,7 @@ document.querySelectorAll('[data-ai-widget]').forEach((widget) => {
     };
 
     launcher.addEventListener('click', () => setOpen(true));
+    launcher.disabled = false;
     closeButton.addEventListener('click', () => {
         setOpen(false);
         launcher.focus();

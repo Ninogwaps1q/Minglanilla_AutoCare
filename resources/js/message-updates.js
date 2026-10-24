@@ -7,7 +7,7 @@ if (history) {
     const status = form?.querySelector('[data-message-status]');
     const counterpartName = document.querySelector('#message-conversation-title')?.textContent?.trim() || 'Other person';
     const token = document.querySelector('meta[name="csrf-token"]')?.content;
-    let lastId = Number(history.querySelector('[data-message-id]:last-of-type')?.dataset.messageId || 0);
+    let lastId = Math.max(0, ...Array.from(history.querySelectorAll('[data-message-id]'), (row) => Number(row.dataset.messageId) || 0));
     let polling = false;
     let sending = false;
 
