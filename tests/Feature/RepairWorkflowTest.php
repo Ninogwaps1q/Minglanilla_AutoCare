@@ -24,7 +24,7 @@ it('filters repair jobs by stage while keeping the next action visible', functio
     ]);
 
     $this->actingAs($fixture['owner'])->get(route('shop.repair-jobs.index', ['status' => 'waiting_approval']))
-        ->assertOk()->assertSee('Prepare and send the estimate for customer approval.')
+        ->assertOk()->assertSee('Record the diagnosis and work items, then send an estimate.')
         ->assertSee('RJ-TEST-001')->assertDontSee('RJ-TEST-002')
         ->assertViewHas('repairJobs', fn ($jobs) => $jobs->total() === 1);
 });
@@ -251,7 +251,7 @@ it('guides an itemized diagnosis through estimate approval, repair start, comple
     $this->post(route('shop.repair-job-items.store', $job), ['type' => 'part', 'description' => 'Brake pads', 'quantity' => 1, 'unit_price' => 750])->assertRedirect();
 
     $this->get(route('shop.repair-jobs.index'))
-        ->assertOk()->assertSee('Send estimate for approval')->assertSee('Prepare and send the estimate for customer approval.');
+        ->assertOk()->assertSee('Send estimate for approval')->assertSee('Record the diagnosis and work items, then send an estimate.');
     $this->get(route('shop.quotations.create', $job))
         ->assertOk()->assertSee('Brake labor')->assertSee('Brake pads')->assertSee('PHP 1,250.00');
     $this->post(route('shop.quotations.store', $job), ['valid_until' => today()->addDays(7)->toDateString(), 'notes' => 'Parts and labor'])
@@ -303,6 +303,27 @@ it('blocks completion if saved work no longer matches the customer approved pric
     $this->patch(route('shop.repair-jobs.update', $job), ['status' => 'completed'])->assertSessionHasErrors('status');
     expect($job->fresh()->status)->toBe('repairing');
     $this->assertDatabaseMissing('vehicle_service_records', ['repair_job_id' => $job->id]);
+});
+
+it('releases a completed vehicle only after its invoice is paid', function () {
+    $fixture = repairFixture();
+    $job = $fixture['repairJob'];
+    $job->update(['status' => 'completed']);
+    $invoice = $job->invoice()->create([
+        'customer_id' => $fixture['customer']->id, 'shop_id' => $fixture['shop']->id,
+        'invoice_number' => 'INV-RELEASE-CHECK', 'subtotal' => 1000, 'total' => 1000, 'status' => 'unpaid',
+    ]);
+    $this->actingAs($fixture['owner']);
+
+    $this->patch(route('shop.repair-jobs.update', $job), ['status' => 'released'])
+        ->assertSessionHasErrors('status');
+    expect($job->fresh()->status)->toBe('completed');
+    $invoice->update(['status' => 'paid']);
+
+    $this->patch(route('shop.repair-jobs.update', $job), ['status' => 'released'])
+        ->assertRedirect()->assertSessionHasNoErrors();
+    $this->assertDatabaseHas('repair_jobs', ['id' => $job->id, 'status' => 'released']);
+    $this->assertDatabaseHas('repair_job_status_histories', ['repair_job_id' => $job->id, 'to_status' => 'released']);
 });
 
 it('uses saved repair items instead of a different submitted price when sending an estimate', function () {

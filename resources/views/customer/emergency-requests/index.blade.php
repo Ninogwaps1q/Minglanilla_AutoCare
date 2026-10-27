@@ -29,6 +29,11 @@
                     @endif
                     @if ($attempts->count() > 1)<p class="small text-secondary mb-1">Reassigned {{ $attempts->count() - 1 }} {{ $attempts->count() === 2 ? 'time' : 'times' }} after a shop could not assist.</p>@endif
                     @if ($attempts->isNotEmpty())<details class="small mt-2"><summary>Dispatch history ({{ $attempts->count() }})</summary><ol class="mb-0 mt-2">@foreach ($attempts as $attempt)<li>{{ $attempt->shop_name }} · {{ ucfirst(str_replace('_', ' ', $attempt->status)) }} · {{ \Illuminate\Support\Carbon::parse($attempt->assigned_at)->format('M j, g:i A') }}</li>@endforeach</ol></details>@endif
+                    @if (in_array($emergencyRequest->status, ['pending', 'accepted'], true))
+                        <form method="POST" action="{{ route('customer.emergency-requests.destroy', $emergencyRequest) }}" class="mt-3">@csrf @method('DELETE')
+                            <button class="btn btn-sm btn-outline-danger" type="submit" data-confirm="Cancel this roadside request? The assigned shop will be notified.">Cancel request</button>
+                        </form>
+                    @endif
                 </article>
             @empty<p class="text-secondary mb-0">No roadside assistance requests yet. Your requests and shop responses will appear here.</p>@endforelse</div>
         </section></div>

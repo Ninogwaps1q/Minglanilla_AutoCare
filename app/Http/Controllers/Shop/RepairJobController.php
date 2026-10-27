@@ -9,7 +9,9 @@ use App\Models\Appointment;
 use App\Models\Quotation;
 use App\Models\RepairJob;
 use App\Models\Shop;
+use App\Models\ShopService;
 use App\Models\VehicleServiceRecord;
+use App\Services\RepairInventoryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -56,13 +58,14 @@ class RepairJobController extends Controller
 
         return view('shop.repair-jobs.index', [
             'repairJobs' => $this->shop($request)->repairJobs()
-                ->with(['customer', 'vehicle', 'appointment', 'photos', 'warranty', 'serviceCases', 'invoice.issuedBy', 'invoice.payments.customer', 'invoice.payments.reviewedBy', 'items', 'quotation.approvalRecords.customer', 'statusHistories.changedBy', 'technicianAssignments.technician'])
+                ->with(['customer', 'vehicle', 'appointment', 'photos', 'warranty', 'serviceCases', 'invoice.issuedBy', 'invoice.payments.customer', 'invoice.payments.reviewedBy', 'items.sparePart', 'items.inventoryTransactions', 'items.reservation', 'quotation.approvalRecords.customer', 'pendingSupplementalQuotation', 'supplementalQuotations', 'statusHistories.changedBy', 'technicianAssignments.technician'])
                 ->when($status, fn ($query) => $query->where('status', $status))
                 ->when($request->integer('appointment_id') > 0, fn ($query) => $query->where('appointment_id', $request->integer('appointment_id')))
                 ->when($request->integer('repair_job_id') > 0, fn ($query) => $query->whereKey($request->integer('repair_job_id')))
                 ->latest()
                 ->paginate(10)->withQueryString(),
             'technicians' => $this->shop($request)->technicians()->where('status', 'active')->orderBy('name')->get(),
+            'stockParts' => $this->shop($request)->spareParts()->where('quantity', '>', 0)->withSum(['reservations as reserved_units' => fn ($query) => $query->where('status', 'reserved')], 'quantity')->orderBy('name')->get(['id', 'name', 'part_number', 'quantity', 'selling_price']),
             'selectedStatus' => $status,
         ]);
     }
@@ -72,7 +75,7 @@ class RepairJobController extends Controller
         $appointments = $this->shop($request)->appointments()
             ->where('status', 'confirmed')
             ->whereDoesntHave('repairJob')
-            ->with(['customer', 'vehicle', 'service'])
+            ->with(['customer', 'vehicle', 'service', 'serviceCase'])
             ->orderBy('appointment_date')
             ->get();
         $requestedAppointmentId = $request->integer('appointment_id');
@@ -94,13 +97,29 @@ class RepairJobController extends Controller
             if ($appointment->repairJob()->exists()) {
                 throw ValidationException::withMessages(['appointment_id' => 'A repair job already exists for this appointment. Open it from Shop appointments.']);
             }
+            if ($appointment->rescheduleRequests()->where('status', 'pending')->exists()) {
+                throw ValidationException::withMessages(['appointment_id' => 'Approve or decline the pending time change before starting this repair.']);
+            }
+            $servicePrice = $this->bookedServicePrice($appointment, $shop);
             $repairJob = $shop->repairJobs()->create([
                 ...$request->validated(),
                 'customer_id' => $appointment->customer_id,
                 'vehicle_id' => $appointment->vehicle_id,
                 'job_number' => 'RJ-'.Str::upper(Str::random(10)),
                 'status' => 'pending',
+                'estimated_cost' => $servicePrice ?? $request->validated('estimated_cost'),
             ]);
+            if ($servicePrice !== null) {
+                $repairJob->items()->create([
+                    'service_id' => $appointment->service_id,
+                    'type' => 'service',
+                    'description' => $appointment->service->name,
+                    'quantity' => 1,
+                    'unit_price' => $servicePrice,
+                    'subtotal' => $servicePrice,
+                ]);
+                $repairJob->update(['actual_cost' => $servicePrice]);
+            }
             $repairJob->statusHistories()->create(['to_status' => 'pending', 'changed_by' => $request->user()->id, 'changed_at' => now()]);
 
             $appointment->update(['status' => 'in_progress']);
@@ -111,11 +130,54 @@ class RepairJobController extends Controller
         return redirect()->route('shop.repair-jobs.index')->with('status', "Repair job {$repairJob->job_number} created.");
     }
 
-    public function update(UpdateRepairJobStatusRequest $request, RepairJob $repairJob): RedirectResponse
+    public function addBookedService(Request $request, RepairJob $repairJob): RedirectResponse
+    {
+        $shop = $this->shop($request);
+        abort_unless($repairJob->shop_id === $shop->id, 404);
+
+        DB::transaction(function () use ($repairJob, $shop): void {
+            $job = RepairJob::query()->lockForUpdate()->findOrFail($repairJob->id);
+            if (in_array($job->status, ['completed', 'released', 'cancelled'], true)
+                || $job->invoice()->exists()
+                || in_array($job->quotation?->status, ['sent', 'accepted', 'approved'], true)) {
+                throw ValidationException::withMessages(['service' => 'This repair already has a sent estimate or invoice. Review its approved price before changing any charges.']);
+            }
+            $appointment = $job->appointment;
+            if ($appointment === null || $appointment->service_id === null) {
+                throw ValidationException::withMessages(['service' => 'This repair has no booked service to add.']);
+            }
+            if ($job->items()->where('service_id', $appointment->service_id)->exists()) {
+                return;
+            }
+            $servicePrice = $this->bookedServicePrice($appointment, $shop);
+            $serviceName = $appointment->service->name;
+            if ($job->items()->where('type', 'service')->get()->contains(
+                fn ($item): bool => strcasecmp(trim($item->description), trim($serviceName)) === 0
+            )) {
+                throw ValidationException::withMessages(['service' => 'A service line with this name already exists. Review or remove it first to avoid charging twice.']);
+            }
+            if ((float) $job->items()->sum('subtotal') + (float) $servicePrice > 9999999999.99) {
+                throw ValidationException::withMessages(['service' => 'The repair total is too large to add this service.']);
+            }
+            $job->items()->create([
+                'service_id' => $appointment->service_id,
+                'type' => 'service',
+                'description' => $serviceName,
+                'quantity' => 1,
+                'unit_price' => $servicePrice,
+                'subtotal' => $servicePrice,
+            ]);
+            $job->update(['actual_cost' => $job->items()->sum('subtotal')]);
+        });
+
+        return back()->with('status', 'Booked service added to the draft repair estimate.');
+    }
+
+    public function update(UpdateRepairJobStatusRequest $request, RepairJob $repairJob, RepairInventoryService $inventory): RedirectResponse
     {
         abort_unless($repairJob->shop_id === $this->shop($request)->id, 404);
 
-        DB::transaction(function () use ($repairJob, $request): void {
+        DB::transaction(function () use ($repairJob, $request, $inventory): void {
             $repairJob = RepairJob::query()->lockForUpdate()->findOrFail($repairJob->id);
             $nextStatus = $request->validated('status');
             if ($nextStatus === 'waiting_approval' && ($repairJob->quotation === null || $repairJob->quotation->status !== 'sent')) {
@@ -123,6 +185,15 @@ class RepairJobController extends Controller
             }
             if ($nextStatus === 'approved' && ! in_array($repairJob->quotation?->status, ['accepted', 'approved'], true)) {
                 throw ValidationException::withMessages(['status' => 'The customer must approve the estimate first.']);
+            }
+            if ($nextStatus === 'released' && $repairJob->invoice()->lockForUpdate()->first()?->status !== 'paid') {
+                throw ValidationException::withMessages(['status' => 'Confirm full payment in Bills and payments before releasing the vehicle.']);
+            }
+            if ($nextStatus === 'repairing' && $inventory->hasMissingReservations($repairJob)) {
+                throw ValidationException::withMessages(['status' => 'Reserve the linked inventory parts after restocking before starting or resuming this repair.']);
+            }
+            if ($nextStatus === 'completed' && $repairJob->items()->whereHas('reservation', fn ($query) => $query->where('status', 'reserved'))->exists()) {
+                throw ValidationException::withMessages(['status' => 'Confirm use of reserved parts before completing this repair.']);
             }
             if ($nextStatus === $repairJob->status && in_array($repairJob->status, ['completed', 'released', 'cancelled'], true)) {
                 return;
@@ -149,6 +220,8 @@ class RepairJobController extends Controller
                 $repairJob->update(['started_at' => now()]);
             }
             if ($repairJob->status === 'cancelled') {
+                $repairJob->supplementalQuotations()->where('status', 'sent')->update(['status' => 'expired']);
+                $inventory->releaseForJob($repairJob);
                 $repairJob->appointment?->update(['status' => 'cancelled']);
             }
             if (in_array($repairJob->status, ['completed', 'released', 'cancelled'], true)) {
@@ -198,5 +271,21 @@ class RepairJobController extends Controller
     private function shop(Request $request): Shop
     {
         return $request->user()->shops()->firstOrFail();
+    }
+
+    private function bookedServicePrice(Appointment $appointment, Shop $shop): ?string
+    {
+        if ($appointment->service_id === null) {
+            return null;
+        }
+        $price = $appointment->service_price ?? ShopService::query()
+            ->where('shop_id', $shop->id)
+            ->where('service_id', $appointment->service_id)
+            ->value('price');
+        if ($price === null || $appointment->service === null) {
+            throw ValidationException::withMessages(['appointment_id' => 'The booked service price is unavailable. Restore the shop service offer before starting this repair.']);
+        }
+
+        return (string) $price;
     }
 }

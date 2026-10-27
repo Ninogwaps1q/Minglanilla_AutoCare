@@ -1,4 +1,4 @@
-<x-layouts.app :title="'Message '.$thread->customer->name">
+<x-layouts.app :title="'Message ' . $thread->customer->name">
     <div class="message-center message-center-chat">
         <aside class="message-directory" aria-label="Other customer conversations">
             <header class="message-directory-header">
@@ -7,6 +7,6 @@
             </header>
             <x-message-contact-list :threads="$threads" context="shop" :active-thread-id="$thread->id" />
         </aside>
-        <x-message-conversation :thread="$thread" context="shop" />
+        <x-message-conversation :thread="$thread" context="shop" :has-older-messages="$hasOlderMessages" />
     </div>
 </x-layouts.app>

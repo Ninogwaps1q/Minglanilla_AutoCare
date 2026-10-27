@@ -27,9 +27,11 @@
         @endif
     </section>
     <div class="surface p-4 mb-4">
+        <div class="d-flex flex-wrap gap-2 mb-3"><a class="btn btn-sm {{ !empty($filters['attention']) ? 'btn-primary' : 'btn-outline-primary' }}" href="{{ route('admin.monitoring.index', ['module' => $module, 'attention' => 1]) }}">Needs attention</a><a class="btn btn-sm btn-outline-secondary" href="{{ route('admin.monitoring.index', ['module' => $module]) }}">All {{ strtolower($label) }}</a><span class="small text-secondary align-self-center">Open requests older than {{ $module === 'emergencies' ? '10 minutes' : '24 hours' }}.</span></div>
         <form method="GET" action="{{ route('admin.monitoring.index') }}" class="row g-3 align-items-end">
             <input type="hidden" name="module" value="{{ $module }}">
-            <div class="col-md-6"><label for="monitor-search" class="form-label">Customer or shop name</label><input id="monitor-search" name="search" type="search" maxlength="100" class="form-control" value="{{ $filters['search'] ?? '' }}"></div>
+            @if(!empty($filters['attention']))<input type="hidden" name="attention" value="1">@endif
+            <div class="col-md-6"><label for="monitor-search" class="form-label">Customer, shop, or reference</label><input id="monitor-search" name="search" type="search" maxlength="100" class="form-control" value="{{ $filters['search'] ?? '' }}"></div>
             <div class="col-md-3"><label for="monitor-status" class="form-label">Status</label><select id="monitor-status" name="status" class="form-select"><option value="">All statuses</option>@foreach ($statuses as $status)<option value="{{ $status }}" @selected(($filters['status'] ?? '') === $status)>{{ ucfirst(str_replace('_', ' ', $status)) }}</option>@endforeach</select></div>
             <div class="col-md-3 d-flex gap-2"><button class="btn btn-primary">Filter</button><a class="btn btn-outline-secondary" href="{{ route('admin.monitoring.index', ['module' => $module]) }}">Clear</a></div>
         </form>

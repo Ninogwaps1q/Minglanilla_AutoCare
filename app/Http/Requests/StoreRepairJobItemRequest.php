@@ -25,9 +25,10 @@ class StoreRepairJobItemRequest extends FormRequest
     {
         return [
             'type' => ['required', Rule::in(['labor', 'part', 'service', 'other'])],
-            'description' => ['required', 'string', 'max:1000'],
+            'description' => [Rule::requiredIf(! $this->filled('spare_part_id')), 'nullable', 'string', 'max:1000'],
             'quantity' => ['required', 'integer', 'min:1', 'max:10000'],
-            'unit_price' => ['required', 'numeric', 'min:0', 'max:999999999.99'],
+            'unit_price' => [Rule::requiredIf(! $this->filled('spare_part_id')), 'nullable', 'numeric', 'min:0', 'max:999999999.99'],
+            'spare_part_id' => ['nullable', 'integer', 'exists:spare_parts,id'],
         ];
     }
 }

@@ -24,4 +24,9 @@ class SparePart extends Model
     {
         return $this->hasMany(InventoryTransaction::class);
     }
+
+    public function reservations(): HasMany
+    {
+        return $this->hasMany(InventoryReservation::class);
+    }
 }

@@ -17,7 +17,7 @@ class ServiceCase extends Model
 
     protected function casts(): array
     {
-        return ['resolved_at' => 'datetime'];
+        return ['resolved_at' => 'datetime', 'scheduled_at' => 'datetime'];
     }
 
     public function repairJob(): BelongsTo
@@ -33,6 +33,11 @@ class ServiceCase extends Model
     public function shop(): BelongsTo
     {
         return $this->belongsTo(Shop::class);
+    }
+
+    public function appointment(): BelongsTo
+    {
+        return $this->belongsTo(Appointment::class);
     }
 
     public function resolvedBy(): BelongsTo

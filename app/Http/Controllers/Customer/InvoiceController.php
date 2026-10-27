@@ -32,14 +32,14 @@ class InvoiceController extends Controller
     {
         abort_unless($invoice->customer_id === $request->user()->id, 404);
 
-        return view('customer.invoices.show', ['invoice' => $invoice->load(['shop', 'customer', 'repairJob.quotation', 'items', 'payments'])]);
+        return view('customer.invoices.show', ['invoice' => $invoice->load(['shop', 'customer', 'repairJob.quotation', 'repairJob.appointment.service', 'items', 'payments'])]);
     }
 
     public function pdf(Request $request, Invoice $invoice): Response
     {
         abort_unless($invoice->customer_id === $request->user()->id, 404);
 
-        return Pdf::loadView('components.invoice-document', ['invoice' => $invoice->load(['shop', 'customer', 'repairJob', 'items', 'payments'])])
+        return Pdf::loadView('components.invoice-document', ['invoice' => $invoice->load(['shop', 'customer', 'repairJob.appointment.service', 'items', 'payments'])])
             ->setPaper('a4')->download("invoice-{$invoice->id}.pdf")
             ->header('Cache-Control', 'private, no-store');
     }

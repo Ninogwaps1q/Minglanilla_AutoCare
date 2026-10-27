@@ -19,8 +19,11 @@ class RepairJob extends Model
     /** @return array<string, string> */
     public function availableStatuses(): array
     {
+        if ($this->pendingSupplementalQuotation !== null) {
+            return $this->status === 'cancelled' ? [] : ['cancelled' => 'Cancel'];
+        }
         if ($this->status === 'completed') {
-            return ['released' => 'Release vehicle'];
+            return $this->invoice?->status === 'paid' ? ['released' => 'Release vehicle'] : [];
         }
 
         if (in_array($this->status, ['released', 'cancelled'], true)) {
@@ -65,9 +68,71 @@ class RepairJob extends Model
         ];
     }
 
+    /** @return array{actor: string, action: string} */
+    public function nextAction(): array
+    {
+        if ($this->status === 'cancelled') {
+            return ['actor' => 'None', 'action' => 'This repair was cancelled.'];
+        }
+        if ($this->status === 'released') {
+            return ['actor' => 'None', 'action' => 'The vehicle has been released.'];
+        }
+        if ($this->pendingSupplementalQuotation !== null) {
+            return ['actor' => 'Customer', 'action' => 'Review the additional work and revised price before repairs continue.'];
+        }
+        if ($this->status === 'completed') {
+            if ($this->invoice === null) {
+                return ['actor' => 'Shop', 'action' => 'Issue the itemized invoice.'];
+            }
+            if ($this->invoice->status === 'paid') {
+                return ['actor' => 'Shop', 'action' => 'Release the vehicle when it is ready for pickup.'];
+            }
+            $hasPendingPayment = $this->invoice->relationLoaded('payments')
+                ? $this->invoice->payments->contains('status', 'pending')
+                : $this->invoice->payments()->where('status', 'pending')->exists();
+            if ($hasPendingPayment) {
+                return ['actor' => 'Shop', 'action' => 'Review the customer payment.'];
+            }
+
+            return ['actor' => 'Customer', 'action' => 'Submit payment for the invoice.'];
+        }
+        if ($this->quotation?->status === 'sent') {
+            if ($this->quotation->valid_until?->isBefore(today())) {
+                return ['actor' => 'Shop', 'action' => 'Send a new estimate because the previous one expired.'];
+            }
+
+            return ['actor' => 'Customer', 'action' => 'Review and approve or decline the estimate.'];
+        }
+        if ($this->status === 'waiting_parts') {
+            return ['actor' => 'Shop', 'action' => 'Restock and reserve missing parts, then resume the repair.'];
+        }
+        if (in_array($this->quotation?->status, ['accepted', 'approved'], true)
+            && in_array($this->status, ['pending', 'diagnosis', 'waiting_approval', 'approved'], true)) {
+            return ['actor' => 'Shop', 'action' => 'Start the customer-approved repair.'];
+        }
+        if (in_array($this->status, ['repairing', 'in_progress'], true)) {
+            return ['actor' => 'Shop', 'action' => 'Record parts used and complete the repair when work is finished.'];
+        }
+        if ($this->hasUnbilledBookedService()) {
+            return ['actor' => 'Shop', 'action' => 'Review and add the booked service before sending the estimate.'];
+        }
+
+        return ['actor' => 'Shop', 'action' => 'Record the diagnosis and work items, then send an estimate.'];
+    }
+
     public function quotation(): BelongsTo
     {
         return $this->belongsTo(Quotation::class);
+    }
+
+    public function supplementalQuotations(): HasMany
+    {
+        return $this->hasMany(Quotation::class);
+    }
+
+    public function pendingSupplementalQuotation(): HasOne
+    {
+        return $this->hasOne(Quotation::class)->where('is_supplemental', true)->where('status', 'sent')->latestOfMany();
     }
 
     protected $guarded = [];
@@ -115,6 +180,18 @@ class RepairJob extends Model
     public function items(): HasMany
     {
         return $this->hasMany(RepairJobItem::class);
+    }
+
+    public function hasUnbilledBookedService(): bool
+    {
+        $serviceId = $this->appointment?->service_id;
+        if ($serviceId === null) {
+            return false;
+        }
+
+        return $this->relationLoaded('items')
+            ? ! $this->items->contains('service_id', $serviceId)
+            : ! $this->items()->where('service_id', $serviceId)->exists();
     }
 
     public function photos(): HasMany

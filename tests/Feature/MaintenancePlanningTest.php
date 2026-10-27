@@ -31,6 +31,22 @@ it('calculates the next date and mileage for a customer maintenance schedule', f
         ->and($schedule->next_service_mileage)->toBe(15000);
 });
 
+it('accepts a zero mileage baseline and requires a baseline for every requested interval', function () {
+    $customer = User::factory()->create(['role' => 'customer']);
+    $vehicle = $customer->vehicles()->create(['plate_number' => 'PLAN-ZERO', 'make' => 'Toyota', 'model' => 'Vios', 'year' => 2024]);
+
+    $this->actingAs($customer)->post(route('customer.maintenance-schedules.store'), [
+        'vehicle_id' => $vehicle->id, 'last_service_mileage' => 0, 'recommended_interval_mileage' => 5000,
+    ])->assertRedirect()->assertSessionHasNoErrors();
+    expect($vehicle->maintenanceSchedules()->sole()->next_service_mileage)->toBe(5000);
+
+    $this->post(route('customer.maintenance-schedules.store'), [
+        'vehicle_id' => $vehicle->id, 'last_service_mileage' => 100,
+        'recommended_interval_mileage' => 5000, 'recommended_interval_days' => 180,
+    ])->assertSessionHasErrors('last_service_date');
+    $this->assertDatabaseCount('maintenance_schedules', 1);
+});
+
 it('does not let a customer change another customers maintenance data', function () {
     $customer = User::factory()->create(['role' => 'customer']);
     $other = User::factory()->create(['role' => 'customer']);

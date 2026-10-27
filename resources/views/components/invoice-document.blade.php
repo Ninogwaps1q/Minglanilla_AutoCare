@@ -39,6 +39,10 @@
     </tr></table>
 
     <h2>Services and parts</h2>
+    @if ($invoice->repairJob?->appointment?->service_price !== null)
+        <p class="muted">Booking terms for {{ $invoice->repairJob->appointment->service?->name ?? 'service' }}: labor {{ $invoice->repairJob->appointment->service_labor_included === null ? 'not specified' : ($invoice->repairJob->appointment->service_labor_included ? 'included' : 'quoted separately') }}; parts {{ $invoice->repairJob->appointment->service_parts_included === null ? 'not specified' : ($invoice->repairJob->appointment->service_parts_included ? 'included' : 'quoted separately') }}.</p>
+        @if ($invoice->repairJob->appointment->service_scope)<p class="muted">{{ $invoice->repairJob->appointment->service_scope }}</p>@endif
+    @endif
     <table class="details">
         <thead><tr><th>Description</th><th class="numeric">Qty</th><th class="numeric">Unit price</th><th class="numeric">Amount</th></tr></thead>
         <tbody>

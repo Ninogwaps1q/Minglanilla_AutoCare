@@ -20,7 +20,7 @@ class ServiceOverviewController extends Controller
                 ->whereIn('status', ['pending', 'confirmed', 'in_progress'])
                 ->orderBy('appointment_date')->limit(6)->get(),
             'repairs' => $customer->repairJobs()
-                ->with(['shop', 'vehicle', 'warranty'])
+                ->with(['shop', 'vehicle', 'warranty', 'quotation', 'pendingSupplementalQuotation', 'invoice.payments', 'appointment'])
                 ->whereNotIn('status', ['completed', 'released', 'cancelled'])
                 ->latest()->limit(6)->get(),
             'records' => VehicleServiceRecord::query()

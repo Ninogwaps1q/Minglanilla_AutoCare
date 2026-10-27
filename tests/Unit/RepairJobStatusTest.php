@@ -1,14 +1,17 @@
 <?php
 
+use App\Models\Invoice;
 use App\Models\Quotation;
 use App\Models\RepairJob;
 use Tests\TestCase;
 
 uses(TestCase::class);
 
-it('exposes only terminal transitions for completed repairs', function () {
+it('offers vehicle release only after the repair invoice is paid', function () {
     $repairJob = new RepairJob(['status' => 'completed']);
 
+    expect($repairJob->availableStatuses())->toBe([]);
+    $repairJob->setRelation('invoice', new Invoice(['status' => 'paid']));
     expect($repairJob->availableStatuses())->toBe(['released' => 'Release vehicle']);
 });
 

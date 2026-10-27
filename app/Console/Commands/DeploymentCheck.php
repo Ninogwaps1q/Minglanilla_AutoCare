@@ -52,8 +52,9 @@ class DeploymentCheck extends Command
             $checks = array_merge($checks, [
                 ['Application URL uses HTTPS', str_starts_with((string) config('app.url'), 'https://'), 'Set APP_URL to the public HTTPS origin and configure trusted proxy headers.'],
                 ['Debug output is disabled', config('app.debug') === false, 'Set APP_DEBUG=false.'],
-                ['Mail transport is configured for delivery', filled(config('mail.default')) && ! in_array(config('mail.default'), ['log', 'array'], true), 'Configure a real mail transport and test a password-reset email.'],
+                ['Mail transport is not a test sink', $this->hasDeliveryOnlyMailers((string) config('mail.default')), 'Configure a real mail transport without log/array fallbacks and test a password-reset email.'],
                 ['Queue uses a worker-backed connection', filled(config('queue.default')) && ! in_array(config('queue.default'), ['sync', 'null'], true), 'Use a persistent queue connection and run a queue worker.'],
+                ['Scheduled backups are enabled', config('backup.enabled') === true, 'Run and restore a backup on disposable data, then set BACKUP_ENABLED=true and configure BACKUP_DUMP_BINARY.'],
             ]);
         }
 
@@ -70,5 +71,35 @@ class DeploymentCheck extends Command
         $this->line('Manual host checks still required: deliver a real password-reset email, confirm queue worker and scheduler are running, test image upload/display, verify HTTPS, and perform a database backup and restore on disposable data.');
 
         return $failed ? self::FAILURE : self::SUCCESS;
+    }
+
+    private function hasDeliveryOnlyMailers(string $name, array $visited = []): bool
+    {
+        if ($name === '' || in_array($name, $visited, true)) {
+            return false;
+        }
+
+        $mailer = config('mail.mailers.'.$name);
+        if (! is_array($mailer) || ! filled($mailer['transport'] ?? null)
+            || in_array($mailer['transport'], ['log', 'array'], true)) {
+            return false;
+        }
+
+        if (! in_array($mailer['transport'], ['failover', 'roundrobin'], true)) {
+            return true;
+        }
+
+        $children = $mailer['mailers'] ?? [];
+        if (! is_array($children) || $children === []) {
+            return false;
+        }
+
+        foreach ($children as $child) {
+            if (! is_string($child) || ! $this->hasDeliveryOnlyMailers($child, [...$visited, $name])) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

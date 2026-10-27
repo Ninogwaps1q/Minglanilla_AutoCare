@@ -18,4 +18,9 @@ class InventoryTransaction extends Model
     {
         return $this->belongsTo(SparePart::class);
     }
+
+    public function repairJobItem(): BelongsTo
+    {
+        return $this->belongsTo(RepairJobItem::class);
+    }
 }

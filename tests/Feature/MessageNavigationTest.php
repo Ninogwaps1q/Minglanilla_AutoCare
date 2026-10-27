@@ -114,3 +114,24 @@ it('sends and polls messages in JSON only for conversation participants', functi
     expect($thread->messages()->firstOrFail()->read_at)->not->toBeNull();
     $this->actingAs($otherCustomer)->postJson(route('customer.messages.updates', $thread), ['after_id' => 0])->assertNotFound();
 });
+
+it('loads only the latest chat messages first and lets participants retrieve older messages', function () {
+    $customer = User::factory()->create(['role' => 'customer']);
+    $owner = User::factory()->create(['role' => 'shop_owner']);
+    $shop = Shop::factory()->create(['owner_id' => $owner->id, 'verification_status' => 'approved', 'shop_status' => 'active']);
+    $thread = MessageThread::query()->create(['customer_id' => $customer->id, 'shop_id' => $shop->id]);
+    foreach (range(1, 55) as $number) {
+        $thread->messages()->create(['sender_id' => $owner->id, 'message' => 'History message '.$number]);
+    }
+    $oldest = $thread->messages()->oldest('id')->firstOrFail();
+    $sixth = $thread->messages()->oldest('id')->skip(5)->firstOrFail();
+
+    $this->actingAs($customer)->get(route('customer.messages.show', $shop))
+        ->assertOk()->assertSee('Load earlier messages')->assertSee('History message 55')
+        ->assertViewHas('thread', fn (MessageThread $loaded): bool => $loaded->messages->count() === 50 && $loaded->messages->first()->message === 'History message 6');
+    $this->postJson(route('customer.messages.updates', $thread), ['before_id' => $sixth->id])
+        ->assertOk()->assertJsonPath('messages.0.id', $oldest->id)
+        ->assertJsonPath('messages.4.body', 'History message 5')->assertJsonPath('has_more', false);
+    $this->actingAs(User::factory()->create(['role' => 'customer']))
+        ->postJson(route('customer.messages.updates', $thread), ['before_id' => $sixth->id])->assertNotFound();
+});

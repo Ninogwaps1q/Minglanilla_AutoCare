@@ -11,6 +11,7 @@
                     <article class="border rounded p-3 mb-2">
                         <div class="d-flex justify-content-between gap-2"><strong>{{ $appointment->service?->name ?? 'Vehicle service' }}</strong><span class="badge text-bg-secondary">{{ ucfirst(str_replace('_', ' ', $appointment->status)) }}</span></div>
                         <p class="text-secondary small mb-0 mt-1">{{ $appointment->appointment_date->format('M j, Y') }} · {{ $appointment->shop->name }} · {{ $appointment->vehicle->plate_number }}</p>
+                        <a class="small" href="{{ route('customer.appointments.index', ['focus' => $appointment->id]) }}">View booking and next step</a>
                     </article>
                 @empty
                     <p class="text-secondary mb-0">No upcoming appointments. Find a shop and book when you are ready.</p>
@@ -25,6 +26,13 @@
                         <a class="fw-semibold" href="{{ route('customer.repairs.index', ['repair_job_id' => $repair->id]) }}#repair-{{ $repair->id }}">{{ $repair->job_number }}</a>
                         <p class="text-secondary small mb-1">{{ $repair->vehicle->plate_number }} · {{ $repair->shop->name }}</p>
                         <span class="badge text-bg-secondary">{{ ucfirst(str_replace('_', ' ', $repair->status)) }}</span>
+                        @php($next = $repair->nextAction())
+                        <p class="small mb-1 mt-2"><strong>{{ $next['actor'] === 'Customer' ? 'Your next step' : 'Next step for '.$next['actor'] }}:</strong> {{ $next['action'] }}</p>
+                        @if($next['actor'] === 'Customer' && ($repair->pendingSupplementalQuotation || $repair->quotation?->status === 'sent'))
+                            <a class="btn btn-sm btn-primary" href="{{ route('customer.quotations.index', ['focus' => $repair->pendingSupplementalQuotation?->id ?? $repair->quotation->id]) }}">Review estimate</a>
+                        @elseif($next['actor'] === 'Customer' && $repair->invoice)
+                            <a class="btn btn-sm btn-primary" href="{{ route('customer.invoices.index', ['focus' => $repair->invoice->id]) }}">Review payment</a>
+                        @endif
                     </article>
                 @empty
                     <p class="text-secondary mb-0">No active repairs. The shop will show updates here after work begins.</p>

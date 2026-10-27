@@ -27,6 +27,8 @@ class StoreShopServiceRequest extends FormRequest
             'price' => ['required', 'numeric', 'min:0'],
             'description' => ['nullable', 'string', 'max:5000'],
             'availability' => ['required', 'boolean'],
+            'labor_included' => ['nullable', 'boolean'],
+            'parts_included' => ['nullable', 'boolean'],
         ];
     }
 }

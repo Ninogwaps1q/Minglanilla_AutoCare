@@ -5,9 +5,10 @@ if (history) {
     const input = form?.querySelector('textarea[name="message"]');
     const button = form?.querySelector('button[type="submit"]');
     const status = form?.querySelector('[data-message-status]');
+    const olderButton = document.querySelector('[data-message-load-older]');
     const counterpartName = document.querySelector('#message-conversation-title')?.textContent?.trim() || 'Other person';
     const token = document.querySelector('meta[name="csrf-token"]')?.content;
-    let lastId = Math.max(0, ...Array.from(history.querySelectorAll('[data-message-id]'), (row) => Number(row.dataset.messageId) || 0));
+    let receivedCursor = Math.max(0, ...Array.from(history.querySelectorAll('[data-message-id]'), (row) => Number(row.dataset.messageId) || 0));
     let polling = false;
     let sending = false;
 
@@ -19,7 +20,7 @@ if (history) {
         status.classList.toggle('text-success', !failed);
     };
 
-    const renderMessage = (entry) => {
+    const renderMessage = (entry, prepend = false) => {
         const id = Number(entry.id);
         if (!Number.isSafeInteger(id) || id < 1 || history.querySelector(`[data-message-id="${id}"]`)) return;
         const nearBottom = history.scrollHeight - history.scrollTop - history.clientHeight < 100;
@@ -53,10 +54,39 @@ if (history) {
         byline.append(author, time);
         stack.append(bubble, byline);
         row.append(stack);
-        history.append(row);
-        lastId = Math.max(lastId, id);
-        if (nearBottom || entry.mine) history.scrollTop = history.scrollHeight;
+        if (prepend) history.prepend(row);
+        else history.append(row);
+        if (!prepend && (nearBottom || entry.mine)) history.scrollTop = history.scrollHeight;
     };
+
+    olderButton?.addEventListener('click', async () => {
+        const ids = Array.from(history.querySelectorAll('[data-message-id]'), (row) => Number(row.dataset.messageId));
+        const beforeId = Math.min(...ids);
+        if (!Number.isSafeInteger(beforeId) || beforeId < 1 || !token) return;
+        olderButton.disabled = true;
+        olderButton.textContent = 'Loading earlier messages...';
+        try {
+            const response = await fetch(history.dataset.updatesUrl, {
+                method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token },
+                credentials: 'same-origin', cache: 'no-store', body: JSON.stringify({ before_id: beforeId }),
+            });
+            if (!response.ok) throw new Error('History unavailable');
+            const data = await response.json();
+            const previousHeight = history.scrollHeight;
+            data.messages?.slice().reverse().forEach((entry) => renderMessage(entry, true));
+            history.scrollTop += history.scrollHeight - previousHeight;
+            if (!data.has_more) {
+                olderButton.remove();
+                history.closest('.message-conversation')?.classList.remove('has-older-messages');
+            } else {
+                olderButton.textContent = 'Load earlier messages';
+            }
+        } catch {
+            olderButton.textContent = 'Could not load messages. Try again';
+        } finally {
+            olderButton.disabled = false;
+        }
+    });
 
     const poll = async () => {
         if (polling || document.hidden || !token) return;
@@ -64,11 +94,14 @@ if (history) {
         try {
             const response = await fetch(history.dataset.updatesUrl, {
                 method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token },
-                credentials: 'same-origin', cache: 'no-store', body: JSON.stringify({ after_id: lastId }),
+                credentials: 'same-origin', cache: 'no-store', body: JSON.stringify({ after_id: receivedCursor }),
             });
             if (!response.ok) return;
             const data = await response.json();
-            data.messages?.forEach(renderMessage);
+            data.messages?.forEach((entry) => {
+                renderMessage(entry);
+                receivedCursor = Math.max(receivedCursor, Number(entry.id) || 0);
+            });
         } catch {
             // Keep the current conversation visible until the next attempt.
         } finally {

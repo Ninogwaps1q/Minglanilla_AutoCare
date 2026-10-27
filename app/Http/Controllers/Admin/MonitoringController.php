@@ -26,20 +26,36 @@ class MonitoringController extends Controller
             'payments' => ['Payments', Payment::class, 'shop', ['pending', 'confirmed', 'rejected']],
             'emergencies' => ['Roadside assistance', EmergencyRequest::class, 'assignedShop', ['pending', 'accepted', 'en_route', 'completed', 'cancelled']],
         ];
+        $referenceColumns = ['repairs' => 'job_number', 'quotations' => 'quotation_number', 'invoices' => 'invoice_number', 'payments' => 'reference_number'];
+        $attentionStatuses = [
+            'appointments' => ['pending'], 'repairs' => ['waiting_approval', 'waiting_parts'],
+            'quotations' => ['requested', 'sent'], 'invoices' => ['unpaid'],
+            'payments' => ['pending'], 'emergencies' => ['pending'],
+        ];
         $filters = $request->validate([
             'module' => ['nullable', Rule::in(array_keys($modules))],
             'search' => ['nullable', 'string', 'max:100'],
             'status' => ['nullable', 'string', 'max:30'],
+            'attention' => ['nullable', 'boolean'],
         ]);
         $module = $filters['module'] ?? 'appointments';
         [$label, $model, $shopRelation, $statuses] = $modules[$module];
         $request->validate(['status' => ['nullable', Rule::in($statuses)]]);
         $records = $model::query()->with(['customer:id,name', $shopRelation.':id,name'])
+            ->when((bool) ($filters['attention'] ?? false), fn ($query) => $query
+                ->whereIn('status', $attentionStatuses[$module])
+                ->where('created_at', '<=', now()->subMinutes($module === 'emergencies' ? 10 : 1440)))
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
-            ->when($filters['search'] ?? null, function ($query, $search) use ($shopRelation): void {
-                $query->where(function ($query) use ($search, $shopRelation): void {
+            ->when($filters['search'] ?? null, function ($query, $search) use ($shopRelation, $referenceColumns, $module): void {
+                $query->where(function ($query) use ($search, $shopRelation, $referenceColumns, $module): void {
                     $query->whereHas('customer', fn ($query) => $query->where('name', 'like', '%'.$search.'%'))
                         ->orWhereHas($shopRelation, fn ($query) => $query->where('name', 'like', '%'.$search.'%'));
+                    if (isset($referenceColumns[$module])) {
+                        $query->orWhere($referenceColumns[$module], 'like', '%'.$search.'%');
+                    }
+                    if (ctype_digit((string) $search)) {
+                        $query->orWhereKey((int) $search);
+                    }
                 });
             })->latest('id')->paginate(20)->withQueryString();
 

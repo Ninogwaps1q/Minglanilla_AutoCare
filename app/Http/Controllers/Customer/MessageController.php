@@ -7,8 +7,8 @@ use App\Http\Requests\StoreMessageRequest;
 use App\Models\MessageThread;
 use App\Models\Shop;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -29,11 +29,15 @@ class MessageController extends Controller
     {
         abort_unless($shop->verification_status === 'approved' && $shop->shop_status === 'active', 404);
         $thread = MessageThread::query()->firstOrCreate(['customer_id' => $request->user()->id, 'shop_id' => $shop->id]);
-        $thread->messages()->where('sender_id', '!=', $request->user()->id)->whereNull('read_at')->update(['read_at' => now()]);
+        $messages = $thread->messages()->latest('id')->limit(50)->get()->reverse()->values();
+        $thread->messages()->whereKey($messages->pluck('id'))->where('sender_id', '!=', $request->user()->id)
+            ->whereNull('read_at')->update(['read_at' => now()]);
+        $thread->setRelation('messages', $messages)->load('shop:id,name,logo');
 
         return view('customer.messages.show', [
-            'thread' => $thread->load(['shop:id,name,logo', 'messages' => fn ($query) => $query->oldest('id')]),
+            'thread' => $thread,
             'threads' => $this->threads($request),
+            'hasOlderMessages' => $messages->isNotEmpty() && $thread->messages()->where('id', '<', $messages->first()->id)->exists(),
         ]);
     }
 
@@ -61,8 +65,14 @@ class MessageController extends Controller
     public function updates(Request $request, MessageThread $thread): JsonResponse
     {
         abort_unless($thread->customer_id === $request->user()->id, 404);
-        $data = $request->validate(['after_id' => ['required', 'integer', 'min:0']]);
-        $messages = $thread->messages()->where('id', '>', $data['after_id'])->oldest('id')->limit(50)->get();
+        $data = $request->validate([
+            'after_id' => ['required_without:before_id', 'integer', 'min:0'],
+            'before_id' => ['required_without:after_id', 'integer', 'min:1'],
+        ]);
+        $older = isset($data['before_id']);
+        $messages = $older
+            ? $thread->messages()->where('id', '<', $data['before_id'])->latest('id')->limit(50)->get()->reverse()->values()
+            : $thread->messages()->where('id', '>', $data['after_id'])->oldest('id')->limit(50)->get();
         $incomingIds = $messages->where('sender_id', '!=', $request->user()->id)->pluck('id');
         if ($incomingIds->isNotEmpty()) {
             $thread->messages()->whereKey($incomingIds)->whereNull('read_at')->update(['read_at' => now()]);
@@ -71,7 +81,8 @@ class MessageController extends Controller
         return response()->json(['messages' => $messages->map(fn ($message): array => [
             'id' => $message->id, 'body' => $message->message,
             'time' => $message->created_at->format('M j, g:i A'), 'mine' => $message->sender_id === $request->user()->id,
-        ])->all()])->header('Cache-Control', 'private, no-store');
+        ])->all(), 'has_more' => $older && $messages->isNotEmpty() && $thread->messages()->where('id', '<', $messages->first()->id)->exists()])
+            ->header('Cache-Control', 'private, no-store');
     }
 
     /** @return Collection<int, MessageThread> */

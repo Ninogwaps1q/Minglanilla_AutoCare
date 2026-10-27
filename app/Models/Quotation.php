@@ -12,7 +12,7 @@ class Quotation extends Model
 
     protected function casts(): array
     {
-        return ['valid_until' => 'date', 'subtotal' => 'decimal:2', 'total' => 'decimal:2'];
+        return ['valid_until' => 'date', 'subtotal' => 'decimal:2', 'total' => 'decimal:2', 'is_supplemental' => 'boolean', 'supplemental_items' => 'array'];
     }
 
     public function customer(): BelongsTo
@@ -23,6 +23,11 @@ class Quotation extends Model
     public function shop(): BelongsTo
     {
         return $this->belongsTo(Shop::class);
+    }
+
+    public function repairJob(): BelongsTo
+    {
+        return $this->belongsTo(RepairJob::class);
     }
 
     public function vehicle(): BelongsTo

@@ -8,6 +8,7 @@ use App\Models\MaintenanceSchedule;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class MaintenanceScheduleController extends Controller
 {
@@ -16,9 +17,15 @@ class MaintenanceScheduleController extends Controller
         $vehicle = $request->user()->vehicles()->whereKey($request->integer('vehicle_id'))->firstOrFail();
         $attributes = $request->safe()->except('vehicle_id');
         $lastDate = $request->date('last_service_date');
-        $lastMileage = $request->integer('last_service_mileage') ?: null;
+        $lastMileage = $request->filled('last_service_mileage') ? $request->integer('last_service_mileage') : null;
         $intervalDays = $request->integer('recommended_interval_days') ?: null;
         $intervalMileage = $request->integer('recommended_interval_mileage') ?: null;
+        if ($intervalDays !== null && $lastDate === null) {
+            throw ValidationException::withMessages(['last_service_date' => 'Enter the last service date to calculate the next date.']);
+        }
+        if ($intervalMileage !== null && $lastMileage === null) {
+            throw ValidationException::withMessages(['last_service_mileage' => 'Enter the last mileage to calculate the next distance.']);
+        }
         $attributes['next_service_date'] = $lastDate && $intervalDays ? CarbonImmutable::instance($lastDate)->addDays($intervalDays)->toDateString() : null;
         $attributes['next_service_mileage'] = $lastMileage !== null && $intervalMileage ? $lastMileage + $intervalMileage : null;
         $attributes['status'] = 'active';

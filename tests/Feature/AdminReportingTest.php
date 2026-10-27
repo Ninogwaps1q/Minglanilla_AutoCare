@@ -143,6 +143,22 @@ it('rejects invalid report date ranges', function () {
         ->assertSessionHasErrors('from');
 });
 
+it('counts only customers with completed appointments as served', function () {
+    $fixture = reportingFixture();
+    $service = Service::factory()->create();
+    foreach (['pending', 'cancelled', 'completed'] as $status) {
+        Appointment::query()->create([
+            'customer_id' => $fixture['customer']->id, 'shop_id' => $fixture['shop']->id,
+            'vehicle_id' => $fixture['vehicle']->id, 'service_id' => $service->id,
+            'appointment_date' => '2026-10-03', 'appointment_time' => '10:00', 'status' => $status,
+        ]);
+    }
+
+    $this->actingAs($fixture['shop']->owner)
+        ->get(route('shop.reports.index', ['from' => '2026-10-01', 'to' => '2026-10-05']))
+        ->assertOk()->assertViewHas('metrics', fn (array $metrics): bool => $metrics['Customers served'] === 1);
+});
+
 it('limits shop reports to the authenticated owners shop', function () {
     $fixture = reportingFixture();
     $otherOwner = User::factory()->create(['role' => 'shop_owner']);

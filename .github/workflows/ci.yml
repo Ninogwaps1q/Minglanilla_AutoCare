@@ -20,6 +20,10 @@ jobs:
             echo 'Do not commit .env; use deployment secrets.'
             exit 1
           fi
+          if git ls-files --error-unmatch .env.local.backup >/dev/null 2>&1; then
+            echo 'Do not commit .env.local.backup; use deployment secrets.'
+            exit 1
+          fi
           if git ls-files -- storage/app/private | grep -v '^storage/app/private/.gitignore$' | grep -q .; then
             echo 'Do not commit private shop documents or other private uploads.'
             exit 1

@@ -41,16 +41,24 @@ it('completes the customer request estimate acceptance repair and release workfl
     $this->assertDatabaseCount('repair_jobs', 1);
     $job = RepairJob::query()->firstOrFail();
     expect($job->status)->toBe('approved');
-    foreach (['repairing', 'waiting_parts', 'repairing', 'completed', 'released'] as $status) {
+    foreach (['repairing', 'waiting_parts', 'repairing', 'completed'] as $status) {
         $this->patch(route('shop.repair-jobs.update', $job), ['status' => $status, 'actual_cost' => 650.30])->assertRedirect()->assertSessionHasNoErrors();
         expect($job->fresh()->status)->toBe($status);
     }
+    $this->post(route('shop.invoices.store', $job))->assertRedirect(route('shop.invoices.index'));
+    $invoice = $job->invoice()->firstOrFail();
+    $this->actingAs($fixture['customer'])->post(route('customer.payments.store', $invoice), [
+        'amount' => 650.30, 'payment_method' => 'cash',
+    ])->assertRedirect()->assertSessionHasNoErrors();
+    $payment = $invoice->payments()->firstOrFail();
+    $this->actingAs($fixture['owner'])->patch(route('shop.payments.update', $payment), ['status' => 'confirmed'])
+        ->assertRedirect()->assertSessionHasNoErrors();
+    $this->patch(route('shop.repair-jobs.update', $job), ['status' => 'released'])->assertRedirect()->assertSessionHasNoErrors();
     expect($job->fresh()->started_at)->not->toBeNull();
     expect($job->fresh()->completed_at)->not->toBeNull();
     $this->assertDatabaseCount('vehicle_service_records', 1);
     $this->actingAs($fixture['customer'])->get(route('customer.repairs.index'))->assertOk()->assertSee('released');
     $this->post(route('customer.reviews.store'), ['repair_job_id' => $job->id, 'rating' => 5])->assertRedirect()->assertSessionHasNoErrors();
-    $this->actingAs($fixture['owner'])->post(route('shop.invoices.store', $job))->assertRedirect(route('shop.invoices.index'));
 });
 
 it('prevents quotation requests for another customers vehicle or an unapproved shop', function () {
@@ -132,6 +140,11 @@ it('keeps completed and released repairs from returning to active work', functio
     $fixture = phaseSevenFixture();
     $job = RepairJob::query()->create(['customer_id' => $fixture['customer']->id, 'shop_id' => $fixture['shop']->id, 'vehicle_id' => $fixture['vehicle']->id, 'job_number' => 'RJ-DONE', 'status' => 'completed']);
     $this->actingAs($fixture['owner'])->patch(route('shop.repair-jobs.update', $job), ['status' => 'repairing'])->assertSessionHasErrors('status');
+    $this->patch(route('shop.repair-jobs.update', $job), ['status' => 'released'])->assertSessionHasErrors('status');
+    $job->invoice()->create([
+        'customer_id' => $fixture['customer']->id, 'shop_id' => $fixture['shop']->id,
+        'invoice_number' => 'INV-DONE', 'subtotal' => 100, 'total' => 100, 'status' => 'paid',
+    ]);
     $this->patch(route('shop.repair-jobs.update', $job), ['status' => 'released'])->assertRedirect()->assertSessionHasNoErrors();
     $this->patch(route('shop.repair-jobs.update', $job), ['status' => 'cancelled'])->assertSessionHasErrors('status');
     expect($job->fresh()->status)->toBe('released');

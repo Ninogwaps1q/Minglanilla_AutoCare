@@ -7,7 +7,9 @@ use App\Http\Requests\StoreQuotationRequest;
 use App\Models\Quotation;
 use App\Models\RepairJob;
 use App\Models\Shop;
+use App\Models\SparePart;
 use App\Services\QuotationService;
+use App\Services\RepairInventoryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -62,6 +64,9 @@ class QuotationController extends Controller
             abort_if(in_array($repairJob->status, ['completed', 'released', 'cancelled'], true), 409);
             abort_if(in_array($repairJob->quotation?->status, ['accepted', 'approved'], true), 409, 'The approved estimate is locked.');
             abort_if($repairJob->quotation?->status === 'sent', 409, 'An estimate is already awaiting customer approval.');
+            if ($repairJob->hasUnbilledBookedService()) {
+                throw ValidationException::withMessages(['items' => 'Add the booked service to this draft repair before sending the estimate. Review any manually entered service line first to avoid charging twice.']);
+            }
             $workItems = $repairJob->items()->orderBy('id')->get();
             if ($workItems->isEmpty() && ! $request->validated('items')) {
                 throw ValidationException::withMessages(['items' => 'Add work items before sending the estimate.']);
@@ -90,6 +95,85 @@ class QuotationController extends Controller
         });
 
         return redirect()->route('shop.repair-jobs.index')->with('status', 'Quotation sent to the customer.');
+    }
+
+    public function createSupplement(RepairJob $repairJob, Request $request): View
+    {
+        abort_unless($repairJob->shop_id === $this->shop($request)->id, 404);
+        abort_unless(in_array($repairJob->quotation?->status, ['accepted', 'approved'], true)
+            && ! in_array($repairJob->status, ['completed', 'released', 'cancelled'], true)
+            && ! $repairJob->pendingSupplementalQuotation()->exists(), 409);
+
+        return view('shop.quotations.supplement', [
+            'repairJob' => $repairJob->load('items'),
+            'parts' => $this->shop($request)->spareParts()->where('quantity', '>', 0)->orderBy('name')->get(),
+        ]);
+    }
+
+    public function storeSupplement(Request $request, RepairJob $repairJob, QuotationService $service, RepairInventoryService $inventory): RedirectResponse
+    {
+        abort_unless($repairJob->shop_id === $this->shop($request)->id, 404);
+        $data = $request->validate([
+            'items' => ['required', 'array', 'min:1', 'max:20'],
+            'items.*.type' => ['required', 'in:labor,part,service,other'],
+            'items.*.description' => ['required', 'string', 'max:1000'],
+            'items.*.quantity' => ['required', 'integer', 'min:1', 'max:10000'],
+            'items.*.unit_price' => ['required', 'numeric', 'min:0', 'max:999999', 'decimal:0,2'],
+            'items.*.spare_part_id' => ['nullable', 'integer', 'exists:spare_parts,id'],
+            'notes' => ['required', 'string', 'min:10', 'max:5000'],
+            'valid_until' => ['required', 'date', 'after_or_equal:today'],
+        ]);
+
+        DB::transaction(function () use ($repairJob, $data, $request, $service, $inventory): void {
+            $shop = Shop::query()->lockForUpdate()->findOrFail($repairJob->shop_id);
+            if ($shop->verification_status !== 'approved' || $shop->shop_status !== 'active') {
+                throw ValidationException::withMessages(['items' => 'This shop is not accepting additional work.']);
+            }
+            $job = RepairJob::query()->lockForUpdate()->findOrFail($repairJob->id);
+            if (! in_array($job->quotation?->status, ['accepted', 'approved'], true)
+                || in_array($job->status, ['completed', 'released', 'cancelled'], true)
+                || $job->pendingSupplementalQuotation()->exists()) {
+                throw ValidationException::withMessages(['items' => 'This repair is no longer ready for an additional estimate.']);
+            }
+            $baseItems = $job->items()->orderBy('id')->get();
+            if ((int) round((float) $baseItems->sum('subtotal') * 100) !== (int) round((float) $job->quotation->total * 100)) {
+                throw ValidationException::withMessages(['items' => 'The existing work items must match the approved price before proposing additional work.']);
+            }
+            $extraItems = [];
+            foreach ($data['items'] as $item) {
+                if (! empty($item['spare_part_id'])) {
+                    if ($item['type'] !== 'part') {
+                        throw ValidationException::withMessages(['items' => 'Linked inventory must be entered as a part.']);
+                    }
+                    $part = SparePart::query()->where('shop_id', $shop->id)->lockForUpdate()->findOrFail($item['spare_part_id']);
+                    if ($item['quantity'] > $inventory->availableQuantity($part)) {
+                        throw ValidationException::withMessages(['items' => "Only {$inventory->availableQuantity($part)} unreserved units of {$part->name} are available."]);
+                    }
+                    $item['description'] = $part->name;
+                    $item['unit_price'] = $part->selling_price;
+                }
+                $extraItems[] = $item;
+            }
+            $quotedItems = $baseItems->map(fn ($item): array => [
+                'description' => $item->description, 'quantity' => $item->quantity, 'unit_price' => $item->unit_price,
+            ])->concat(collect($extraItems)->map(fn (array $item): array => [
+                'description' => $item['description'], 'quantity' => $item['quantity'], 'unit_price' => $item['unit_price'],
+            ]))->all();
+            $quotation = Quotation::query()->create([
+                'repair_job_id' => $job->id, 'is_supplemental' => true,
+                'supplemental_items' => $extraItems, 'previous_job_status' => $job->status,
+                'customer_id' => $job->customer_id, 'shop_id' => $job->shop_id, 'vehicle_id' => $job->vehicle_id,
+                'appointment_id' => $job->appointment_id, 'quotation_number' => 'QT-'.Str::upper(Str::random(10)),
+                'status' => 'draft',
+            ]);
+            $service->send($quotation, $quotedItems, $data['valid_until'], 'Additional work: '.$data['notes']);
+            $previousStatus = $job->status;
+            $job->update(['status' => 'waiting_approval']);
+            $job->statusHistories()->create(['from_status' => $previousStatus, 'to_status' => 'waiting_approval',
+                'changed_by' => $request->user()->id, 'changed_at' => now(), 'note' => 'Revised estimate sent for additional work']);
+        });
+
+        return to_route('shop.repair-jobs.index', ['repair_job_id' => $repairJob->id])->with('status', 'Revised estimate sent. Pause additional work until the customer decides.');
     }
 
     private function shop(Request $request): Shop

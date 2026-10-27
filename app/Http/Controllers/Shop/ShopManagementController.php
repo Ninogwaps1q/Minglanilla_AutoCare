@@ -60,7 +60,13 @@ class ShopManagementController extends Controller
 
     public function services(Request $request): View
     {
-        return view('shop.services.index', ['shopServices' => $this->shop($request)->services()->with('service.category')->latest()->get(), 'services' => Service::query()->with('category')->orderBy('name')->get()]);
+        $shop = $this->shop($request);
+
+        return view('shop.services.index', [
+            'shopServices' => $shop->services()->with('service.category')->latest()->get(),
+            'services' => Service::query()->with('category')->orderBy('name')->get(),
+            'editingService' => $request->integer('edit') > 0 ? $shop->services()->findOrFail($request->integer('edit')) : null,
+        ]);
     }
 
     public function storeService(StoreShopServiceRequest $request): RedirectResponse

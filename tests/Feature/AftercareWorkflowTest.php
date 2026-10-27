@@ -5,6 +5,7 @@ use App\Models\ServiceCase;
 use App\Models\Shop;
 use App\Models\User;
 use App\Models\VehicleServiceRecord;
+use App\Services\AppointmentSchedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -69,17 +70,70 @@ it('issues an explicit warranty and tracks a customer follow-up through the shop
     ])->assertSessionHasErrors('type');
 
     $this->actingAs($owner)->patch(route('shop.service-cases.update', $case), [
-        'status' => 'scheduled', 'shop_response' => 'Please bring the vehicle on Monday for a free inspection.',
-    ])->assertRedirect();
-    $this->assertDatabaseHas('service_cases', ['id' => $case->id, 'status' => 'scheduled']);
+        'status' => 'scheduled', 'shop_response' => 'Please bring the vehicle for a free inspection.',
+        'scheduled_at' => today()->addDays(2)->setTime(10, 0)->format('Y-m-d H:i:s'),
+    ])->assertRedirect()->assertSessionHasNoErrors();
+    $this->assertDatabaseHas('service_cases', ['id' => $case->id, 'status' => 'scheduled', 'schedule_status' => 'pending']);
     $this->get(route('shop.service-cases.index'))->assertSee('Brake noise returned');
     $this->get(route('shop.today-work.index'))->assertSee('Brake noise returned');
-    $this->actingAs($customer)->get(route('customer.service-cases.index'))->assertSee('Please bring the vehicle on Monday');
-    $this->get(route('customer.services.index'))
+    $this->actingAs($customer)->get(route('customer.service-cases.index'))->assertSee('Please bring the vehicle for a free inspection.');
+    $this->patch(route('customer.service-cases.schedule', $case), ['decision' => 'confirm'])->assertRedirect();
+    $this->assertDatabaseHas('service_cases', ['id' => $case->id, 'schedule_status' => 'confirmed']);
+    $appointment = $case->fresh()->appointment;
+    expect($appointment)->not->toBeNull();
+    expect($appointment->status)->toBe('confirmed');
+    expect($appointment->service_id)->toBeNull();
+    $this->assertDatabaseHas('appointments', [
+        'id' => $appointment->id, 'customer_id' => $customer->id,
+        'shop_id' => $shop->id, 'vehicle_id' => $job->vehicle_id,
+    ]);
+    $this->actingAs($customer)->get(route('customer.appointments.index'))->assertOk()->assertSee('Follow-up visit');
+    $this->actingAs($owner)->get(route('shop.appointments.index'))->assertOk()->assertSee('Follow-up visit');
+    $this->get(route('shop.repair-jobs.create'))->assertOk()->assertSee('Follow-up visit');
+    $this->actingAs($customer)->get(route('customer.services.index'))
         ->assertSee('Warranty active')
         ->assertSee('repair_job_id='.$job->id, false);
     $this->get(route('customer.repairs.index', ['repair_job_id' => $job->id]))
         ->assertViewHas('repairJobs', fn ($jobs): bool => $jobs->total() === 1);
+});
+
+it('reserves a proposed follow-up slot and keeps the case aligned with its appointment', function () {
+    [$customer, $owner, $shop, $job] = aftercareFixture();
+    $shop->update(['booking_capacity' => 1]);
+    $firstVisit = today()->addDays(2)->setTime(10, 0);
+    $case = ServiceCase::factory()->forRepair($job)->create([
+        'status' => 'scheduled', 'schedule_status' => 'pending', 'scheduled_at' => $firstVisit,
+    ]);
+    $schedule = app(AppointmentSchedule::class);
+    expect($schedule->bookedIntervals($shop, $firstVisit->toDateString()))->toHaveCount(1);
+    expect($schedule->hasCapacity($schedule->bookedIntervals($shop, $firstVisit->toDateString()), '10:00', 60, 1))->toBeFalse();
+
+    $this->actingAs($customer)->patch(route('customer.service-cases.schedule', $case), [
+        'decision' => 'confirm',
+    ])->assertRedirect()->assertSessionHasNoErrors();
+    $appointment = $case->fresh()->appointment;
+    expect($schedule->bookedIntervals($shop, $firstVisit->toDateString()))->toHaveCount(1);
+    $this->assertDatabaseCount('appointments', 1);
+    $this->patch(route('customer.service-cases.schedule', $case), ['decision' => 'confirm'])->assertSessionHasErrors('decision');
+    $this->actingAs($owner)->patch(route('shop.service-cases.update', $case), [
+        'status' => 'resolved', 'shop_response' => 'We checked the vehicle.',
+    ])->assertSessionHasErrors('status');
+
+    $newVisit = today()->addDays(3)->setTime(11, 0);
+    $this->actingAs($customer)->post(route('customer.appointments.reschedule.request', $appointment), [
+        'requested_date' => $newVisit->toDateString(), 'requested_time' => '11:00',
+    ])->assertRedirect()->assertSessionHasNoErrors();
+    $this->actingAs($owner)->patch(route('shop.appointments.reschedule.decide', $appointment), [
+        'decision' => 'approve',
+    ])->assertRedirect()->assertSessionHasNoErrors();
+    expect($case->fresh()->scheduled_at->format('Y-m-d H:i'))->toBe($newVisit->format('Y-m-d H:i'));
+    $this->patch(route('shop.appointments.update', $appointment), ['status' => 'cancelled'])
+        ->assertRedirect()->assertSessionHasNoErrors();
+    $case->refresh();
+    expect($case->status)->toBe('reviewing');
+    expect($case->schedule_status)->toBe('cancelled');
+    expect($case->appointment_id)->toBeNull();
+    expect($schedule->bookedIntervals($shop, $newVisit->toDateString()))->toBeEmpty();
 });
 
 it('lets only admins resolve complaints and records the decision history', function () {
@@ -164,7 +218,7 @@ function aftercareFixture(): array
 {
     $customer = User::factory()->create(['role' => 'customer']);
     $owner = User::factory()->create(['role' => 'shop_owner']);
-    $shop = Shop::factory()->create(['owner_id' => $owner->id]);
+    $shop = Shop::factory()->create(['owner_id' => $owner->id, 'verification_status' => 'approved', 'shop_status' => 'active']);
     $vehicle = $customer->vehicles()->create(['plate_number' => 'AFTER-001', 'make' => 'Toyota', 'model' => 'Vios', 'year' => 2020]);
     $job = RepairJob::factory()->forVehicle($vehicle)->create(['shop_id' => $shop->id, 'job_number' => 'RJ-AFTER-001']);
 

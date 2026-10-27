@@ -11,7 +11,9 @@ use App\Models\Shop;
 use App\Models\Technician;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class TechnicianController extends Controller
@@ -60,8 +62,16 @@ class TechnicianController extends Controller
         $shop = $this->shop($request);
         abort_unless($repairJob->shop_id === $shop->id, 404);
         abort_if(in_array($repairJob->status, ['completed', 'released', 'cancelled'], true), 409, 'This repair job is closed.');
-        $technician = $shop->technicians()->whereKey($request->integer('technician_id'))->where('status', 'active')->firstOrFail();
-        $repairJob->technicianAssignments()->updateOrCreate(['technician_id' => $technician->id], ['assigned_at' => now(), 'completed_at' => null, 'notes' => $request->validated('notes')]);
+        $technician = DB::transaction(function () use ($shop, $request, $repairJob): Technician {
+            $technician = $shop->technicians()->whereKey($request->integer('technician_id'))->where('status', 'active')->lockForUpdate()->firstOrFail();
+            $alreadyAssigned = $repairJob->technicianAssignments()->where('technician_id', $technician->id)->whereNull('completed_at')->exists();
+            if (! $alreadyAssigned && $technician->activeAssignments()->count() >= $technician->max_active_jobs) {
+                throw ValidationException::withMessages(['technician_id' => "{$technician->name} has reached their active job limit. Choose another technician or adjust the team's capacity."]);
+            }
+            $repairJob->technicianAssignments()->updateOrCreate(['technician_id' => $technician->id], ['assigned_at' => now(), 'completed_at' => null, 'notes' => $request->validated('notes')]);
+
+            return $technician;
+        });
 
         return back()->with('status', "{$technician->name} assigned to {$repairJob->job_number}.");
     }

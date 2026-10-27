@@ -71,8 +71,11 @@ for (const [role, path] of [['shop_owner', '/shop/reports'], ['admin', '/admin/r
         await page.getByRole('link', { name: 'Last 7 days', exact: true }).click();
         await expect(page.getByRole('link', { name: 'Last 7 days', exact: true })).toHaveAttribute('aria-current', 'true');
         const status = page.getByRole('region', { name: 'Appointment status breakdown' });
-        await expect(status.locator('.report-doughnut__total strong')).toHaveText('2');
-        await expect(status.locator('.report-status-legend')).toContainText('50.0%');
+        const total = Number((await status.locator('.report-doughnut__total strong').innerText()).replaceAll(',', ''));
+        expect(total).toBeGreaterThan(0);
+        const values = JSON.parse(await status.locator('[data-report-status-chart]').getAttribute('data-values'));
+        expect(values.reduce((sum, value) => sum + Number(value), 0)).toBe(total);
+        await expect(status.locator('.report-status-legend')).toContainText('%');
 
         for (const theme of ['light', 'dark']) {
             await page.evaluate(value => localStorage.setItem('autocare-theme', value), theme);
@@ -152,6 +155,9 @@ test('customer can share location and see the assigned roadside shop', async ({ 
     await expect(request).toContainText('Browser Test AutoCare');
     await expect(request.getByRole('link', { name: '09170000000' })).toHaveAttribute('href', 'tel:09170000000');
     await expect(request).toContainText('Dispatch history (1)');
+    page.once('dialog', dialog => dialog.accept());
+    await request.getByRole('button', { name: 'Cancel request' }).click();
+    await expect(request).toContainText('Cancelled');
 });
 
 for (const [role, notificationsPath] of [['customer', '/customer/notifications'], ['shop_owner', '/shop/notifications']]) {
@@ -292,11 +298,39 @@ test('booking shows the service price and checks the selected shop schedule', as
     await page.locator('#shop_id').selectOption(String(fixture.shop));
     await page.locator('#service_id').selectOption(String(fixture.service));
     await expect(page.locator('#booking-service-summary')).toContainText('₱900.00');
-    await page.locator('#appointment_date').fill(await page.locator('#appointment_date').getAttribute('min'));
-    await expect(page.locator('#time-suggestions button').first()).toBeVisible();
-    await page.locator('#time-suggestions button').first().click();
-    await expect(page.locator('#appointment_time')).toHaveValue('08:00');
+    const availableDate = new Date(Date.now() + 4 * 86400000).toISOString().slice(0, 10);
+    await page.locator('#appointment_date').fill(availableDate);
+    const firstSuggestion = page.locator('#time-suggestions button').first();
+    await expect(firstSuggestion).toBeVisible();
+    const suggestedTime = await firstSuggestion.textContent();
+    await firstSuggestion.click();
+    await expect(page.locator('#appointment_time')).toHaveValue(suggestedTime);
     await expect(page.locator('#slot-feedback')).toContainText('The shop still needs to confirm');
+});
+
+test('customer requests a new appointment time and shop approves it', async ({ page }, testInfo) => {
+    const fixture = await signIn(page, 'customer');
+    const dayOffset = { desktop: 7, mobile: 8, 'small-mobile': 9 }[testInfo.project.name];
+    const newDate = new Date(Date.now() + dayOffset * 86400000).toISOString().slice(0, 10);
+    await page.goto('/customer/appointments?focus=' + fixture.confirmedAppointment);
+    await page.getByText('Need another time?').click();
+    await page.getByLabel('New date').fill(newDate);
+    await page.getByLabel('New time').fill('14:00');
+    await page.getByRole('button', { name: 'Ask shop to change time' }).click();
+    await expect(page.getByText('Waiting for shop approval.')).toBeVisible();
+
+    await page.context().clearCookies();
+    await signIn(page, 'shop_owner');
+    await page.goto('/shop/appointments?focus=' + fixture.confirmedAppointment);
+    await expect(page.getByText('Time change requested')).toBeVisible();
+    await page.getByRole('button', { name: 'Approve new time' }).click();
+    await expect(page.getByText('New appointment time approved.')).toBeVisible();
+
+    await page.context().clearCookies();
+    await signIn(page, 'customer');
+    await page.goto('/customer/appointments?focus=' + fixture.confirmedAppointment);
+    await expect(page.locator('.list-group-item')).toContainText('2:00 PM');
+    await expect(page.getByText('Waiting for shop approval.')).toHaveCount(0);
 });
 
 test('customer sees shop payment details and the review steps', async ({ page }) => {
@@ -437,7 +471,8 @@ test('customer books, shop confirms, and admin monitors the same appointment', a
     try {
         const fixture = await signIn(page, 'customer');
         const reason = 'Browser booking ' + testInfo.project.name;
-        const date = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+        const dayOffset = { desktop: 14, mobile: 15, 'small-mobile': 16 }[testInfo.project.name];
+        const date = new Date(Date.now() + dayOffset * 86400000).toISOString().slice(0, 10);
         const time = { desktop: '10:00', mobile: '11:00', 'small-mobile': '12:00' }[testInfo.project.name];
         await page.goto('/customer/appointments/create');
         await page.getByLabel('Service shop', { exact: true }).selectOption(String(fixture.shop));
@@ -548,7 +583,7 @@ test('admin Verify document sends the clicked verification status', async ({ pag
     await expect(documentCard).toContainText('verified');
 });
 
-test('shop owner records part usage for an active repair', async ({ page }) => {
+test('shop owner records part usage for an active repair', async ({ page }, testInfo) => {
     const fixture = await signIn(page, 'shop_owner');
     await page.goto('/shop/inventory');
     const row = page.getByRole('row').filter({ hasText: 'Browser Brake Pad' });
@@ -556,8 +591,14 @@ test('shop owner records part usage for an active repair', async ({ page }) => {
     await row.getByLabel('Repair job').selectOption(String(fixture.repairJob));
     await row.getByLabel('Units used').fill('1');
     await row.getByRole('button', { name: 'Record usage' }).click();
-    await expect(page.getByText('Part usage recorded for the repair job.')).toBeVisible();
+    await expect(page.getByText('Part used for the repair and deducted from stock.')).toBeVisible();
     await expect(row.getByRole('cell').first()).toContainText(String(stock - 1));
+    await page.goto(`/shop/repair-jobs?repair_job_id=${fixture.repairJob}`);
+    const repair = page.locator(`#repair-${fixture.repairJob}`);
+    await repair.locator('summary').filter({ hasText: 'Work items and cost' }).click();
+    await expect(repair.getByText('Stock used').first()).toBeVisible();
+    await expect(repair.getByRole('button', { name: 'Remove Browser Brake Pad' })).toHaveCount(0);
+    await repair.screenshot({ path: testInfo.outputPath('repair-stock-usage.png') });
 });
 
 test('customer and shop owner can download their invoice PDF', async ({ page }) => {

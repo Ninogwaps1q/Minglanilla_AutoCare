@@ -1,4 +1,4 @@
-@props(['thread', 'context'])
+@props(['thread', 'context', 'hasOlderMessages' => false])
 
 @php
     $isCustomer = $context === 'customer';
@@ -9,7 +9,7 @@
     $storeRoute = $isCustomer ? route('customer.messages.store', $thread) : route('shop.messages.store', $thread);
 @endphp
 
-<section class="message-conversation" aria-labelledby="message-conversation-title">
+<section class="message-conversation {{ $hasOlderMessages ? 'has-older-messages' : '' }}" aria-labelledby="message-conversation-title">
     <header class="message-conversation-header">
         <a class="message-back" href="{{ $backRoute }}" aria-label="Back to all messages"><i class="bi bi-arrow-left" aria-hidden="true"></i></a>
         <x-uploaded-image class="message-avatar message-avatar-header" :path="$avatarPath" :alt="$isCustomer ? $name.' logo' : $name.' profile photo'" :fallback-icon="$isCustomer ? 'shop' : 'person'" />
@@ -19,6 +19,7 @@
         </div>
     </header>
 
+    @if ($hasOlderMessages)<button type="button" class="btn btn-sm btn-outline-secondary message-load-older" data-message-load-older>Load earlier messages</button>@endif
     <div class="message-history" role="log" aria-label="Conversation with {{ $name }}" data-message-history data-updates-url="{{ route($isCustomer ? 'customer.messages.updates' : 'shop.messages.updates', $thread) }}">
         @forelse ($thread->messages as $entry)
             @php $isMine = $entry->sender_id === auth()->id(); @endphp

@@ -28,13 +28,13 @@
                         <tr>
                             <td data-label="Schedule"><strong>{{ $appointment->appointment_date->format('M j, Y') }}</strong><br><span class="text-secondary small">{{ $appointment->appointment_time->format('g:i A') }}</span></td>
                             <td data-label="Customer & vehicle">{{ $appointment->customer->name }}<br><span class="text-secondary small">{{ $appointment->vehicle->plate_number }}</span></td>
-                            <td data-label="Service">{{ $appointment->service->name }}@if ($appointment->reason)<br><span class="text-secondary small">{{ $appointment->reason }}</span>@endif</td>
+                            <td data-label="Service">{{ $appointment->serviceCase ? 'Follow-up visit' : ($appointment->service?->name ?? 'Vehicle service') }}@if ($appointment->reason)<br><span class="text-secondary small">{{ $appointment->reason }}</span>@endif @if ($appointment->serviceCase)<br><a class="small" href="{{ route('shop.service-cases.index', ['focus' => $appointment->serviceCase->id]) }}">View aftercare request</a>@endif</td>
                             <td data-label="Status"><span class="badge text-bg-{{ $appointment->status === 'confirmed' ? 'success' : ($appointment->status === 'pending' ? 'warning' : 'secondary') }}">{{ match ($appointment->status) { 'pending' => 'Needs decision', 'confirmed' => 'Ready for repair', 'in_progress' => 'In repair', 'completed' => 'Completed', default => 'Cancelled' } }}</span></td>
                             <td data-label="Next action" class="appointment-action-cell">
                                 <div class="appointment-actions">
                                     @if ($appointment->repairJob)
                                         <a class="btn btn-sm btn-outline-primary appointment-main-action" href="{{ route('shop.repair-jobs.index', ['appointment_id' => $appointment->id]) }}">View repair</a>
-                                    @elseif ($appointment->status === 'confirmed')
+                                    @elseif ($appointment->status === 'confirmed' && $appointment->latestRescheduleRequest?->status !== 'pending')
                                         <a class="btn btn-sm btn-primary appointment-main-action" href="{{ route('shop.repair-jobs.create', ['appointment_id' => $appointment->id]) }}">Start repair job</a>
                                     @endif
                                     @if ($appointment->availableStatusTransitions() && ! $appointment->repairJob)
@@ -62,6 +62,25 @@
                                 </div>
                             </td>
                         </tr>
+                        @if ($appointment->status === 'confirmed' && $appointment->latestRescheduleRequest?->status === 'pending')
+                            <tr>
+                                <td colspan='5' class='p-3'>
+                                    <div class='d-flex flex-wrap align-items-center justify-content-between gap-3'>
+                                        <div>
+                                            <strong>Time change requested</strong>
+                                            <p class='small text-secondary mb-0'>{{ $appointment->customer->name }} requests {{ $appointment->latestRescheduleRequest->requested_date->format('M j, Y') }} at {{ $appointment->latestRescheduleRequest->requested_time->format('g:i A') }}. Original time stays confirmed until approved.</p>
+                                            @if ($appointment->latestRescheduleRequest->reason)<p class='small mb-0'>Reason: {{ $appointment->latestRescheduleRequest->reason }}</p>@endif
+                                        </div>
+                                        <form method='POST' action='{{ route('shop.appointments.reschedule.decide', $appointment) }}' class='d-flex flex-wrap gap-2'>
+                                            @csrf
+                                            @method('PATCH')
+                                            <button class='btn btn-sm btn-primary' name='decision' value='approve'>Approve new time</button>
+                                            <button class='btn btn-sm btn-outline-secondary' name='decision' value='decline'>Keep original time</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endif
                     @empty
                         <tr><td colspan="5" class="p-4"><strong>{{ $selectedStatus ? 'No appointments with this status' : 'No appointment requests yet' }}</strong><br><span class="text-secondary">{{ $selectedStatus ? 'Choose another status or clear the filter.' : 'New customer requests will appear here.' }}</span></td></tr>
                     @endforelse

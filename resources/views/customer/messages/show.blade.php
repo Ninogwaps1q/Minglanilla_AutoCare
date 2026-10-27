@@ -7,6 +7,6 @@
             </header>
             <x-message-contact-list :threads="$threads" context="customer" :active-thread-id="$thread->id" />
         </aside>
-        <x-message-conversation :thread="$thread" context="customer" />
+        <x-message-conversation :thread="$thread" context="customer" :has-older-messages="$hasOlderMessages" />
     </div>
 </x-layouts.app>

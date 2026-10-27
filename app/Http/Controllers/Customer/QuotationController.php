@@ -8,10 +8,12 @@ use App\Http\Requests\RespondToQuotationRequest;
 use App\Models\Quotation;
 use App\Models\RepairJob;
 use App\Models\Shop;
+use App\Services\RepairInventoryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class QuotationController extends Controller
@@ -52,21 +54,26 @@ class QuotationController extends Controller
         ]);
     }
 
-    public function update(RespondToQuotationRequest $request, Quotation $quotation): RedirectResponse
+    public function update(RespondToQuotationRequest $request, Quotation $quotation, RepairInventoryService $inventory): RedirectResponse
     {
         abort_unless($quotation->customer_id === $request->user()->id, 404);
-        $expired = DB::transaction(function () use ($request, $quotation): bool {
+        $expired = DB::transaction(function () use ($request, $quotation, $inventory): bool {
             $quotation = Quotation::query()->lockForUpdate()->findOrFail($quotation->id);
             abort_unless($quotation->status === 'sent', 404);
             if ($quotation->valid_until?->isBefore(today())) {
                 $quotation->update(['status' => 'expired']);
+                if ($quotation->is_supplemental) {
+                    $this->applySupplementalDecision($quotation, 'expired', $inventory, $request->user()->id);
+                }
 
                 return true;
             }
             $status = $request->validated('status');
             $quotation->update(['status' => $status]);
             $quotation->approvalRecords()->create(['customer_id' => $request->user()->id, 'decision' => $status, 'decided_at' => now()]);
-            if (in_array($status, ['accepted', 'approved'], true)) {
+            if ($quotation->is_supplemental) {
+                $this->applySupplementalDecision($quotation, $status, $inventory, $request->user()->id);
+            } elseif (in_array($status, ['accepted', 'approved'], true)) {
                 $repairJobs = RepairJob::query()->where('quotation_id', $quotation->id)
                     ->whereNotIn('status', ['completed', 'released', 'cancelled'])->lockForUpdate()->get();
                 foreach ($repairJobs as $repairJob) {
@@ -80,11 +87,11 @@ class QuotationController extends Controller
                         ])->all());
                     }
                     $previousStatus = $repairJob->status;
-                    $nextStatus = 'approved';
+                    $nextStatus = $inventory->reserveAvailableForJob($repairJob) ? 'approved' : 'waiting_parts';
                     $repairJob->update(['status' => $nextStatus,
                         'estimated_cost' => $quotation->total, 'actual_cost' => $quotation->total]);
                     if ($previousStatus !== $nextStatus) {
-                        $repairJob->statusHistories()->create(['from_status' => $previousStatus, 'to_status' => $nextStatus, 'changed_by' => $request->user()->id, 'changed_at' => now(), 'note' => 'Customer approved estimate']);
+                        $repairJob->statusHistories()->create(['from_status' => $previousStatus, 'to_status' => $nextStatus, 'changed_by' => $request->user()->id, 'changed_at' => now(), 'note' => $nextStatus === 'waiting_parts' ? 'Customer approved estimate; linked parts need restocking' : 'Customer approved estimate']);
                     }
                 }
             }
@@ -97,5 +104,36 @@ class QuotationController extends Controller
         });
 
         return back()->with('status', $expired ? 'This quotation has expired. Request a new estimate.' : 'Quotation response saved.');
+    }
+
+    private function applySupplementalDecision(Quotation $quotation, string $decision, RepairInventoryService $inventory, int $actorId): void
+    {
+        $job = RepairJob::query()->lockForUpdate()->findOrFail($quotation->repair_job_id);
+        if ($job->status !== 'waiting_approval' || in_array($job->status, ['completed', 'released', 'cancelled'], true)) {
+            throw ValidationException::withMessages(['status' => 'This repair is no longer awaiting the revised estimate.']);
+        }
+        if (in_array($decision, ['accepted', 'approved'], true)) {
+            foreach ($quotation->supplemental_items ?? [] as $item) {
+                $job->items()->create([
+                    'type' => $item['type'], 'description' => $item['description'],
+                    'quantity' => $item['quantity'], 'unit_price' => $item['unit_price'],
+                    'spare_part_id' => $item['spare_part_id'] ?? null,
+                    'subtotal' => round((int) $item['quantity'] * (float) $item['unit_price'], 2),
+                ]);
+            }
+            if ((int) round((float) $job->items()->sum('subtotal') * 100) !== (int) round((float) $quotation->total * 100)) {
+                throw ValidationException::withMessages(['status' => 'The revised work items do not match the approved price. Contact the shop before continuing.']);
+            }
+            $nextStatus = $inventory->reserveAvailableForJob($job) ? 'approved' : 'waiting_parts';
+            $job->update(['quotation_id' => $quotation->id, 'estimated_cost' => $quotation->total,
+                'actual_cost' => $quotation->total, 'status' => $nextStatus]);
+            $note = 'Customer approved revised estimate '.$quotation->quotation_number;
+        } else {
+            $nextStatus = $quotation->previous_job_status ?: 'approved';
+            $job->update(['status' => $nextStatus]);
+            $note = 'Customer '.($decision === 'expired' ? 'did not approve before expiry' : 'declined').' revised estimate '.$quotation->quotation_number;
+        }
+        $job->statusHistories()->create(['from_status' => 'waiting_approval', 'to_status' => $nextStatus,
+            'changed_by' => $actorId, 'changed_at' => now(), 'note' => $note]);
     }
 }

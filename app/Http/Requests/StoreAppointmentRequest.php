@@ -2,8 +2,9 @@
 
 namespace App\Http\Requests;
 
-use App\Models\Appointment;
 use App\Models\Shop;
+use App\Models\ShopService;
+use App\Services\AppointmentSchedule;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -45,27 +46,27 @@ class StoreAppointmentRequest extends FormRequest
             }
 
             $shop = Shop::query()->find($this->integer('shop_id'));
+            $offer = ShopService::query()->where('shop_id', $this->integer('shop_id'))
+                ->where('service_id', $this->integer('service_id'))->with('service:id,estimated_duration')->first();
             $preferredTime = $this->input('appointment_time');
-            if ($shop?->opening_time && $preferredTime < substr($shop->opening_time, 0, 5)) {
-                $validator->errors()->add('appointment_time', 'Choose a time after this shop opens.');
+            if (! $shop || ! $offer?->service) {
+                return;
+            }
+            if ($this->input('appointment_date').' '.$preferredTime <= now()->format('Y-m-d H:i')) {
+                $validator->errors()->add('appointment_time', 'Choose a future appointment time.');
 
                 return;
             }
-            if ($shop?->closing_time && $preferredTime >= substr($shop->closing_time, 0, 5)) {
-                $validator->errors()->add('appointment_time', 'Choose a time before this shop closes.');
+
+            $schedule = app(AppointmentSchedule::class);
+            $duration = (int) ($offer->service->estimated_duration ?: 60);
+            if (! $schedule->fitsHours($shop, $preferredTime, $duration)) {
+                $validator->errors()->add('appointment_time', 'Choose a time that leaves enough time for this service before the shop closes.');
 
                 return;
             }
-
-            $isTaken = Appointment::query()
-                ->where('shop_id', $this->integer('shop_id'))
-                ->whereDate('appointment_date', $this->input('appointment_date'))
-                ->where('appointment_time', $this->input('appointment_time'))
-                ->whereIn('status', ['pending', 'confirmed', 'in_progress'])
-                ->exists();
-
-            if ($isTaken) {
-                $validator->errors()->add('appointment_time', 'This shop already has an active appointment at the selected time. Please choose another time.');
+            if (! $schedule->hasCapacity($schedule->bookedIntervals($shop, $this->input('appointment_date')), $preferredTime, $duration, (int) $shop->booking_capacity)) {
+                $validator->errors()->add('appointment_time', 'The shop is fully booked during this service. Choose another time.');
             }
         }];
     }

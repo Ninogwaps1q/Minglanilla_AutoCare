@@ -87,8 +87,9 @@ $messageThread->messages()->createMany([
 $category = ServiceCategory::factory()->create();
 $service = Service::factory()->create(['category_id' => $category->id, 'name' => 'Browser Oil Change']);
 ShopService::query()->create(['shop_id' => $shop->id, 'service_id' => $service->id, 'price' => 900, 'availability' => true]);
+$browserAppointmentIds = [];
 foreach (['confirmed' => '09:00', 'pending' => '11:00'] as $status => $time) {
-    Appointment::query()->create([
+    $browserAppointmentIds[$status] = Appointment::query()->create([
         'customer_id' => $users['customer']->id,
         'shop_id' => $shop->id,
         'vehicle_id' => $vehicle->id,
@@ -96,7 +97,7 @@ foreach (['confirmed' => '09:00', 'pending' => '11:00'] as $status => $time) {
         'appointment_date' => now()->subDays(2)->toDateString(),
         'appointment_time' => $time,
         'status' => $status,
-    ]);
+    ])->id;
 }
 $repairJob = RepairJob::query()->create([
     'customer_id' => $users['customer']->id, 'shop_id' => $shop->id, 'vehicle_id' => $vehicle->id,
@@ -138,6 +139,7 @@ $invoice->items()->create(['description' => 'Browser brake service', 'quantity' 
     'unit_price' => 250, 'subtotal' => 500]);
 echo json_encode(['database' => $database, 'password' => $password, 'shop' => $shop->id, 'logo' => $logoPath,
     'customerPhoto' => $customerPhotoPath,
-    'vehicle' => $vehicle->id, 'service' => $service->id, 'repairJob' => $repairJob->id, 'diagnosisRepairJob' => $diagnosisJob->id,
+    'vehicle' => $vehicle->id, 'service' => $service->id, 'confirmedAppointment' => $browserAppointmentIds['confirmed'],
+    'repairJob' => $repairJob->id, 'diagnosisRepairJob' => $diagnosisJob->id,
     'part' => $part->id, 'invoice' => $invoice->id, 'browserDocuments' => $browserDocumentIds,
     'complaintCases' => $browserComplaintCases], JSON_THROW_ON_ERROR);

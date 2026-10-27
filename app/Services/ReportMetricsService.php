@@ -76,7 +76,7 @@ class ReportMetricsService
                 'Completed repairs' => $shop->repairJobs()->whereIn('status', ['completed', 'released'])->whereBetween('completed_at', [$from, $to])->count(),
                 'Confirmed revenue' => Payment::query()->whereBelongsTo($shop)->where('status', 'confirmed')->whereBetween('payment_date', [$from, $to])->sum('amount'),
                 'Low-stock parts' => SparePart::query()->whereBelongsTo($shop)->whereColumn('quantity', '<=', 'minimum_stock')->count(),
-                'Customers served' => $this->appointments($from, $to, $shop)->distinct()->count('customer_id'),
+                'Customers served' => $this->appointments($from, $to, $shop)->where('status', 'completed')->distinct()->count('customer_id'),
             ],
             'appointmentSeries' => $this->dailySeries($this->appointments($from, $to, $shop), 'appointment_date', $from, $to),
             'revenueSeries' => $this->dailySeries(Payment::query()->whereBelongsTo($shop)->where('status', 'confirmed')->whereBetween('payment_date', [$from, $to]), 'payment_date', $from, $to, 'amount'),

@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class RepairJobItem extends Model
 {
@@ -20,5 +22,20 @@ class RepairJobItem extends Model
     public function repairJob(): BelongsTo
     {
         return $this->belongsTo(RepairJob::class);
+    }
+
+    public function sparePart(): BelongsTo
+    {
+        return $this->belongsTo(SparePart::class);
+    }
+
+    public function inventoryTransactions(): HasMany
+    {
+        return $this->hasMany(InventoryTransaction::class);
+    }
+
+    public function reservation(): HasOne
+    {
+        return $this->hasOne(InventoryReservation::class);
     }
 }

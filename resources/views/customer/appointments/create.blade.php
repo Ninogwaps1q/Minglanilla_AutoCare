@@ -29,7 +29,7 @@
                     <option value="">Choose a service</option>
                     @foreach ($shops as $shop)
                         @foreach ($shop->services->where('availability', true) as $offer)
-                            <option value="{{ $offer->service_id }}" data-shop-id="{{ $shop->id }}" data-price="{{ $offer->price }}" data-service-name="{{ $offer->service->name }}" @selected(old('service_id') == $offer->service_id && old('shop_id') == $shop->id)>{{ $offer->service->name }} — PHP {{ number_format($offer->price, 2) }}</option>
+                            <option value="{{ $offer->service_id }}" data-shop-id="{{ $shop->id }}" data-price="{{ $offer->price }}" data-service-name="{{ $offer->service->name }}" data-duration="{{ $offer->service->estimated_duration ?: 60 }}" data-labor-included="{{ $offer->labor_included === null ? '' : (int) $offer->labor_included }}" data-parts-included="{{ $offer->parts_included === null ? '' : (int) $offer->parts_included }}" data-scope="{{ $offer->description }}" @selected(old('service_id') == $offer->service_id && old('shop_id') == $shop->id)>{{ $offer->service->name }} — PHP {{ number_format($offer->price, 2) }}</option>
                         @endforeach
                     @endforeach
                 </select>
@@ -54,8 +54,8 @@
                 <label for="appointment_time" class="form-label">Preferred time</label>
                 <input id="appointment_time" class="form-control @error('appointment_time') is-invalid @enderror" type="time" name="appointment_time" value="{{ old('appointment_time') }}" aria-describedby="slot-feedback" required>
                 @error('appointment_time')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                <div id="slot-feedback" class="form-text" aria-live="polite">Choose a shop and date to check its hours and booked times.</div>
-                <div id="time-suggestions" class="d-flex flex-wrap gap-2 mt-2" aria-label="Suggested unbooked start times"></div>
+                <div id="slot-feedback" class="form-text" aria-live="polite">Choose a shop, service, and date to check available times.</div>
+                <div id="time-suggestions" class="d-flex flex-wrap gap-2 mt-2" aria-label="Suggested available start times"></div>
             </div>
             <div class="col-12">
                 <label for="reason" class="form-label">What does your vehicle need?</label>
@@ -66,6 +66,7 @@
                 <div class="booking-summary" aria-live="polite">
                     <h2 class="h5 mb-2">Before you request</h2>
                     <p class="mb-1" id="booking-service-summary">Choose a shop and service to see the listed price.</p>
+                    <p class="mb-1" id="booking-inclusions">Ask the shop what labor and parts are included if they have not specified them.</p>
                     <p class="mb-0 text-secondary">This is the listed service price. Extra repair work needs a separate estimate and your approval. Your preferred time is not confirmed until the shop accepts the request.</p>
                 </div>
             </div>
@@ -84,6 +85,7 @@
         const slotFeedback = document.querySelector('#slot-feedback');
         const timeSuggestions = document.querySelector('#time-suggestions');
         const serviceSummary = document.querySelector('#booking-service-summary');
+        const bookingInclusions = document.querySelector('#booking-inclusions');
         const priceFormatter = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' });
         let availability = null;
         let availabilityRequest = 0;
@@ -93,23 +95,64 @@
             serviceSummary.textContent = selected?.dataset.price
                 ? `${selected.dataset.serviceName} at ${priceFormatter.format(Number(selected.dataset.price))}.`
                 : 'Choose a shop and service to see the listed price.';
+            if (!selected?.dataset.price) {
+                bookingInclusions.textContent = 'Ask the shop what labor and parts are included if they have not specified them.';
+                return;
+            }
+            const inclusion = (value, label) => value === '1'
+                ? `${label} included`
+                : (value === '0' ? `${label} quoted separately` : `ask shop about ${label.toLowerCase()}`);
+            bookingInclusions.textContent = [
+                inclusion(selected.dataset.laborIncluded, 'Labor'),
+                inclusion(selected.dataset.partsIncluded, 'Parts'),
+                selected.dataset.scope || null,
+            ].filter(Boolean).join(' · ') + '.';
+        };
+
+        const asMinutes = (time) => {
+            const [hour, minute] = time.split(':').map(Number);
+            return hour * 60 + minute;
+        };
+        const fitsDuration = (time) => {
+            const end = asMinutes(time) + availability.duration_minutes;
+            return end <= 1440
+                && (!availability.opening_time || asMinutes(time) >= asMinutes(availability.opening_time))
+                && (!availability.closing_time || end <= asMinutes(availability.closing_time));
+        };
+        const hasSpace = (time) => {
+            const start = asMinutes(time);
+            const end = start + availability.duration_minutes;
+            const changes = new Map();
+            for (const interval of availability.booked_intervals) {
+                if (interval.start >= end || interval.end <= start) continue;
+                const overlapStart = Math.max(start, interval.start);
+                const overlapEnd = Math.min(end, interval.end);
+                changes.set(overlapStart, (changes.get(overlapStart) || 0) + 1);
+                changes.set(overlapEnd, (changes.get(overlapEnd) || 0) - 1);
+            }
+            let occupied = 0;
+            for (const [, change] of [...changes].sort((a, b) => a[0] - b[0])) {
+                occupied += change;
+                if (occupied >= availability.capacity) return false;
+            }
+            return true;
         };
 
         const checkTime = () => {
             const time = timeInput.value;
             slotFeedback.classList.remove('text-danger', 'text-success');
-            if (!shopSelect.value || !dateInput.value) {
-                slotFeedback.textContent = 'Choose a shop and date to check its hours and booked times.';
+            if (!shopSelect.value || !serviceSelect.value || !dateInput.value) {
+                slotFeedback.textContent = 'Choose a shop, service, and date to check available times.';
             } else if (!availability) {
                 slotFeedback.textContent = 'Checking the shop schedule…';
-            } else if (time && availability.opening_time && time < availability.opening_time) {
-                slotFeedback.textContent = `This shop opens at ${availability.opening_time}. Choose a later time.`;
+            } else if (time && new Date(`${dateInput.value}T${time}:00`).getTime() <= Date.now()) {
+                slotFeedback.textContent = 'Choose a future appointment time.';
                 slotFeedback.classList.add('text-danger');
-            } else if (time && availability.closing_time && time >= availability.closing_time) {
-                slotFeedback.textContent = `This shop closes at ${availability.closing_time}. Choose an earlier time.`;
+            } else if (time && !fitsDuration(time)) {
+                slotFeedback.textContent = `Allow ${availability.duration_minutes} minutes for this service during shop hours.`;
                 slotFeedback.classList.add('text-danger');
-            } else if (time && availability.taken_times.includes(time)) {
-                slotFeedback.textContent = 'That time is already requested or booked. Choose another time.';
+            } else if (time && !hasSpace(time)) {
+                slotFeedback.textContent = 'The shop is fully booked during this service. Choose another time.';
                 slotFeedback.classList.add('text-danger');
             } else if (time) {
                 slotFeedback.textContent = 'No conflicting booking is shown. The shop still needs to confirm your request.';
@@ -118,7 +161,7 @@
                 const hours = availability.opening_time && availability.closing_time
                     ? `Shop hours: ${availability.opening_time}–${availability.closing_time}. `
                     : 'Shop hours are not listed. ';
-                slotFeedback.textContent = `${hours}${availability.taken_times.length} time(s) already requested or booked for this date.`;
+                slotFeedback.textContent = `${hours}Allow ${availability.duration_minutes} minutes for this service. Up to ${availability.capacity} appointment(s) can run together.`;
             }
         };
 
@@ -132,7 +175,7 @@
             const end = closingHour * 60 + closingMinute;
             while (start < end && timeSuggestions.childElementCount < 8) {
                 const time = `${String(Math.floor(start / 60)).padStart(2, '0')}:${String(start % 60).padStart(2, '0')}`;
-                if (!availability.taken_times.includes(time)) {
+                if (fitsDuration(time) && hasSpace(time) && new Date(`${dateInput.value}T${time}:00`).getTime() > Date.now()) {
                     const button = document.createElement('button');
                     button.type = 'button';
                     button.className = 'btn btn-sm btn-outline-secondary';
@@ -153,11 +196,12 @@
             availability = null;
             timeSuggestions.replaceChildren();
             checkTime();
-            if (!shopSelect.value || !dateInput.value) return;
+            if (!shopSelect.value || !serviceSelect.value || !dateInput.value) return;
 
             const url = new URL(@json(route('customer.appointments.availability')));
             url.searchParams.set('shop_id', shopSelect.value);
             url.searchParams.set('date', dateInput.value);
+            url.searchParams.set('service_id', serviceSelect.value);
             try {
                 const response = await fetch(url, { headers: { Accept: 'application/json' } });
                 if (!response.ok) throw new Error('Availability unavailable');
@@ -182,7 +226,7 @@
             refreshAvailability();
         };
         shopSelect.addEventListener('change', syncServices);
-        serviceSelect.addEventListener('change', updateSummary);
+        serviceSelect.addEventListener('change', () => { updateSummary(); refreshAvailability(); });
         dateInput.addEventListener('change', refreshAvailability);
         timeInput.addEventListener('change', checkTime);
         syncServices();

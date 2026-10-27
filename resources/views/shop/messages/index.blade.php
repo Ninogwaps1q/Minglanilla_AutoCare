@@ -17,7 +17,8 @@
         <section class="message-discovery message-discovery-intro" aria-labelledby="shop-message-intro">
             <span class="message-discovery-icon"><i class="bi bi-chat-dots" aria-hidden="true"></i></span>
             <h2 id="shop-message-intro">Stay close to your customers</h2>
-            <p>Select a conversation to read the customer's question and send a reply. New conversations appear when a customer messages your shop.</p>
+            <p>Select a conversation to read the customer's question and send a reply. New conversations appear when a
+                customer messages your shop.</p>
         </section>
     </div>
 </x-layouts.app>

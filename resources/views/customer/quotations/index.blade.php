@@ -3,7 +3,8 @@
     @include('components.form-errors')
     @forelse ($quotations as $quotation)
         <article class="surface p-4 mb-3">
-            <h2 class="h5">{{ $quotation->shop->name }} · {{ $quotation->quotation_number }}</h2>
+            <h2 class="h5">{{ $quotation->is_supplemental ? 'Revised estimate' : 'Estimate' }} · {{ $quotation->shop->name }} · {{ $quotation->quotation_number }}</h2>
+            @if($quotation->is_supplemental)<p class="small text-secondary">Includes all previously approved items plus proposed extra work. The new total replaces the old total if you approve.</p>@endif
             <p>{{ $quotation->vehicle->plate_number }} · <strong>{{ $quotation->status === 'draft' ? 'Awaiting shop estimate' : ($quotation->status === 'sent' && $quotation->valid_until?->isBefore(today()) ? 'Expired' : ucfirst($quotation->status)) }}</strong></p>
             <p class="text-break">{{ $quotation->notes }}</p>
             @if ($quotation->status !== 'draft')

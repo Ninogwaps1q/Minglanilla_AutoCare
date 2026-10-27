@@ -26,6 +26,8 @@ class ConsumeRepairPartRequest extends FormRequest
             'repair_job_id' => ['required', 'integer', 'exists:repair_jobs,id'],
             'quantity' => ['required', 'integer', 'min:1', 'max:1000000'],
             'notes' => ['nullable', 'string', 'max:1000'],
+            'repair_job_item_id' => ['nullable', 'integer', 'exists:repair_job_items,id'],
+            'spare_part_id' => ['nullable', 'integer', 'exists:spare_parts,id'],
         ];
     }
 }

@@ -4554,6 +4554,15 @@ html[data-theme=dark] .ai-widget-composer > .ai-suggestions {
     min-height: 30rem;
 }
 
+.message-conversation.has-older-messages {
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+}
+
+.message-load-older {
+    justify-self: center;
+    margin: .5rem 0;
+}
+
 .message-conversation-header {
     display: flex;
     min-width: 0;

@@ -23,7 +23,13 @@ class Appointment extends Model
 
     protected function casts(): array
     {
-        return ['appointment_date' => 'date', 'appointment_time' => 'datetime:H:i'];
+        return [
+            'appointment_date' => 'date',
+            'appointment_time' => 'datetime:H:i',
+            'service_price' => 'decimal:2',
+            'service_labor_included' => 'boolean',
+            'service_parts_included' => 'boolean',
+        ];
     }
 
     public function customer(): BelongsTo
@@ -51,8 +57,23 @@ class Appointment extends Model
         return $this->hasMany(AppointmentStatusHistory::class)->latest('changed_at');
     }
 
+    public function rescheduleRequests(): HasMany
+    {
+        return $this->hasMany(AppointmentRescheduleRequest::class)->latest();
+    }
+
+    public function latestRescheduleRequest(): HasOne
+    {
+        return $this->hasOne(AppointmentRescheduleRequest::class)->latestOfMany();
+    }
+
     public function repairJob(): HasOne
     {
         return $this->hasOne(RepairJob::class);
+    }
+
+    public function serviceCase(): HasOne
+    {
+        return $this->hasOne(ServiceCase::class);
     }
 }

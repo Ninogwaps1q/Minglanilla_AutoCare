@@ -32,6 +32,32 @@ it('assigns a customer emergency request to the nearest eligible shop', function
     $this->get(route('customer.emergency-requests.index'))->assertOk()->assertSee('Assigned shop:')->assertSee($nearbyShop->name)->assertSee($nearbyShop->phone);
 });
 
+it('prevents duplicate active roadside requests and closes the assigned dispatch on customer cancellation', function () {
+    $fixture = emergencyFixture();
+    $shop = createEmergencyShop($fixture['barangay'], 10.2400, 123.7800);
+    $payload = [
+        'emergency_type' => 'breakdown', 'latitude' => 10.2410, 'longitude' => 123.7810,
+    ];
+
+    $this->actingAs($fixture['customer'])->post(route('customer.emergency-requests.store'), $payload)
+        ->assertRedirect()->assertSessionHasNoErrors();
+    $request = EmergencyRequest::query()->sole();
+    $this->post(route('customer.emergency-requests.store'), $payload)->assertSessionHasErrors('emergency_type');
+    $this->assertDatabaseCount('emergency_requests', 1);
+
+    $this->delete(route('customer.emergency-requests.destroy', $request))
+        ->assertRedirect()->assertSessionHasNoErrors();
+    $this->assertDatabaseHas('emergency_requests', ['id' => $request->id, 'status' => 'cancelled']);
+    $this->assertDatabaseHas('emergency_dispatch_attempts', [
+        'emergency_request_id' => $request->id, 'shop_id' => $shop->id, 'status' => 'cancelled',
+    ]);
+    $this->delete(route('customer.emergency-requests.destroy', $request))->assertSessionHasErrors('request');
+
+    $this->post(route('customer.emergency-requests.store'), $payload)
+        ->assertRedirect()->assertSessionHasNoErrors();
+    $this->assertDatabaseCount('emergency_requests', 2);
+});
+
 it('reassigns a declined roadside request to the next nearest eligible shop without repeating an attempt', function () {
     $fixture = emergencyFixture();
     $nearest = createEmergencyShop($fixture['barangay'], 10.2400, 123.7800);

@@ -9,6 +9,11 @@ class ShopService extends Model
 {
     protected $guarded = [];
 
+    protected function casts(): array
+    {
+        return ['price' => 'decimal:2', 'labor_included' => 'boolean', 'parts_included' => 'boolean'];
+    }
+
     public function shop(): BelongsTo
     {
         return $this->belongsTo(Shop::class);

@@ -23,6 +23,8 @@ php artisan key:generate
 
 Create an **empty** database, then set `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, and `DB_PASSWORD` in `.env`. Set `APP_URL` to the address you will use in the browser. Do not commit `.env` or paste its secrets into an issue or chat.
 
+Start the database server before running migrations or opening the app. If login shows `SQLSTATE[HY000] [2002]` / "connection refused", check that MySQL is running and listening on the configured host and port; this is a stopped/unreachable server, not a reason to reset the database.
+
 ```powershell
 php artisan migrate --no-interaction
 php artisan storage:link
@@ -83,7 +85,7 @@ Do not point the browser tests at production. Their temporary database is delete
 
 ## Private backups and recovery
 
-Run `php artisan app:backup` to create a ZIP under `storage/app/private/backups`. It includes a consistent MySQL/MariaDB dump, `storage/app/public` uploads, and `storage/app/private` files, excluding old backups. The dump uses `mysqldump`; set `BACKUP_DUMP_BINARY` to its absolute executable path if it is not on PATH (for example `C:\xampp\mysql\bin\mysqldump.exe`). A failed dump leaves no completed ZIP. Set `BACKUP_ENABLED=true` only after a manual backup succeeds; the scheduler then runs it daily at 02:30 server time. Keep this directory outside the web root, restrict access, and transfer copies to an encrypted off-host location. Backups have no automatic deletion policy; monitor storage and apply your own retention policy.
+Run `php artisan app:backup` to create a ZIP under `storage/app/private/backups`. It includes a consistent MySQL/MariaDB dump, `storage/app/public` uploads, and `storage/app/private` files, excluding old backups. The dump uses `mysqldump`; set `BACKUP_DUMP_BINARY` to its absolute executable path if it is not on PATH (for example `C:\xampp\mysql\bin\mysqldump.exe`). A failed dump leaves no completed ZIP. Set `BACKUP_ENABLED=true` only after a manual backup succeeds; the scheduler then runs it daily at 02:30 server time. For an off-host copy, configure a remote filesystem disk and set `BACKUP_OFFSITE_DISK` to its name. Set `BACKUP_RETENTION_DAYS` to a positive number to prune only expired local ZIP backups, and `BACKUP_ALERT_EMAIL` to receive failure alerts through the configured mail transport. Both options are disabled by default. Verify a restore on disposable data before relying on the backup.
 
 To verify recovery, copy a backup to a safe test machine, inspect `manifest.json`, check `database.sql` against its SHA-256 hash, and restore the SQL **only into a new disposable database**. Extract `uploads/public` and `uploads/private` to that test installation's `storage/app` directories, then run `php artisan storage:link` and check a real image and protected document. Never overwrite the production database during a restore drill. Preserve `APP_KEY` separately in a secret manager because the archive does not include `.env` or encryption keys.
 
@@ -94,7 +96,7 @@ Before switching traffic to a new host:
 1. Set `APP_ENV=production`, `APP_DEBUG=false`, an HTTPS `APP_URL`, real database credentials, and a working mail provider. Generate a unique `APP_KEY` for a new installation; preserve the original key when moving an existing installation so encrypted data remains readable. Keep `.env` outside source control.
 2. Run `composer install --no-dev --optimize-autoloader`, `npm ci`, `npm run build`, `php artisan migrate --force --no-interaction`, `php artisan storage:link`, and `php artisan optimize` on the target host. Ensure `storage/` and `bootstrap/cache/` are writable by the application.
 3. Start a supervised queue worker and configure the once-per-minute scheduler. Check `php artisan queue:failed` and `php artisan schedule:list`.
-4. Run `php artisan app:deployment-check --strict`. It checks configuration, database access and pending migrations, storage link, and writable directories, but it cannot prove external services are operating.
+4. Run `php artisan app:deployment-check --strict`. It checks configuration, database access and pending migrations, storage link, writable directories, and whether scheduled backups are enabled, but it cannot prove external services are operating.
 5. Manually verify a delivered password-reset email, customer/shop/admin workflows, image upload and display, HTTPS, payment review, and a database **backup plus restore into a separate disposable database**. Do not restore over production as a test. Run a short real-user usability session on desktop and mobile; automated browser checks cannot prove that the interface is easy to understand.
 6. On a private console, run `php artisan app:bootstrap-admin` to create the first production administrator. The local demo-account seeder intentionally does not create production users.
 

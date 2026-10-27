@@ -7,15 +7,36 @@ use Illuminate\Support\Facades\DB;
 uses(RefreshDatabase::class);
 
 it('reports insecure production configuration without changing application data', function () {
-    config(['app.url' => 'http://example.test', 'app.debug' => true, 'mail.default' => 'log', 'queue.default' => 'sync']);
+    config(['app.url' => 'http://example.test', 'app.debug' => true, 'mail.default' => 'log', 'queue.default' => 'sync', 'backup.enabled' => false]);
 
     expect(Artisan::call('app:deployment-check', ['--strict' => true]))->toBe(1);
     expect(Artisan::output())
         ->toContain('[FAIL] Application URL uses HTTPS')
         ->toContain('[FAIL] Debug output is disabled')
-        ->toContain('[FAIL] Mail transport is configured for delivery')
+        ->toContain('[FAIL] Mail transport is not a test sink')
         ->toContain('[FAIL] Queue uses a worker-backed connection')
+        ->toContain('[FAIL] Scheduled backups are enabled')
         ->toContain('backup and restore on disposable data');
+});
+
+it('recognizes an enabled scheduled backup in the strict preflight', function () {
+    config(['backup.enabled' => true]);
+
+    Artisan::call('app:deployment-check', ['--strict' => true]);
+
+    expect(Artisan::output())->toContain('[PASS] Scheduled backups are enabled');
+});
+
+it('rejects a mail failover that can silently send password resets to the log', function () {
+    config(['mail.default' => 'failover']);
+
+    expect(Artisan::call('app:deployment-check', ['--strict' => true]))->toBe(1);
+    expect(Artisan::output())->toContain('[FAIL] Mail transport is not a test sink');
+
+    config(['mail.default' => 'smtp']);
+    Artisan::call('app:deployment-check', ['--strict' => true]);
+
+    expect(Artisan::output())->toContain('[PASS] Mail transport is not a test sink');
 });
 
 it('reports a pending migration before deployment', function () {
