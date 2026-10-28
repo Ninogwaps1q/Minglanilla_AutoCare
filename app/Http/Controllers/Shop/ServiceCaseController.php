@@ -49,6 +49,9 @@ class ServiceCaseController extends Controller
             if (in_array($case->appointment?->status, ['confirmed', 'in_progress'], true)) {
                 throw ValidationException::withMessages(['status' => 'Finish or cancel the confirmed follow-up appointment before changing this case. Use Appointments for a time change.']);
             }
+            if ($case->appointment?->status === 'completed' && $nextStatus === 'scheduled') {
+                throw ValidationException::withMessages(['status' => 'The follow-up visit is complete. Respond to the customer and resolve the case, or ask them to open a new request if another visit is needed.']);
+            }
             $scheduledAt = null;
             if ($nextStatus === 'scheduled') {
                 if ($shop->verification_status !== 'approved' || $shop->shop_status !== 'active') {

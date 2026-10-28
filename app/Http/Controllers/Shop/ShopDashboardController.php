@@ -25,7 +25,7 @@ class ShopDashboardController extends Controller
                 'Active repairs' => $shop->repairJobs()->whereNotIn('status', ['completed', 'released', 'cancelled'])->count(),
                 'Low-stock parts' => $shop->spareParts()->whereColumn('quantity', '<=', 'minimum_stock')->count(),
             ],
-            'todayAppointments' => $shop->appointments()->with(['customer:id,name', 'vehicle:id,plate_number', 'service:id,name'])->whereDate('appointment_date', today())->orderBy('appointment_time')->limit(5)->get(),
+            'todayAppointments' => $shop->appointments()->with(['customer:id,name', 'vehicle:id,plate_number', 'service:id,name', 'serviceCase:id,appointment_id'])->whereDate('appointment_date', today())->orderBy('appointment_time')->limit(5)->get(),
             'activeRepairs' => $shop->repairJobs()->with(['customer:id,name', 'vehicle:id,plate_number'])->whereNotIn('status', ['completed', 'released', 'cancelled'])->latest()->limit(4)->get(),
             'pendingPaymentCount' => Payment::query()->where('shop_id', $shop->id)->where('status', 'pending')->count(),
             'confirmedAppointmentCount' => $shop->appointments()->where('status', 'confirmed')->whereDoesntHave('repairJob')->count(),

@@ -16,7 +16,7 @@ class ServiceOverviewController extends Controller
 
         return view('customer.services.index', [
             'appointments' => $customer->appointments()
-                ->with(['shop', 'vehicle', 'service'])
+                ->with(['shop', 'vehicle', 'service', 'serviceCase'])
                 ->whereIn('status', ['pending', 'confirmed', 'in_progress'])
                 ->orderBy('appointment_date')->limit(6)->get(),
             'repairs' => $customer->repairJobs()

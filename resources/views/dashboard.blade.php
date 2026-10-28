@@ -76,7 +76,7 @@
                             </div>
                             <div class="min-w-0">
                                 <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
-                                    <h3 class="h5 mb-0">{{ $nextAppointment->service->name }}</h3><span
+                                    <h3 class="h5 mb-0">{{ $nextAppointment->serviceCase ? 'Follow-up visit' : ($nextAppointment->service?->name ?? 'Vehicle service') }}</h3><span
                                         class="badge text-bg-{{ $nextAppointment->status === 'confirmed' ? 'success' : 'warning' }} text-capitalize">{{ $nextAppointment->status }}</span>
                                 </div>
                                 <p class="mb-1">{{ $nextAppointment->shop->name }}</p>

@@ -9,7 +9,7 @@
                 <div class="d-flex justify-content-between align-items-center gap-2 mb-3"><h2 class="h5 mb-0">Coming up</h2><a href="{{ route('customer.appointments.index') }}">All appointments</a></div>
                 @forelse($appointments as $appointment)
                     <article class="border rounded p-3 mb-2">
-                        <div class="d-flex justify-content-between gap-2"><strong>{{ $appointment->service?->name ?? 'Vehicle service' }}</strong><span class="badge text-bg-secondary">{{ ucfirst(str_replace('_', ' ', $appointment->status)) }}</span></div>
+                        <div class="d-flex justify-content-between gap-2"><strong>{{ $appointment->serviceCase ? 'Follow-up visit' : ($appointment->service?->name ?? 'Vehicle service') }}</strong><span class="badge text-bg-secondary">{{ ucfirst(str_replace('_', ' ', $appointment->status)) }}</span></div>
                         <p class="text-secondary small mb-0 mt-1">{{ $appointment->appointment_date->format('M j, Y') }} · {{ $appointment->shop->name }} · {{ $appointment->vehicle->plate_number }}</p>
                         <a class="small" href="{{ route('customer.appointments.index', ['focus' => $appointment->id]) }}">View booking and next step</a>
                     </article>

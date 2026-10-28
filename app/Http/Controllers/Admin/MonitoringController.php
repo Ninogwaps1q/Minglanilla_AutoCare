@@ -32,6 +32,14 @@ class MonitoringController extends Controller
             'quotations' => ['requested', 'sent'], 'invoices' => ['unpaid'],
             'payments' => ['pending'], 'emergencies' => ['pending'],
         ];
+        $detailRelations = [
+            'appointments' => ['vehicle:id,plate_number', 'service:id,name', 'serviceCase:id,appointment_id,subject', 'repairJob:id,appointment_id,job_number', 'statusHistories.changedBy:id,name'],
+            'repairs' => ['vehicle:id,plate_number', 'appointment:id,appointment_date,appointment_time', 'quotation:id,quotation_number,status', 'invoice:id,repair_job_id,invoice_number,status', 'statusHistories.changedBy:id,name'],
+            'quotations' => ['repairJob:id,job_number', 'approvalRecords.customer:id,name'],
+            'invoices' => ['repairJob:id,job_number', 'payments.reviewedBy:id,name'],
+            'payments' => ['invoice:id,invoice_number,status', 'reviewedBy:id,name'],
+            'emergencies' => ['vehicle:id,plate_number'],
+        ];
         $filters = $request->validate([
             'module' => ['nullable', Rule::in(array_keys($modules))],
             'search' => ['nullable', 'string', 'max:100'],
@@ -41,7 +49,7 @@ class MonitoringController extends Controller
         $module = $filters['module'] ?? 'appointments';
         [$label, $model, $shopRelation, $statuses] = $modules[$module];
         $request->validate(['status' => ['nullable', Rule::in($statuses)]]);
-        $records = $model::query()->with(['customer:id,name', $shopRelation.':id,name'])
+        $records = $model::query()->with(['customer:id,name', $shopRelation.':id,name', ...$detailRelations[$module]])
             ->when((bool) ($filters['attention'] ?? false), fn ($query) => $query
                 ->whereIn('status', $attentionStatuses[$module])
                 ->where('created_at', '<=', now()->subMinutes($module === 'emergencies' ? 10 : 1440)))
@@ -54,7 +62,7 @@ class MonitoringController extends Controller
                         $query->orWhere($referenceColumns[$module], 'like', '%'.$search.'%');
                     }
                     if (ctype_digit((string) $search)) {
-                        $query->orWhereKey((int) $search);
+                        $query->orWhere($query->getModel()->getQualifiedKeyName(), (int) $search);
                     }
                 });
             })->latest('id')->paginate(20)->withQueryString();

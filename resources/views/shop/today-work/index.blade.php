@@ -7,7 +7,7 @@
                 @forelse($appointments as $appointment)
                     <article class="border rounded p-3 mb-2">
                         <div class="d-flex justify-content-between gap-2"><strong>{{ $appointment->appointment_time->format('g:i A') }} · {{ $appointment->customer->name }}</strong><span class="badge text-bg-secondary">{{ ucfirst(str_replace('_', ' ', $appointment->status)) }}</span></div>
-                        <p class="text-secondary small mb-2">{{ $appointment->vehicle->plate_number }} · {{ $appointment->service?->name ?? 'Vehicle service' }}</p>
+                        <p class="text-secondary small mb-2">{{ $appointment->vehicle->plate_number }} · {{ $appointment->serviceCase ? 'Follow-up visit' : ($appointment->service?->name ?? 'Vehicle service') }}</p>
                         <a href="{{ $appointment->repairJob ? route('shop.repair-jobs.index', ['appointment_id' => $appointment->id]) : route('shop.appointments.index') }}">{{ $appointment->repairJob ? 'Open repair' : 'Manage appointment' }}</a>
                     </article>
                 @empty<p class="text-secondary mb-0">No visits scheduled today.</p>@endforelse

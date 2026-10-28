@@ -56,6 +56,10 @@ it('keeps an appointment in progress until its repair is completed', function ()
 
     $job = RepairJob::query()->where('appointment_id', $appointment->id)->firstOrFail();
     expect($appointment->fresh()->status)->toBe('in_progress');
+    $this->assertDatabaseHas('appointment_status_histories', [
+        'appointment_id' => $appointment->id, 'from_status' => 'confirmed',
+        'to_status' => 'in_progress',
+    ]);
 
     $quotation = Quotation::query()->create([
         'customer_id' => $fixture['customer']->id, 'shop_id' => $fixture['shop']->id,
@@ -72,6 +76,10 @@ it('keeps an appointment in progress until its repair is completed', function ()
 
     $this->patch(route('shop.repair-jobs.update', $job), ['status' => 'completed', 'actual_cost' => 500])->assertRedirect();
     expect($appointment->fresh()->status)->toBe('completed');
+    $this->assertDatabaseHas('appointment_status_histories', [
+        'appointment_id' => $appointment->id, 'from_status' => 'in_progress',
+        'to_status' => 'completed',
+    ]);
     expect($job->fresh()->completed_at)->not->toBeNull();
     $this->assertDatabaseHas('vehicle_service_records', ['repair_job_id' => $job->id, 'total_cost' => 500]);
 });

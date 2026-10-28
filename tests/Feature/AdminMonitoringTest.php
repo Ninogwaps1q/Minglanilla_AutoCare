@@ -1,9 +1,11 @@
 <?php
 
+use App\Models\Appointment;
 use App\Models\Barangay;
 use App\Models\Invoice;
 use App\Models\Shop;
 use App\Models\User;
+use App\Models\Vehicle;
 use App\Services\AI\AiServiceStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -40,6 +42,28 @@ it('filters persisted invoices by status and customer while escaping names', fun
         ->get(route('admin.monitoring.index', ['module' => 'invoices', 'status' => 'paid', 'search' => 'monitor']))
         ->assertSee('AUDIT-paid')->assertDontSee('AUDIT-unpaid')
         ->assertSee('<script>monitor</script>')->assertDontSee('<script>monitor</script>', false);
+});
+
+it('shows read-only appointment details and a linked status timeline', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $customer = User::factory()->create(['role' => 'customer']);
+    $shop = Shop::factory()->create();
+    $vehicle = Vehicle::factory()->create(['customer_id' => $customer->id, 'plate_number' => 'MON-1234']);
+    $appointment = Appointment::query()->create([
+        'customer_id' => $customer->id, 'shop_id' => $shop->id,
+        'vehicle_id' => $vehicle->id, 'appointment_date' => today()->addDay(),
+        'appointment_time' => '10:00', 'status' => 'confirmed',
+    ]);
+    $appointment->statusHistories()->create([
+        'from_status' => 'pending', 'to_status' => 'confirmed',
+        'changed_by' => $shop->owner_id, 'changed_at' => now(),
+    ]);
+
+    $this->actingAs($admin)->get(route('admin.monitoring.index', [
+        'module' => 'appointments', 'search' => (string) $appointment->id,
+    ]))->assertOk()->assertSee('View record #'.$appointment->id.' details and timeline')
+        ->assertSee('MON-1234')->assertSee('Status history')
+        ->assertSee('This view is read-only.');
 });
 
 it('rejects unsupported monitoring modules and statuses', function () {

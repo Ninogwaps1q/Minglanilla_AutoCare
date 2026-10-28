@@ -76,7 +76,7 @@
                     <div class="workspace-list">@forelse ($todayAppointments as $appointment)
                         <article><time>{{ $appointment->appointment_time->format('g:i A') }}</time>
                             <div>
-                                <h3>{{ $appointment->service?->name ?? 'General service' }}</h3>
+                                <h3>{{ $appointment->serviceCase ? 'Follow-up visit' : ($appointment->service?->name ?? 'General service') }}</h3>
                                 <p>{{ $appointment->customer->name }} · {{ $appointment->vehicle->plate_number }}</p>
                             </div><span
                                 class="badge text-bg-{{ $appointment->status === 'confirmed' ? 'success' : 'warning' }} text-capitalize">{{ $appointment->status }}</span>

@@ -123,6 +123,10 @@ class RepairJobController extends Controller
             $repairJob->statusHistories()->create(['to_status' => 'pending', 'changed_by' => $request->user()->id, 'changed_at' => now()]);
 
             $appointment->update(['status' => 'in_progress']);
+            $appointment->statusHistories()->create([
+                'from_status' => 'confirmed', 'to_status' => 'in_progress',
+                'changed_by' => $request->user()->id, 'changed_at' => now(),
+            ]);
 
             return $repairJob;
         });
@@ -222,7 +226,23 @@ class RepairJobController extends Controller
             if ($repairJob->status === 'cancelled') {
                 $repairJob->supplementalQuotations()->where('status', 'sent')->update(['status' => 'expired']);
                 $inventory->releaseForJob($repairJob);
-                $repairJob->appointment?->update(['status' => 'cancelled']);
+                $appointment = $repairJob->appointment;
+                if ($appointment && $appointment->status !== 'cancelled') {
+                    $previousAppointmentStatus = $appointment->status;
+                    $appointment->update(['status' => 'cancelled']);
+                    $appointment->statusHistories()->create([
+                        'from_status' => $previousAppointmentStatus, 'to_status' => 'cancelled',
+                        'changed_by' => $request->user()->id, 'changed_at' => now(),
+                    ]);
+                }
+                if ($appointment?->serviceCase) {
+                    $case = $appointment->serviceCase;
+                    $case->update(['status' => 'reviewing', 'scheduled_at' => null, 'schedule_status' => 'cancelled', 'appointment_id' => null]);
+                    $case->events()->create([
+                        'actor_id' => $request->user()->id, 'from_status' => 'scheduled',
+                        'to_status' => 'reviewing', 'note' => 'Follow-up repair was cancelled. A new visit time is needed.',
+                    ]);
+                }
             }
             if (in_array($repairJob->status, ['completed', 'released', 'cancelled'], true)) {
                 $repairJob->technicianAssignments()->whereNull('completed_at')->update(['completed_at' => now()]);
@@ -242,7 +262,15 @@ class RepairJobController extends Controller
                 if ($repairJob->completed_at === null) {
                     $repairJob->update(['completed_at' => now()]);
                 }
-                $repairJob->appointment?->update(['status' => 'completed']);
+                $appointment = $repairJob->appointment;
+                if ($appointment && $appointment->status !== 'completed') {
+                    $previousAppointmentStatus = $appointment->status;
+                    $appointment->update(['status' => 'completed']);
+                    $appointment->statusHistories()->create([
+                        'from_status' => $previousAppointmentStatus, 'to_status' => 'completed',
+                        'changed_by' => $request->user()->id, 'changed_at' => now(),
+                    ]);
+                }
                 $parts = $repairJob->items()->where('type', 'part')->orderBy('id')->get(['description', 'quantity', 'subtotal']);
                 $partsCost = round((float) $parts->sum('subtotal'), 2);
                 $totalCost = (float) ($repairJob->actual_cost ?? 0);

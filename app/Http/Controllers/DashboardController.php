@@ -37,7 +37,7 @@ class DashboardController extends Controller
 
         if ($user->role === 'customer') {
             $viewData += [
-                'nextAppointment' => $user->appointments()->with(['shop:id,name', 'service:id,name', 'vehicle:id,plate_number'])->whereIn('status', ['pending', 'confirmed'])->whereDate('appointment_date', '>=', today())->orderBy('appointment_date')->orderBy('appointment_time')->first(),
+                'nextAppointment' => $user->appointments()->with(['shop:id,name', 'service:id,name', 'serviceCase:id,appointment_id', 'vehicle:id,plate_number'])->whereIn('status', ['pending', 'confirmed'])->whereDate('appointment_date', '>=', today())->orderBy('appointment_date')->orderBy('appointment_time')->first(),
                 'activeRepair' => $user->repairJobs()->with(['shop:id,name', 'vehicle:id,plate_number'])->whereNotIn('status', ['completed', 'released', 'cancelled'])->latest()->first(),
                 'primaryVehicle' => $user->vehicles()->latest()->first(),
                 'unpaidInvoiceCount' => $user->invoices()->where('status', 'unpaid')->count(),

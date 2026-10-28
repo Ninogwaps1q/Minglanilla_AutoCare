@@ -9,6 +9,7 @@ use App\Http\Requests\UpdateTechnicianRequest;
 use App\Models\RepairJob;
 use App\Models\Shop;
 use App\Models\Technician;
+use App\Services\AppointmentSchedule;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,8 +24,10 @@ class TechnicianController extends Controller
         $shop = $this->shop($request);
 
         return view('shop.technicians.index', [
-            'technicians' => $shop->technicians()->withCount('activeAssignments')->orderBy('name')->get(),
-            'repairJobs' => $shop->repairJobs()->whereNotIn('status', ['completed', 'released', 'cancelled'])->latest()->get(),
+            'technicians' => $shop->technicians()->withCount('activeAssignments')
+                ->with('activeAssignments.repairJob.appointment')->orderBy('name')->get(),
+            'repairJobs' => $shop->repairJobs()->whereNotIn('status', ['completed', 'released', 'cancelled'])
+                ->with('appointment')->latest()->get(),
         ]);
     }
 
@@ -57,16 +60,37 @@ class TechnicianController extends Controller
         return back()->with('status', 'Technician updated.');
     }
 
-    public function assign(AssignTechnicianRequest $request, RepairJob $repairJob): RedirectResponse
+    public function assign(AssignTechnicianRequest $request, RepairJob $repairJob, AppointmentSchedule $schedule): RedirectResponse
     {
         $shop = $this->shop($request);
         abort_unless($repairJob->shop_id === $shop->id, 404);
         abort_if(in_array($repairJob->status, ['completed', 'released', 'cancelled'], true), 409, 'This repair job is closed.');
-        $technician = DB::transaction(function () use ($shop, $request, $repairJob): Technician {
+        $technician = DB::transaction(function () use ($shop, $request, $repairJob, $schedule): Technician {
             $technician = $shop->technicians()->whereKey($request->integer('technician_id'))->where('status', 'active')->lockForUpdate()->firstOrFail();
             $alreadyAssigned = $repairJob->technicianAssignments()->where('technician_id', $technician->id)->whereNull('completed_at')->exists();
             if (! $alreadyAssigned && $technician->activeAssignments()->count() >= $technician->max_active_jobs) {
                 throw ValidationException::withMessages(['technician_id' => "{$technician->name} has reached their active job limit. Choose another technician or adjust the team's capacity."]);
+            }
+            $appointment = $repairJob->appointment;
+            if (! $alreadyAssigned && $appointment && $appointment->appointment_date->toDateString() >= today()->toDateString()) {
+                $duration = (int) ($appointment->duration_minutes ?: $appointment->service?->estimated_duration ?: 60);
+                $otherAssignments = $technician->activeAssignments()->where('repair_job_id', '!=', $repairJob->id)
+                    ->with('repairJob.appointment.service')->get();
+                foreach ($otherAssignments as $assignment) {
+                    $other = $assignment->repairJob?->appointment;
+                    if (! $other || $other->appointment_date->toDateString() !== $appointment->appointment_date->toDateString()) {
+                        continue;
+                    }
+                    $start = ((int) $other->appointment_time->format('H')) * 60 + (int) $other->appointment_time->format('i');
+                    $otherDuration = (int) ($other->duration_minutes ?: $other->service?->estimated_duration ?: 60);
+                    if (! $schedule->hasCapacity([
+                        ['start' => $start, 'end' => $start + $otherDuration],
+                    ], $appointment->appointment_time->format('H:i'), $duration, 1)) {
+                        throw ValidationException::withMessages([
+                            'technician_id' => "{$technician->name} is already assigned to another repair during this appointment. Choose another technician or a different visit time.",
+                        ]);
+                    }
+                }
             }
             $repairJob->technicianAssignments()->updateOrCreate(['technician_id' => $technician->id], ['assigned_at' => now(), 'completed_at' => null, 'notes' => $request->validated('notes')]);
 

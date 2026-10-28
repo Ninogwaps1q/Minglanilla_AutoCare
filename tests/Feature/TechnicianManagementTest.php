@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Appointment;
 use App\Models\Barangay;
 use App\Models\Quotation;
 use App\Models\RepairJob;
@@ -42,6 +43,47 @@ it('rejects inactive or invalid technicians for assignment', function () {
     $inactive = $fixture['shop']->technicians()->create(['name' => 'Inactive tech', 'experience_years' => 2, 'status' => 'inactive']);
     $this->actingAs($fixture['owner'])->post(route('shop.technicians.assign', $fixture['job']), ['technician_id' => $inactive->id])->assertNotFound();
     $this->actingAs($fixture['owner'])->post(route('shop.technicians.store'), ['name' => '', 'experience_years' => 81, 'status' => 'unknown'])->assertSessionHasErrors(['name', 'experience_years', 'status']);
+});
+
+it('prevents a technician from taking overlapping future repair appointments', function () {
+    $fixture = technicianFixture();
+    $shop = $fixture['shop'];
+    $job = $fixture['job'];
+    $technician = $shop->technicians()->create([
+        'name' => 'Ria Santos', 'experience_years' => 4,
+        'status' => 'active', 'max_active_jobs' => 3,
+    ]);
+    $date = today()->addDays(2)->toDateString();
+    $firstAppointment = Appointment::query()->create([
+        'customer_id' => $job->customer_id, 'shop_id' => $shop->id,
+        'vehicle_id' => $job->vehicle_id, 'appointment_date' => $date,
+        'appointment_time' => '10:00', 'duration_minutes' => 90, 'status' => 'confirmed',
+    ]);
+    $job->update(['appointment_id' => $firstAppointment->id]);
+    $otherAppointment = Appointment::query()->create([
+        'customer_id' => $job->customer_id, 'shop_id' => $shop->id,
+        'vehicle_id' => $job->vehicle_id, 'appointment_date' => $date,
+        'appointment_time' => '11:00', 'duration_minutes' => 60, 'status' => 'confirmed',
+    ]);
+    $otherJob = $shop->repairJobs()->create([
+        'customer_id' => $job->customer_id, 'vehicle_id' => $job->vehicle_id,
+        'appointment_id' => $otherAppointment->id, 'job_number' => 'RJ-TECH-OVERLAP',
+        'description' => 'Second inspection', 'status' => 'repairing',
+    ]);
+    $this->actingAs($fixture['owner'])->post(route('shop.technicians.assign', $job), [
+        'technician_id' => $technician->id,
+    ])->assertRedirect()->assertSessionHasNoErrors();
+    $this->post(route('shop.technicians.assign', $otherJob), [
+        'technician_id' => $technician->id,
+    ])->assertSessionHasErrors('technician_id');
+    $this->assertDatabaseMissing('technician_assignments', [
+        'technician_id' => $technician->id, 'repair_job_id' => $otherJob->id,
+    ]);
+    $otherAppointment->update(['appointment_time' => '12:00']);
+    $this->post(route('shop.technicians.assign', $otherJob), [
+        'technician_id' => $technician->id,
+    ])->assertRedirect()->assertSessionHasNoErrors();
+    $this->get(route('shop.technicians.index'))->assertOk()->assertSee('12:00 PM');
 });
 
 /** @return array{owner: User, shop: Shop, job: RepairJob} */

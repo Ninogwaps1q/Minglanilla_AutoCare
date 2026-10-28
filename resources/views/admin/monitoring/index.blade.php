@@ -59,6 +59,11 @@
                     </td>
                     <td>{{ $record->created_at?->format('M j, Y H:i') }}</td>
                 </tr>
+                <tr>
+                    <td colspan="6" class="pt-0">
+                        @include('admin.monitoring.record-detail', ['record' => $record, 'module' => $module])
+                    </td>
+                </tr>
             @empty
                 <tr><td colspan="6" class="p-4 text-secondary">No records match these filters.</td></tr>
             @endforelse

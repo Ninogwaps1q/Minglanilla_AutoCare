@@ -15,7 +15,7 @@ class TodayWorkController extends Controller
 
         return view('shop.today-work.index', [
             'appointments' => $shop->appointments()->whereDate('appointment_date', today())
-                ->with(['customer', 'vehicle', 'service', 'repairJob'])
+                ->with(['customer', 'vehicle', 'service', 'serviceCase', 'repairJob'])
                 ->orderBy('appointment_time')->get(),
             'repairs' => $shop->repairJobs()->whereNotIn('status', ['completed', 'released', 'cancelled'])
                 ->with(['customer', 'vehicle', 'quotation'])->latest()->get(),

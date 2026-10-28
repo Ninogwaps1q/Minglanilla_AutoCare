@@ -88,6 +88,7 @@ it('issues an explicit warranty and tracks a customer follow-up through the shop
         'shop_id' => $shop->id, 'vehicle_id' => $job->vehicle_id,
     ]);
     $this->actingAs($customer)->get(route('customer.appointments.index'))->assertOk()->assertSee('Follow-up visit');
+    $this->get(route('dashboard'))->assertOk()->assertSee('Follow-up visit');
     $this->actingAs($owner)->get(route('shop.appointments.index'))->assertOk()->assertSee('Follow-up visit');
     $this->get(route('shop.repair-jobs.create'))->assertOk()->assertSee('Follow-up visit');
     $this->actingAs($customer)->get(route('customer.services.index'))

@@ -15,7 +15,14 @@
     </form>
     <div class="surface table-responsive mb-4"><table class="table align-middle mb-0"><caption class="visually-hidden">Technician roster</caption><thead><tr><th scope="col">Technician</th><th scope="col">Specialization</th><th scope="col">Experience</th><th scope="col">Active assignments</th><th scope="col">Status</th></tr></thead><tbody>
         @forelse ($technicians as $technician)
-            <tr><td><div class="d-flex align-items-center gap-3"><x-uploaded-image class="technician-avatar" :path="$technician->photo" :alt="$technician->name.' photo'" fallback-icon="person" /><div><strong>{{ $technician->name }}</strong><br><span class="small text-secondary">{{ $technician->phone }}</span></div></div></td><td>{{ $technician->specialization ?: 'General service' }}</td><td>{{ $technician->experience_years }} years</td><td>{{ $technician->active_assignments_count }} / {{ $technician->max_active_jobs }}</td><td>{{ ucfirst($technician->status) }}</td></tr>
+            <tr><td><div class="d-flex align-items-center gap-3"><x-uploaded-image class="technician-avatar" :path="$technician->photo" :alt="$technician->name.' photo'" fallback-icon="person" /><div><strong>{{ $technician->name }}</strong><br><span class="small text-secondary">{{ $technician->phone }}</span></div></div></td><td>{{ $technician->specialization ?: 'General service' }}</td><td>{{ $technician->experience_years }} years</td><td>
+                <strong>{{ $technician->active_assignments_count }} / {{ $technician->max_active_jobs }}</strong>
+                @php($upcomingVisits = $technician->activeAssignments->filter(fn ($assignment) => $assignment->repairJob?->appointment?->appointment_date?->toDateString() >= today()->toDateString())->take(3))
+                @foreach($upcomingVisits as $assignment)
+                    <span class="d-block small text-secondary">{{ $assignment->repairJob->appointment->appointment_date->format('M j') }} at {{ $assignment->repairJob->appointment->appointment_time->format('g:i A') }} · {{ $assignment->repairJob->job_number }}</span>
+                @endforeach
+                @if($technician->active_assignments_count >= $technician->max_active_jobs)<span class="d-block small text-danger">At capacity</span>@endif
+            </td><td>{{ ucfirst($technician->status) }}</td></tr>
             <tr><td colspan="5"><details><summary>Edit {{ $technician->name }} and capacity</summary>
                 <form method="POST" enctype="multipart/form-data" action="{{ route('shop.technicians.update', $technician) }}" class="row g-2 align-items-end mt-2">@csrf @method('PATCH')
                     <div class="col-md-3"><label class="form-label">Name<input class="form-control" name="name" value="{{ $technician->name }}" required></label></div>
@@ -30,7 +37,7 @@
             </details></td></tr>
         @empty<tr><td colspan="5" class="p-4">No technicians added yet.</td></tr>@endforelse
     </tbody></table></div>
-    <p class="small text-secondary">To change a technician's job limit, update their roster details. Assignment is blocked when the limit is reached.</p>
+    <p class="small text-secondary">Active-job limits and overlapping booked visit times are checked before assignment. Jobs without appointment times still count toward the active-job limit.</p>
     <h2 class="h4">Assign to repair jobs</h2>
     @forelse ($repairJobs as $repairJob)
         <article class="surface p-3 mb-3"><div class="d-flex justify-content-between"><strong>{{ $repairJob->job_number }}</strong><span>{{ $repairJob->status }}</span></div><p class="mb-3">{{ $repairJob->description }}</p><form method="POST" action="{{ route('shop.technicians.assign', $repairJob) }}" class="row g-2 align-items-end">@csrf<div class="col-md-5"><label class="form-label" for="technician-{{ $repairJob->id }}">Technician</label><select id="technician-{{ $repairJob->id }}" class="form-select" name="technician_id" required><option value="">Choose technician</option>@foreach ($technicians->where('status', 'active') as $technician)<option value="{{ $technician->id }}" @disabled($technician->active_assignments_count >= $technician->max_active_jobs)>{{ $technician->name }} · {{ $technician->active_assignments_count }}/{{ $technician->max_active_jobs }} active jobs{{ $technician->active_assignments_count >= $technician->max_active_jobs ? ' (full)' : '' }}</option>@endforeach</select></div><div class="col-md-5"><label class="form-label" for="assignment-notes-{{ $repairJob->id }}">Assignment notes (optional)</label><input id="assignment-notes-{{ $repairJob->id }}" class="form-control" name="notes" maxlength="1000" placeholder="Instructions for the technician"></div><div class="col-md-2"><button class="btn btn-outline-primary w-100" type="submit">Assign technician</button></div></form></article>
