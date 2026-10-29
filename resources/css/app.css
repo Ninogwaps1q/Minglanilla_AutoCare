@@ -3177,6 +3177,18 @@ body {
     min-height: 2.75rem;
 }
 
+html:not([data-theme="dark"]) .report-date-presets .btn.active {
+    --bs-btn-color: #ffffff;
+    --bs-btn-bg: var(--bs-primary);
+    --bs-btn-border-color: var(--bs-primary);
+    --bs-btn-hover-color: #ffffff;
+    --bs-btn-hover-bg: #1d4ed8;
+    --bs-btn-hover-border-color: #1d4ed8;
+    --bs-btn-active-color: #ffffff;
+    --bs-btn-active-bg: #1e40af;
+    --bs-btn-active-border-color: #1e40af;
+}
+
 .report-empty-note {
     padding: .75rem 1rem;
     border-radius: .75rem;
