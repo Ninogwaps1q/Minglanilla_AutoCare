@@ -29,7 +29,7 @@
     <p class="small text-secondary">{{ number_format($users->total()) }} {{ $users->total() === 1 ? 'account' : 'accounts' }} found.</p>
     <div class="surface overflow-hidden">
         <div class="table-responsive">
-            <table class="table align-middle mb-0">
+            <table class="table align-middle mb-0 stacked-mobile-table">
                 <thead>
                     <tr>
                         <th>User</th>
@@ -41,19 +41,19 @@
                 </thead>
                 <tbody>@forelse($users as $managedUser)
                     <tr>
-                        <td><strong>{{ $managedUser->name }}</strong><br><span
+                        <td data-label="User"><strong>{{ $managedUser->name }}</strong><br><span
                                 class="small text-secondary">{{ $managedUser->email }}</span></td>
-                        <td class="text-capitalize">{{ str_replace('_', ' ', $managedUser->role) }}</td>
-                        <td><span
+                        <td data-label="Role" class="text-capitalize">{{ str_replace('_', ' ', $managedUser->role) }}</td>
+                        <td data-label="Status"><span
                                 class="badge text-bg-{{ $managedUser->status === 'active' ? 'success' : 'secondary' }} text-capitalize">{{ $managedUser->status }}</span>
                         </td>
-                        <td>{{ $managedUser->created_at->format('M j, Y') }}</td>
-                        <td class="text-end">@if(!$managedUser->isAdmin())
+                        <td data-label="Joined">{{ $managedUser->created_at->format('M j, Y') }}</td>
+                        <td data-label="Access" class="text-end">@if(!$managedUser->isAdmin())
                             <form method="POST" action="{{ route('admin.users.update', $managedUser) }}">@csrf
                                 @method('PATCH')<button
                                     class="btn btn-sm btn-{{ $managedUser->status === 'active' ? 'outline-danger' : 'success' }}"
                                     name="status"
-                                    value="{{ $managedUser->status === 'active' ? 'suspended' : 'active' }}">{{ $managedUser->status === 'active' ? 'Suspend' : 'Reactivate' }}</button>
+                                    value="{{ $managedUser->status === 'active' ? 'suspended' : 'active' }}" aria-label="{{ $managedUser->status === 'active' ? 'Suspend' : 'Reactivate' }} {{ $managedUser->name }}">{{ $managedUser->status === 'active' ? 'Suspend' : 'Reactivate' }}</button>
                         </form>@else<span class="text-secondary small">Administrator</span>@endif
                         </td>
                 </tr>@empty<tr>

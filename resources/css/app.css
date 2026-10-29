@@ -2623,6 +2623,63 @@ h4 {
 }
 
 @media (max-width: 767.98px) {
+    .portal-content .monitoring-module-nav {
+        flex-wrap: nowrap !important;
+        overflow-x: auto;
+        margin-inline: -.5rem;
+        padding: .125rem .5rem .65rem;
+        scrollbar-width: thin;
+    }
+
+    .portal-content .monitoring-module-nav .btn {
+        flex: 0 0 auto;
+        white-space: nowrap;
+    }
+
+    .portal-content table.stacked-mobile-table {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .portal-content .stacked-mobile-table thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+    }
+
+    .portal-content .stacked-mobile-table tbody tr {
+        display: block;
+        padding: .75rem 1rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .portal-content .stacked-mobile-table tbody tr:last-child {
+        border-bottom: 0;
+    }
+
+    .portal-content .stacked-mobile-table tbody tr > * {
+        display: block;
+        width: 100%;
+        padding: .45rem 0;
+        border: 0;
+        text-align: left !important;
+        overflow-wrap: anywhere;
+    }
+
+    .portal-content .stacked-mobile-table tbody tr > [data-label]::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: .25rem;
+        color: var(--muted);
+        font-size: .75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .02em;
+    }
+
     .portal-content .page-heading {
         margin-bottom: 1.5rem;
     }
@@ -2633,6 +2690,18 @@ h4 {
 
     .portal-content .surface>.table-responsive {
         margin-inline: -.25rem;
+    }
+
+    .portal-content .table-responsive.is-scrollable::before {
+        content: "Swipe sideways for more columns";
+        display: block;
+        position: sticky;
+        left: 0;
+        width: max-content;
+        padding: .4rem .75rem;
+        color: var(--muted);
+        font-size: .75rem;
+        font-weight: 650;
     }
 
     .portal-content .table {

@@ -45,7 +45,7 @@
 
     <div class="surface overflow-hidden">
         <div class="table-responsive">
-            <table class="table align-middle mb-0">
+            <table class="table align-middle mb-0 stacked-mobile-table">
                 <thead>
                     <tr>
                         <th scope="col">Part</th>
@@ -58,15 +58,15 @@
                 <tbody>
                     @forelse ($parts as $part)
                         <tr>
-                            <th scope="row"><strong>{{ $part->name }}</strong><br><span
+                            <th scope="row" data-label="Part"><strong>{{ $part->name }}</strong><br><span
                                     class="text-secondary small">{{ $part->brand }} {{ $part->part_number }}</span></th>
-                            <td><strong>{{ $part->quantity }}</strong> on hand<br><span
+                            <td data-label="Stock"><strong>{{ $part->quantity }}</strong> on hand<br><span
                                     class="small text-secondary">{{ (int) $part->reserved_units }} reserved ·
                                     {{ max(0, $part->quantity - (int) $part->reserved_units) }} available</span><br><span
                                     class="small {{ $part->quantity <= $part->minimum_stock ? 'text-danger fw-semibold' : 'text-secondary' }}">Minimum
                                     {{ $part->minimum_stock }}</span></td>
-                            <td><span class="small text-secondary">Cost:</span> PHP {{ number_format($part->purchase_price, 2) }}<br><span class="small text-secondary">Selling:</span> PHP {{ number_format($part->selling_price, 2) }}</td>
-                            <td>
+                            <td data-label="Prices"><span class="small text-secondary">Cost:</span> PHP {{ number_format($part->purchase_price, 2) }}<br><span class="small text-secondary">Selling:</span> PHP {{ number_format($part->selling_price, 2) }}</td>
+                            <td data-label="Adjust stock">
                                 <form method="POST" action="{{ route('shop.inventory.adjust', $part) }}"
                                     class="d-flex flex-wrap align-items-end gap-2">
                                     @csrf @method('PATCH')
@@ -75,10 +75,10 @@
                                         <input id="adjust-{{ $part->id }}" class="form-control form-control-sm"
                                             type="number" name="quantity" placeholder="e.g. +5 or -2" required>
                                     </div>
-                                    <button class="btn btn-sm btn-outline-primary" type="submit">Update stock</button>
+                                    <button class="btn btn-sm btn-outline-primary" type="submit" aria-label="Update stock for {{ $part->name }}">Update stock</button>
                                 </form>
                             </td>
-                            <td>
+                            <td data-label="Use for repair">
                                 @if ($part->quantity - (int) $part->reserved_units > 0 && $repairJobs->isNotEmpty())
                                     <form method="POST" action="{{ route('shop.inventory.consume', $part) }}"
                                         class="d-flex flex-wrap align-items-end gap-2">
@@ -98,7 +98,7 @@
                                                 max="{{ max(0, $part->quantity - (int) $part->reserved_units) }}"
                                                 placeholder="Units" required>
                                         </div>
-                                        <button class="btn btn-sm btn-outline-primary" type="submit">Record usage</button>
+                                        <button class="btn btn-sm btn-outline-primary" type="submit" aria-label="Record usage of {{ $part->name }}">Record usage</button>
                                     </form>
                                 @else
                                     <span

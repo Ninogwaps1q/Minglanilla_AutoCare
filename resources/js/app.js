@@ -78,11 +78,35 @@ document.querySelectorAll('input[type="password"]').forEach((input) => {
     wrapper.append(button);
 });
 
-document.querySelectorAll('.table-responsive').forEach((table) => {
-    table.tabIndex = 0;
-    table.setAttribute('role', 'region');
-    table.setAttribute('aria-label', 'Scrollable table');
-});
+const responsiveTables = [...document.querySelectorAll('.table-responsive')];
+function updateResponsiveTables() {
+    responsiveTables.forEach((wrapper) => {
+        const isScrollable = wrapper.scrollWidth > wrapper.clientWidth + 1;
+        wrapper.classList.toggle('is-scrollable', isScrollable);
+        if (isScrollable) {
+            const title = wrapper.querySelector('caption')?.textContent?.trim()
+                || wrapper.closest('section')?.querySelector('h2, h3')?.textContent?.trim()
+                || document.querySelector('.page-heading h1')?.textContent?.trim()
+                || 'Data table';
+            wrapper.tabIndex = 0;
+            wrapper.setAttribute('role', 'region');
+            if (!wrapper.hasAttribute('aria-label')) {
+                wrapper.setAttribute('aria-label', title + ' (scrollable table)');
+                wrapper.dataset.automaticTableLabel = 'true';
+            }
+        } else {
+            wrapper.removeAttribute('tabindex');
+            wrapper.removeAttribute('role');
+            if (wrapper.dataset.automaticTableLabel) {
+                wrapper.removeAttribute('aria-label');
+                delete wrapper.dataset.automaticTableLabel;
+            }
+        }
+    });
+}
+updateResponsiveTables();
+window.addEventListener('resize', updateResponsiveTables);
+document.fonts?.ready.then(updateResponsiveTables);
 
 document.querySelectorAll('form').forEach((form) => {
     form.addEventListener('submit', (event) => {
@@ -100,6 +124,10 @@ document.querySelectorAll('form').forEach((form) => {
         }
 
         const submitter = event.submitter;
+        if (form.method.toUpperCase() === 'GET') {
+            return;
+        }
+
         if (submitter instanceof HTMLButtonElement && !submitter.dataset.noLoading) {
             if (submitter.name) {
                 // Disabled buttons are omitted from the form payload, so preserve the clicked action.
@@ -107,14 +135,30 @@ document.querySelectorAll('form').forEach((form) => {
                 submittedAction.type = 'hidden';
                 submittedAction.name = submitter.name;
                 submittedAction.value = submitter.value;
+                submittedAction.dataset.submittedAction = 'true';
                 form.append(submittedAction);
             }
             submitter.disabled = true;
             submitter.setAttribute('aria-busy', 'true');
             submitter.dataset.originalLabel = submitter.innerHTML;
-            submitter.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span><span>Saving…</span>';
+            const action = submitter.textContent.trim();
+            const progress = /^(send|reply)/i.test(action) ? 'Sending…'
+                : /^(remove|delete)/i.test(action) ? 'Removing…'
+                    : /^(approve|reject|verify|confirm|dismiss|mark|complete)/i.test(action) ? 'Updating…'
+                        : 'Saving…';
+            submitter.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span><span>' + progress + '</span>';
         }
     });
+});
+
+window.addEventListener('pageshow', () => {
+    document.querySelectorAll('button[data-original-label]').forEach((button) => {
+        button.innerHTML = button.dataset.originalLabel;
+        button.disabled = false;
+        button.removeAttribute('aria-busy');
+        delete button.dataset.originalLabel;
+    });
+    document.querySelectorAll('input[data-submitted-action]').forEach((input) => input.remove());
 });
 
 document.querySelectorAll('input[type="file"]').forEach((input) => {

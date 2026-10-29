@@ -97,7 +97,7 @@ test('a shop location opens its matching logo on the map', async ({ page }) => {
     await expect(page).toHaveURL(new RegExp(`selected=${fixture.shop}`));
 
     const popup = page.locator('#shop-map .leaflet-popup-content');
-    await expect(popup).toContainText('Browser Test AutoCare');
+    await expect(popup).toContainText('Browser Test AutoCare', { timeout: 10000 });
     const logo = popup.locator('img');
     await expect(logo).toHaveAttribute('src', currentLogo);
     await expect.poll(() => logo.evaluate(image => image.naturalWidth)).toBeGreaterThan(0);

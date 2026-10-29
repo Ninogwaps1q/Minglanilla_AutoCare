@@ -79,6 +79,9 @@ test('maintenance setup stays compact and restores the submitted schedule after 
     await expect(reminder).not.toHaveAttribute('open');
     await expect(schedule).not.toHaveAttribute('open');
     await expect(page.getByRole('heading', { name: 'Upcoming reminders' })).toBeVisible();
+    if (testInfo.project.name !== 'desktop') {
+        expect(await page.locator('table.stacked-mobile-table').first().evaluate(table => table.scrollWidth <= table.clientWidth + 1)).toBe(true);
+    }
     await captureWorkspaceThemes(page, testInfo, 'maintenance');
     await schedule.locator('summary').click();
     await schedule.getByLabel('Last service mileage (km)').fill('0');
@@ -105,6 +108,10 @@ test('shop setup forms expand on demand and service fields have usable labels', 
     ]) {
         await page.goto(path);
         await captureWorkspaceThemes(page, testInfo, path.split('/').pop());
+        if (path === '/shop/inventory' && testInfo.project.name !== 'desktop') {
+            expect(await page.locator('table.stacked-mobile-table').evaluate(table => table.scrollWidth <= table.clientWidth + 1)).toBe(true);
+            await expect(page.getByRole('button', { name: 'Update stock for Browser Brake Pad' })).toBeVisible();
+        }
         const setup = page.locator('.workspace-disclosure');
         const wasOpen = await setup.getAttribute('open') !== null;
         if (!wasOpen) await setup.locator('summary').click();
@@ -114,6 +121,8 @@ test('shop setup forms expand on demand and service fields have usable labels', 
         await expect(setup.locator('summary')).toHaveText(summary);
     }
     await page.goto('/shop/services');
+    const serviceSetup = page.locator('.workspace-disclosure');
+    if (await serviceSetup.getAttribute('open') === null) await serviceSetup.locator('summary').click();
     await expect(page.getByLabel('Service', { exact: true })).toBeVisible();
     await expect(page.getByLabel('Price (PHP)', { exact: true })).toBeVisible();
     await expect(page.getByLabel('Available for booking')).toBeVisible();
@@ -123,11 +132,19 @@ test('admin can inspect assistant health without obscuring operations filters', 
     await signIn(page, 'admin');
     await page.goto('/admin/monitoring');
     await captureWorkspaceThemes(page, testInfo, 'monitoring');
+    if (testInfo.project.name !== 'desktop') {
+        expect(await page.locator('.monitoring-module-nav').evaluate(nav => getComputedStyle(nav).flexWrap)).toBe('nowrap');
+    }
     const health = page.locator('.workspace-disclosure');
     await expect(health).not.toHaveAttribute('open');
     await expect(page.getByLabel('Customer, shop, or reference')).toBeVisible();
     await health.locator('summary').click();
     await expect(health).toContainText('Last observed provider response, not a live availability check.');
+    await page.goto('/admin/users');
+    if (testInfo.project.name !== 'desktop') {
+        expect(await page.locator('table.stacked-mobile-table').evaluate(table => table.scrollWidth <= table.clientWidth + 1)).toBe(true);
+        await expect(page.locator('td[data-label="Access"]').first()).toBeVisible();
+    }
 });
 
 for (const [role, path] of [['shop_owner', '/shop/reports'], ['admin', '/admin/reports']]) {

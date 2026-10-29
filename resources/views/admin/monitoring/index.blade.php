@@ -1,6 +1,6 @@
 <x-layouts.app title="Operations monitoring">
     <div class="page-heading"><h1>Operations monitoring</h1><p>Read-only oversight of appointments, repairs, billing, and roadside requests. Records remain managed by their authorized owners.</p></div>
-    <nav class="d-flex flex-wrap gap-2 mb-4" aria-label="Monitoring modules">
+    <nav class="d-flex flex-wrap gap-2 mb-4 monitoring-module-nav" aria-label="Monitoring modules">
         @foreach ($modules as $key => $definition)
             <a class="btn {{ $key === $module ? 'btn-primary' : 'btn-outline-secondary' }}" href="{{ route('admin.monitoring.index', ['module' => $key]) }}" @if ($key === $module) aria-current="page" @endif>{{ $definition[0] }}</a>
         @endforeach

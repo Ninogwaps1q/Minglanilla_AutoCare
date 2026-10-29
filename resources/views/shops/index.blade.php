@@ -142,11 +142,7 @@
                     script.onerror = () => { window.clearTimeout(timeout); showMapMessage('The map could not load. You can still browse and choose a shop below.'); };
                     document.body.append(script);
                 };
-                if (document.readyState === 'complete') {
-                    loadMap();
-                } else {
-                    window.addEventListener('load', loadMap, { once: true });
-                }
+                loadMap();
             }
 
             const nearbyButton = document.querySelector('#nearby-button');

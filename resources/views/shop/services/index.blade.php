@@ -5,8 +5,10 @@
             booking.</p>
     </div>
     <x-form-errors />
-    <form method="POST" action="{{ route('shop.services.store') }}" class="surface p-4 row g-3 mb-4">@csrf
-        <div class="col-12"><h2 class="h5 mb-0">{{ $editingService ? 'Edit service' : 'Add a service' }}</h2></div>
+    <details class="surface workspace-disclosure mb-4" @if ($shopServices->isEmpty() || $editingService || $errors->any()) open @endif>
+        <summary>{{ $editingService ? 'Edit service and pricing' : 'Add a service and price' }}</summary>
+        <div class="workspace-disclosure__body">
+    <form method="POST" action="{{ route('shop.services.store') }}" class="row g-3">@csrf
         <div class="col-md-6"><label class="form-label" for="service_id">Service</label><select id="service_id" class="form-select" name="service_id"
                 required>
                 <option value="">Choose service</option>@foreach($services as $service)
@@ -49,6 +51,8 @@
             @if ($editingService)<a class="btn btn-outline-secondary" href="{{ route('shop.services.index') }}">Cancel editing</a>@endif
         </div>
     </form>
+        </div>
+    </details>
     <div class="surface overflow-hidden">
         <div class="list-group list-group-flush">@forelse($shopServices as $shopService)
             <div class="list-group-item p-3 d-flex flex-wrap justify-content-between align-items-center gap-3">

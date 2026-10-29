@@ -10,7 +10,8 @@
                 <div>
                     <h2 class="h5 mb-1">{{ $case->subject }}</h2>
                     <p class="text-secondary small mb-0">{{ $case->customer->name }} · {{ $case->repairJob->job_number }} ·
-                        {{ $case->repairJob->vehicle->plate_number }}</p>
+                        {{ $case->repairJob->vehicle->plate_number }}
+                    </p>
                 </div>
                 <div><span class="badge text-bg-secondary">{{ ucfirst(str_replace('_', ' ', $case->type)) }}</span> <span
                         class="badge text-bg-{{ in_array($case->status, ['resolved', 'declined', 'dismissed'], true) ? 'secondary' : 'primary' }}">{{ ucfirst(str_replace('_', ' ', $case->status)) }}</span>
@@ -19,7 +20,8 @@
             <p class="mt-3">{{ $case->description }}</p>
             @if($case->scheduled_at)
                 <p class="small mb-2"><strong>Proposed visit:</strong> {{ $case->scheduled_at->format('M j, Y g:i A') }} ·
-            {{ ucfirst($case->schedule_status ?? 'pending') }} by customer</p>@endif
+                    {{ ucfirst($case->schedule_status ?? 'pending') }} by customer
+            </p>@endif
             @if($case->schedule_status === 'confirmed' && $case->appointment)
                 <a class="btn btn-sm btn-outline-primary mb-3"
                     href="{{ route('shop.appointments.index', ['focus' => $case->appointment->id]) }}">View confirmed
@@ -65,7 +67,8 @@
                     <li class="mb-2"><strong>{{ ucfirst(str_replace('_', ' ', $event->to_status)) }}</strong> ·
                         {{ $event->actor?->name ?? 'Former user' }} ·
                         {{ $event->created_at->format('M j, Y g:i A') }}<br><span
-                class="text-secondary">{{ $event->note }}</span></li>@endforeach
+                            class="text-secondary">{{ $event->note }}</span>
+                </li>@endforeach
                 </ol>
             </details>
         </article>
