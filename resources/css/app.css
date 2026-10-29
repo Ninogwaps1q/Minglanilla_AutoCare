@@ -2854,7 +2854,7 @@ html[data-theme=dark] .ai-suggestions button:focus-visible {
     --bs-primary: #2563eb;
     --bs-primary-rgb: 37, 99, 235;
     --ink: #111827;
-    --muted: #64748b;
+    --muted: #52627a;
     --surface: #ffffff;
     --canvas: #f5f7fb;
     --accent: #f97316;
@@ -3006,6 +3006,32 @@ body {
 
 .payment-reject-details > summary::-webkit-details-marker {
     display: none;
+}
+
+.workspace-disclosure > summary {
+    padding: 1rem 1.25rem;
+    min-height: 3rem;
+    cursor: pointer;
+    font-weight: 650;
+    overflow-wrap: anywhere;
+}
+
+.workspace-disclosure > summary:focus-visible {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: -4px;
+    border-radius: inherit;
+}
+
+.workspace-disclosure[open] > summary {
+    border-bottom: 1px solid var(--border-color);
+}
+
+.workspace-disclosure__body {
+    padding: 1.25rem;
+}
+
+.workspace-disclosure .form-label {
+    display: block;
 }
 
 .repair-details {
@@ -4132,6 +4158,11 @@ html[data-theme="dark"] :is(.text-muted, .text-body-secondary) {
 
 html[data-theme="dark"] :is(.text-primary, .link-primary, .btn-link) {
     color: #a9ceff !important;
+}
+
+html[data-theme="dark"] .badge.text-bg-primary {
+    background-color: #254a77 !important;
+    color: #e4efff !important;
 }
 
 html[data-theme="dark"] .text-success {

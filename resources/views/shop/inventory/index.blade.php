@@ -9,29 +9,35 @@
             them before the next repair.</div>
     @endif
 
-    <form method="POST" action="{{ route('shop.inventory.store') }}" class="surface p-4 row g-3 mb-4">
+    <details class="surface workspace-disclosure mb-4" @if ($parts->isEmpty() || old('_create_form') === 'parts') open @endif>
+        <summary>Add a part</summary>
+        <div class="workspace-disclosure__body">
+    <form method="POST" action="{{ route('shop.inventory.store') }}" class="row g-3">
         @csrf
+        <input type="hidden" name="_create_form" value="parts">
         <div class="col-md-4"><label class="form-label" for="name">Part name</label><input id="name"
-                class="form-control" name="name" maxlength="255" required></div>
+                class="form-control" name="name" value="{{ old('_create_form') === 'parts' ? old('name') : '' }}" maxlength="255" required></div>
         <div class="col-md-2"><label class="form-label" for="part_number">Part number</label><input id="part_number"
-                class="form-control" name="part_number" maxlength="255"></div>
+                class="form-control" name="part_number" value="{{ old('_create_form') === 'parts' ? old('part_number') : '' }}" maxlength="255"></div>
         <div class="col-md-2"><label class="form-label" for="brand">Brand</label><input id="brand" class="form-control"
-                name="brand" maxlength="255"></div>
+                name="brand" value="{{ old('_create_form') === 'parts' ? old('brand') : '' }}" maxlength="255"></div>
         <div class="col-md-2"><label class="form-label" for="quantity">Opening stock</label><input id="quantity"
-                class="form-control" type="number" min="0" name="quantity" value="0" required></div>
+                class="form-control" type="number" min="0" name="quantity" value="{{ old('_create_form') === 'parts' ? old('quantity', 0) : 0 }}" required></div>
         <div class="col-md-2"><label class="form-label" for="minimum_stock">Minimum stock</label><input
-                id="minimum_stock" class="form-control" type="number" min="0" name="minimum_stock" value="0" required>
+                id="minimum_stock" class="form-control" type="number" min="0" name="minimum_stock" value="{{ old('_create_form') === 'parts' ? old('minimum_stock', 0) : 0 }}" required>
         </div>
-        <div class="col-md-3"><label class="form-label" for="purchase_price">Purchase price</label><input
+        <div class="col-md-3"><label class="form-label" for="purchase_price">Purchase price (PHP)</label><input
                 id="purchase_price" class="form-control" type="number" min="0" step="0.01" name="purchase_price"
-                value="0" required></div>
-        <div class="col-md-3"><label class="form-label" for="selling_price">Selling price</label><input
-                id="selling_price" class="form-control" type="number" min="0" step="0.01" name="selling_price" value="0"
+                value="{{ old('_create_form') === 'parts' ? old('purchase_price', 0) : 0 }}" required></div>
+        <div class="col-md-3"><label class="form-label" for="selling_price">Selling price (PHP)</label><input
+                id="selling_price" class="form-control" type="number" min="0" step="0.01" name="selling_price" value="{{ old('_create_form') === 'parts' ? old('selling_price', 0) : 0 }}"
                 required></div>
         <div class="col-md-4"><label class="form-label" for="supplier">Supplier</label><input id="supplier"
-                class="form-control" name="supplier" maxlength="255"></div>
+                class="form-control" name="supplier" value="{{ old('_create_form') === 'parts' ? old('supplier') : '' }}" maxlength="255"></div>
         <div class="col-md-2 d-flex align-items-end"><button class="btn btn-primary w-100">Add part</button></div>
     </form>
+        </div>
+    </details>
 
     <p class='small text-secondary mb-3'>Preparing an estimate? Add the part from <a
             href='{{ route('shop.repair-jobs.index') }}'>Repair jobs</a>. Customer approval reserves linked parts.
@@ -59,8 +65,7 @@
                                     {{ max(0, $part->quantity - (int) $part->reserved_units) }} available</span><br><span
                                     class="small {{ $part->quantity <= $part->minimum_stock ? 'text-danger fw-semibold' : 'text-secondary' }}">Minimum
                                     {{ $part->minimum_stock }}</span></td>
-                            <td>PHP {{ number_format($part->purchase_price, 2) }} → PHP
-                                {{ number_format($part->selling_price, 2) }}</td>
+                            <td><span class="small text-secondary">Cost:</span> PHP {{ number_format($part->purchase_price, 2) }}<br><span class="small text-secondary">Selling:</span> PHP {{ number_format($part->selling_price, 2) }}</td>
                             <td>
                                 <form method="POST" action="{{ route('shop.inventory.adjust', $part) }}"
                                     class="d-flex flex-wrap align-items-end gap-2">

@@ -3,6 +3,7 @@
         <h1>User management</h1>
         <p>Search accounts and control customer or shop-owner access.</p>
     </div>
+    <x-form-errors />
     <div class="surface p-4 mb-4">
         <form class="row g-2 align-items-end" method="GET">
             <div class="col-md-5"><label class="form-label" for="search">Search users</label><input id="search"
@@ -20,8 +21,12 @@
                     <option value="suspended" @selected(($filters['status'] ?? '') === 'suspended')>Suspended</option>
                 </select></div>
             <div class="col-md-2"><button class="btn btn-primary w-100">Apply filters</button></div>
+            @if (filled($filters['search'] ?? null) || filled($filters['role'] ?? null) || filled($filters['status'] ?? null))
+                <div class="col-12"><a href="{{ route('admin.users.index') }}">Clear filters and show all users</a></div>
+            @endif
         </form>
     </div>
+    <p class="small text-secondary">{{ number_format($users->total()) }} {{ $users->total() === 1 ? 'account' : 'accounts' }} found.</p>
     <div class="surface overflow-hidden">
         <div class="table-responsive">
             <table class="table align-middle mb-0">

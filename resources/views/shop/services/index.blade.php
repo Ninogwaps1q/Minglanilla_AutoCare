@@ -4,23 +4,23 @@
         <p>Set each service price and say whether labor and parts are included. Customers see these details before
             booking.</p>
     </div>
-    <form method="POST" action="{{ route('shop.services.store') }}" class="surface p-4 row g-3 mb-4">@csrf <div
-            class="col-md-5"><label class="form-label">Service</label><select class="form-select" name="service_id"
+    <x-form-errors />
+    <form method="POST" action="{{ route('shop.services.store') }}" class="surface p-4 row g-3 mb-4">@csrf
+        <div class="col-12"><h2 class="h5 mb-0">{{ $editingService ? 'Edit service' : 'Add a service' }}</h2></div>
+        <div class="col-md-6"><label class="form-label" for="service_id">Service</label><select id="service_id" class="form-select" name="service_id"
                 required>
                 <option value="">Choose service</option>@foreach($services as $service)
                     <option value="{{ $service->id }}" @selected(old('service_id', $editingService?->service_id) == $service->id)>{{ $service->name }} @if($service->category) —
                     {{ $service->category->name }} @endif
                 </option>@endforeach
             </select></div>
-        <div class="col-md-3"><label class="form-label">Price</label><input class="form-control" type="number" min="0"
+        <div class="col-md-3"><label class="form-label" for="service_price">Price (PHP)</label><input id="service_price" class="form-control" type="number" min="0"
                 step="0.01" name="price" value="{{ old('price', $editingService?->price) }}" required></div>
-        <div class="col-md-2"><label class="form-label">Available</label><select class="form-select"
+        <div class="col-md-3"><label class="form-label" for="service_availability">Available for booking</label><select id="service_availability" class="form-select"
                 name="availability">
                 <option value="1" @selected(old('availability', $editingService?->availability ?? 1) == 1)>Yes</option>
                 <option value="0" @selected(old('availability', $editingService?->availability ?? 1) == 0)>No</option>
             </select></div>
-        <div class="col-md-2 d-flex align-items-end"><button
-                class="btn btn-primary w-100">{{ $editingService ? 'Save changes' : 'Save service' }}</button></div>
         <div class="col-md-6"><label class="form-label" for="labor_included">Is labor included in this
                 price?</label><select id="labor_included" class="form-select" name="labor_included">
                 <option value="" @selected(old('labor_included', $editingService?->labor_included) === null)>Not specified
@@ -44,10 +44,14 @@
                 value="{{ old('description', $editingService?->description) }}"
                 placeholder="Example: Inspection and standard labor; replacement parts quoted separately">
         </div>
+        <div class="col-12 d-flex flex-wrap gap-2">
+            <button class="btn btn-primary">{{ $editingService ? 'Save changes' : 'Save service' }}</button>
+            @if ($editingService)<a class="btn btn-outline-secondary" href="{{ route('shop.services.index') }}">Cancel editing</a>@endif
+        </div>
     </form>
     <div class="surface overflow-hidden">
         <div class="list-group list-group-flush">@forelse($shopServices as $shopService)
-            <div class="list-group-item p-3 d-flex justify-content-between align-items-center gap-3">
+            <div class="list-group-item p-3 d-flex flex-wrap justify-content-between align-items-center gap-3">
                 <div><strong>{{ $shopService->service->name }}</strong>
                     <div class="text-secondary small">₱{{ number_format($shopService->price, 2) }} ·
                         {{ $shopService->availability ? 'Available' : 'Unavailable' }}

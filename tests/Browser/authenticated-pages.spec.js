@@ -12,6 +12,15 @@ async function signIn(page, role) {
     return fixture;
 }
 
+async function captureWorkspaceThemes(page, testInfo, name) {
+    for (const theme of ['light', 'dark']) {
+        await page.evaluate(value => localStorage.setItem('autocare-theme', value), theme);
+        await page.reload();
+        await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+        await page.screenshot({ path: testInfo.outputPath(name + '-' + theme + '.png') });
+    }
+}
+
 const pages = {
     customer: ['dashboard', 'customer/vehicles', 'customer/appointments', 'customer/appointments/create', 'customer/quotations', 'customer/repairs', 'customer/invoices', 'customer/reminders', 'customer/messages', 'customer/reviews', 'customer/notifications', 'customer/inspections', 'customer/emergency-requests', 'customer/ai-assistant', 'customer/profile', 'customer/favorites', 'customer/service-history', 'customer/services', 'customer/service-cases'],
     shop_owner: ['shop/dashboard', 'shop/profile', 'shop/services', 'shop/appointments', 'shop/passports/scan', 'shop/repair-jobs', 'shop/quotations', 'shop/invoices', 'shop/inventory', 'shop/technicians', 'shop/messages', 'shop/reviews', 'shop/reports', 'shop/emergency-requests', 'shop/notifications', 'shop/today-work', 'shop/service-cases'],
@@ -61,6 +70,65 @@ for (const [role, paths] of Object.entries(pages)) {
         await page.screenshot({ path: testInfo.outputPath(role + '.png'), fullPage: true });
     });
 }
+
+test('maintenance setup stays compact and restores the submitted schedule after validation', async ({ page }, testInfo) => {
+    await signIn(page, 'customer');
+    await page.goto('/customer/reminders');
+    const reminder = page.locator('details').filter({ has: page.locator('summary', { hasText: 'Add a reminder' }) });
+    const schedule = page.locator('details').filter({ has: page.locator('summary', { hasText: 'Set a recurring service schedule' }) });
+    await expect(reminder).not.toHaveAttribute('open');
+    await expect(schedule).not.toHaveAttribute('open');
+    await expect(page.getByRole('heading', { name: 'Upcoming reminders' })).toBeVisible();
+    await captureWorkspaceThemes(page, testInfo, 'maintenance');
+    await schedule.locator('summary').click();
+    await schedule.getByLabel('Last service mileage (km)').fill('0');
+    await schedule.getByLabel('Repeat every (days)').fill('90');
+    await schedule.getByRole('button', { name: 'Create schedule' }).click();
+    await expect(schedule).toHaveAttribute('open');
+    await expect(schedule.getByLabel('Last service mileage (km)')).toHaveValue('0');
+    await expect(schedule.getByLabel('Repeat every (days)')).toHaveValue('90');
+    await expect(page.locator('.alert-danger')).toBeVisible();
+    await expect(reminder).not.toHaveAttribute('open');
+    if (testInfo.project.name !== 'desktop') {
+        const services = page.getByRole('navigation', { name: 'Customer quick navigation' }).getByRole('link', { name: 'My services' });
+        await services.click();
+        await expect(page).toHaveURL(/customer\/services$/);
+        await expect(services).toHaveAttribute('aria-current', 'page');
+    }
+});
+
+test('shop setup forms expand on demand and service fields have usable labels', async ({ page }, testInfo) => {
+    await signIn(page, 'shop_owner');
+    for (const [path, summary, field] of [
+        ['/shop/inventory', 'Add a part', 'Part name'],
+        ['/shop/technicians', 'Add a technician', 'Name'],
+    ]) {
+        await page.goto(path);
+        await captureWorkspaceThemes(page, testInfo, path.split('/').pop());
+        const setup = page.locator('.workspace-disclosure');
+        const wasOpen = await setup.getAttribute('open') !== null;
+        if (!wasOpen) await setup.locator('summary').click();
+        await expect(setup.getByLabel(field, { exact: true })).toBeVisible();
+        await setup.locator('summary').click();
+        await expect(setup.getByLabel(field, { exact: true })).not.toBeVisible();
+        await expect(setup.locator('summary')).toHaveText(summary);
+    }
+    await page.goto('/shop/services');
+    await expect(page.getByLabel('Service', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Price (PHP)', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Available for booking')).toBeVisible();
+});
+
+test('admin can inspect assistant health without obscuring operations filters', async ({ page }, testInfo) => {
+    await signIn(page, 'admin');
+    await page.goto('/admin/monitoring');
+    await captureWorkspaceThemes(page, testInfo, 'monitoring');
+    const health = page.locator('.workspace-disclosure');
+    await expect(health).not.toHaveAttribute('open');
+    await expect(page.getByLabel('Customer, shop, or reference')).toBeVisible();
+    await health.locator('summary').click();
+    await expect(health).toContainText('Last observed provider response, not a live availability check.');
+});
 
 for (const [role, path] of [['shop_owner', '/shop/reports'], ['admin', '/admin/reports']]) {
     test(role + ' report controls filter dates and show status charts in both themes', async ({ page }, testInfo) => {
