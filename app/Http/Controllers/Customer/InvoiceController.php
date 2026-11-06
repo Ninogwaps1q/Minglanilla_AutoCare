@@ -22,7 +22,7 @@ class InvoiceController extends Controller
             'invoices' => Invoice::query()
                 ->whereBelongsTo($request->user(), 'customer')
                 ->when($request->integer('focus') > 0, fn ($query) => $query->whereKey($request->integer('focus')))
-                ->with(['shop', 'repairJob.quotation', 'items', 'payments'])
+                ->with(['shop', 'repairJob.quotation', 'repairJob.review', 'items', 'payments'])
                 ->latest()
                 ->paginate(10)->withQueryString(),
         ]);

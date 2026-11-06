@@ -218,10 +218,6 @@ html[data-theme="dark"] .rating-stars {
     text-align: center;
 }
 
-.portal-return {
-    margin-top: 2rem;
-}
-
 .portal-workspace {
     min-width: 0;
     min-height: 100vh;
@@ -264,7 +260,8 @@ html[data-theme="dark"] .rating-stars {
     outline-offset: 2px;
 }
 
-.portal-notifications-count {
+.portal-notifications-count,
+.portal-messages-count {
     min-width: 1.65rem;
     padding: .12rem .35rem;
     color: #fff;
@@ -276,7 +273,8 @@ html[data-theme="dark"] .rating-stars {
     text-align: center;
 }
 
-.portal-notifications-count.is-empty {
+.portal-notifications-count.is-empty,
+.portal-messages-count.is-empty {
     color: var(--ink);
     background: var(--border-color);
 }
@@ -987,9 +985,19 @@ h4 {
     font-size: 2rem;
 }
 
+.shop-directory-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), min(100%, 19rem)));
+    gap: 1rem;
+}
+
+.shop-directory-empty {
+    grid-column: 1 / -1;
+}
+
 .shop-directory-cover {
     width: 100%;
-    height: 10rem;
+    height: 6rem;
     object-fit: cover;
     font-size: 2rem;
 }
@@ -1061,11 +1069,36 @@ h4 {
 }
 
 .shop-directory-logo {
-    width: 3.25rem;
-    height: 3.25rem;
+    width: 2.75rem;
+    height: 2.75rem;
     border: 1px solid #e2e8f0;
     border-radius: .75rem;
     font-size: 1.2rem;
+}
+
+.shop-directory-identity {
+    display: flex;
+    align-items: flex-start;
+    gap: .625rem;
+    min-width: 0;
+}
+
+.shop-directory-identity-content {
+    min-width: 0;
+    flex: 1;
+}
+
+.shop-directory-identity h3 {
+    font-size: 1.0625rem;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+
+.shop-directory-rating {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .25rem .6rem;
 }
 
 .shop-public-heading {

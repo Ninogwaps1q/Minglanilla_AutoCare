@@ -25,7 +25,7 @@ class ServiceOverviewController extends Controller
                 ->latest()->limit(6)->get(),
             'records' => VehicleServiceRecord::query()
                 ->where('customer_id', $customer->id)
-                ->with(['shop', 'vehicle', 'repairJob.warranty'])
+                ->with(['shop', 'vehicle', 'repairJob.warranty', 'repairJob.invoice', 'repairJob.review'])
                 ->latest('service_date')->limit(6)->get(),
             'openCaseCount' => ServiceCase::query()->where('customer_id', $customer->id)
                 ->whereNotIn('status', ['resolved', 'declined', 'dismissed'])

@@ -23,7 +23,7 @@ if (endpoint) {
             const counts = await response.json();
             const notifications = Number(counts.notifications);
             if (Number.isSafeInteger(notifications) && notifications >= 0) {
-                document.querySelectorAll('.portal-nav-link[href$="/notifications"] .portal-nav-count, .portal-notifications-count')
+                document.querySelectorAll('.portal-notifications-count')
                     .forEach((badge) => setBadge(badge, notifications));
                 const topLink = document.querySelector('.portal-notifications-link');
                 topLink?.setAttribute('aria-label', `Notifications, ${notifications} unread`);
@@ -47,23 +47,10 @@ if (endpoint) {
 
             const messages = Number(counts.messages);
             if (counts.messages !== null && Number.isSafeInteger(messages) && messages >= 0) {
-                document.querySelectorAll('.portal-nav-link[href$="/messages"] .portal-nav-count')
+                document.querySelectorAll('.portal-messages-count')
                     .forEach((badge) => setBadge(badge, messages));
-                const mobileLink = document.querySelector('.shop-mobile-nav a[href$="/messages"]');
-                if (mobileLink) {
-                    let badge = mobileLink.querySelector('.mobile-nav-count');
-                    if (messages === 0) badge?.remove();
-                    else {
-                        if (!badge) {
-                            badge = document.createElement('span');
-                            badge.className = 'mobile-nav-count';
-                            badge.setAttribute('aria-hidden', 'true');
-                            mobileLink.append(badge);
-                        }
-                        badge.textContent = messages > 99 ? '99+' : String(messages);
-                    }
-                    mobileLink.setAttribute('aria-label', `Messages, ${messages} unread`);
-                }
+                document.querySelector('.portal-messages-link')
+                    ?.setAttribute('aria-label', `Messages, ${messages} unread`);
             }
         } catch {
             // Keep the last visible count while the connection is unavailable.

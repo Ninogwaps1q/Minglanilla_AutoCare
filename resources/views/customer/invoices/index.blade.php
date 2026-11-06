@@ -29,6 +29,9 @@
                         <div class="col-lg-5">
                             @if ($invoice->status === 'paid')
                                 <p class="text-success mb-0">The shop has confirmed full payment.</p>
+                                @if ($invoice->repairJob && in_array($invoice->repairJob->status, ['completed', 'released'], true))
+                                    <a class="btn btn-outline-primary mt-3" href="{{ route('customer.reviews.index', ['job' => $invoice->repairJob->id]) }}"><i class="bi bi-star me-1" aria-hidden="true"></i>{{ $invoice->repairJob->review ? 'View your review' : 'Review this service' }}</a>
+                                @endif
                             @elseif ($amountAvailable <= 0)
                                 <p class="mb-0">Your submitted payment covers the remaining balance. Wait for the shop to confirm it. If rejected, you can submit a corrected payment.</p>
                             @else

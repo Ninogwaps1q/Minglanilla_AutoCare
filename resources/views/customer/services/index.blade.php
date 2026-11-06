@@ -50,7 +50,12 @@
                 <div><strong>{{ $record->service_type }}</strong><p class="text-secondary small mb-0">{{ $record->service_date->format('M j, Y') }} · {{ $record->vehicle->plate_number }} · {{ $record->shop->name }}</p></div>
                 <div class="d-flex align-items-center gap-2">
                     @if($record->repairJob?->warranty)<span class="badge text-bg-{{ $record->repairJob->warranty->valid_until->isBefore(today()) ? 'secondary' : 'success' }}">Warranty {{ $record->repairJob->warranty->valid_until->isBefore(today()) ? 'ended' : 'active' }}</span>@endif
-                    @if($record->repairJob)<a class="btn btn-sm btn-outline-primary" href="{{ route('customer.repairs.index', ['repair_job_id' => $record->repairJob->id]) }}#repair-{{ $record->repairJob->id }}">View repair</a>@endif
+                    @if($record->repairJob)
+                        <a class="btn btn-sm btn-outline-primary" href="{{ route('customer.repairs.index', ['repair_job_id' => $record->repairJob->id]) }}#repair-{{ $record->repairJob->id }}">View repair</a>
+                        @if($record->repairJob->invoice?->status === 'paid')
+                            <a class="btn btn-sm btn-outline-primary" href="{{ route('customer.reviews.index', ['job' => $record->repairJob->id]) }}">{{ $record->repairJob->review ? 'View review' : 'Review service' }}</a>
+                        @endif
+                    @endif
                 </div>
             </article>
         @empty

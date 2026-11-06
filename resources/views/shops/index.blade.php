@@ -25,14 +25,27 @@
 
     <section id="shop-results" aria-labelledby="shop-results-heading">
         <h2 id="shop-results-heading" class="h4 mb-3">{{ $shops->count() }} {{ $shops->count() === 1 ? 'shop found' : 'shops found' }}</h2>
-        <div class="row g-4">
+        <div class="shop-directory-grid">
             @forelse ($shops as $shop)
-                <div class="col-md-6 col-xl-4">
+                <div>
                     <article class="surface h-100 d-flex flex-column overflow-hidden">
                         <x-uploaded-image class="shop-directory-cover" :path="$shop->cover_photo" :alt="$shop->name.' cover photo'" fallback-icon="shop" />
-                        <div class="p-4 d-flex flex-column flex-grow-1">
-                            <div class="d-flex justify-content-between align-items-center gap-2 mb-3"><span class="badge text-bg-light"><i class="bi bi-patch-check me-1" aria-hidden="true"></i>Approved shop</span>@if ($shop->total_reviews > 0)<x-star-rating class="small" :rating="$shop->average_rating" />@else<span class="small text-secondary">Not yet rated</span>@endif</div>
-                            <div class="d-flex align-items-center gap-3 mb-2"><x-uploaded-image class="shop-directory-logo" :path="$shop->logo" :alt="$shop->name.' logo'" fallback-icon="wrench-adjustable-circle" /><h3 class="h5 mb-0">{{ $shop->name }}</h3></div>
+                        <div class="p-3 d-flex flex-column flex-grow-1">
+                            <div class="mb-2"><span class="badge text-bg-light"><i class="bi bi-patch-check me-1" aria-hidden="true"></i>Approved shop</span></div>
+                            <div class="shop-directory-identity mb-2">
+                                <x-uploaded-image class="shop-directory-logo" :path="$shop->logo" :alt="$shop->name.' logo'" fallback-icon="wrench-adjustable-circle" />
+                                <div class="shop-directory-identity-content">
+                                    <h3 class="h5 mb-0">{{ $shop->name }}</h3>
+                                    <div class="shop-directory-rating mt-2">
+                                        @if ($shop->total_reviews > 0)
+                                            <x-star-rating class="small" :rating="$shop->average_rating" />
+                                            <span class="small text-secondary">{{ $shop->total_reviews }} {{ (int) $shop->total_reviews === 1 ? 'review' : 'reviews' }}</span>
+                                        @else
+                                            <span class="small text-secondary">Not yet rated</span>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
                             <p class="small mb-2">
                                 <i class="bi bi-geo-alt me-1 text-secondary" aria-hidden="true"></i>
                                 @if ($shop->latitude !== null && $shop->longitude !== null)
@@ -48,7 +61,7 @@
                     </article>
                 </div>
             @empty
-                <div class="col-12"><div class="surface p-5 text-center"><i class="bi bi-search fs-2 text-secondary" aria-hidden="true"></i><h3 class="h4 mt-3">No shops match these filters</h3><p class="text-secondary">Try another service or barangay, or clear your search to see all approved shops.</p><a class="btn btn-primary" href="{{ route('shops.index') }}">Show all shops</a></div></div>
+                <div class="shop-directory-empty"><div class="surface p-5 text-center"><i class="bi bi-search fs-2 text-secondary" aria-hidden="true"></i><h3 class="h4 mt-3">No shops match these filters</h3><p class="text-secondary">Try another service or barangay, or clear your search to see all approved shops.</p><a class="btn btn-primary" href="{{ route('shops.index') }}">Show all shops</a></div></div>
             @endforelse
         </div>
     </section>

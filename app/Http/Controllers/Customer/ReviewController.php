@@ -18,6 +18,7 @@ class ReviewController extends Controller
     {
         return view('customer.reviews.index', [
             'repairJobs' => RepairJob::query()->whereBelongsTo($request->user(), 'customer')->whereIn('status', ['completed', 'released'])
+                ->when($request->integer('job') > 0, fn ($query) => $query->whereKey($request->integer('job')))
                 ->when($request->integer('focus') > 0, fn ($query) => $query->whereHas('review', fn ($review) => $review->whereKey($request->integer('focus'))))
                 ->with(['shop', 'review'])->latest('completed_at')->get(),
         ]);
@@ -26,7 +27,6 @@ class ReviewController extends Controller
     public function store(StoreReviewRequest $request): RedirectResponse
     {
         $repairJob = RepairJob::query()->whereBelongsTo($request->user(), 'customer')->whereKey($request->integer('repair_job_id'))->whereIn('status', ['completed', 'released'])->firstOrFail();
-
         DB::transaction(function () use ($repairJob, $request): void {
             $shop = $repairJob->shop()->lockForUpdate()->firstOrFail();
             if ($repairJob->review()->exists()) {
