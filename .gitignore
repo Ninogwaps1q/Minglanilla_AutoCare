@@ -29,3 +29,6 @@ Thumbs.db
 /storage/app/public/
 /storage/app/private/*
 !/storage/app/private/.gitignore
+
+
+# 
