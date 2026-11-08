@@ -4,6 +4,22 @@ import './ai-chat';
 import './activity-counts';
 import './message-updates';
 
+document.querySelectorAll('.public-navbar a[href^="#"]').forEach((link) => {
+    link.addEventListener('click', () => {
+        const menu = document.getElementById('publicNavigation');
+        if (!window.matchMedia('(max-width: 991.98px)').matches || !menu) {
+            return;
+        }
+
+        const toggle = document.querySelector('.public-navbar .navbar-toggler');
+        if (menu.classList.contains('show')) {
+            toggle?.click();
+        } else if (menu.classList.contains('collapsing')) {
+            menu.addEventListener('shown.bs.collapse', () => toggle?.click(), { once: true });
+        }
+    });
+});
+
 if (document.querySelector('[data-passport-scanner]')) {
     import('./passport-scanner.js');
 }

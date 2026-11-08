@@ -20,6 +20,53 @@ for (const path of ['/', '/login', '/register', '/forgot-password', '/shops', '/
     });
 }
 
+test('landing navigation scrolls between Home, Find a shop, and About', async ({ page }, testInfo) => {
+    await page.goto('/');
+    const navigation = page.getByRole('navigation', { name: 'Primary navigation' });
+    const isMobile = testInfo.project.name !== 'desktop';
+    const toggle = page.getByRole('button', { name: 'Toggle navigation' });
+
+    for (const [label, section] of [['Find a shop', 'find-shops'], ['About', 'about'], ['Home', 'home']]) {
+        if (isMobile) {
+            await toggle.click();
+        }
+        await navigation.getByRole('link', { name: label, exact: true }).click();
+        await expect(page).toHaveURL(new RegExp(`#${section}$`));
+        await expect(page.locator(`#${section}`)).toBeInViewport();
+        if (isMobile) {
+            await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+        }
+    }
+});
+
+test('landing shop search opens the real directory with the query', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('#find-shops').getByLabel('Shop name').fill('Browser Test AutoCare');
+    await page.locator('#find-shops').getByRole('button', { name: 'Search shops' }).click();
+
+    await expect(page).toHaveURL(/\/shops\?search=Browser(?:\+|%20)Test/);
+    await expect(page.getByLabel('Shop name')).toHaveValue('Browser Test AutoCare');
+});
+
+test('social sign-in choices stay readable on login and registration', async ({ page }, testInfo) => {
+    await page.goto('/login');
+    await expect(page.getByRole('link', { name: 'Google' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Facebook' })).toBeVisible();
+    await expect(page.getByText('New social sign-ins create customer accounts.')).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath('social-login-light.png') });
+
+    await page.evaluate(() => localStorage.setItem('autocare-theme', 'dark'));
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await expect(page.getByRole('link', { name: 'Google' })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath('social-login-dark.png') });
+
+    await page.goto('/register');
+    await expect(page.getByRole('link', { name: 'Google' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Facebook' })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+});
+
 test('password visibility control works', async ({ page }) => {
     await page.goto('/login');
     await page.locator('#password').fill('test-value-not-submitted');

@@ -13,8 +13,14 @@
                 <div class="form-check"><input class="form-check-input" type="checkbox" name="remember" id="remember"
                         value="1" @checked(old('remember'))><label class="form-check-label" for="remember">Remember
                         me</label></div>
+                @if (session()->has('pending_social_link'))
+                    <div class="form-check"><input class="form-check-input" type="checkbox" name="connect_social"
+                            id="connect_social" value="1"><label class="form-check-label" for="connect_social">Connect
+                            {{ ucfirst(session('pending_social_link.provider')) }} to this account after signing in</label></div>
+                @endif
                 <button class="btn btn-primary w-100">Sign in</button>
             </form>
+            <x-social-login-buttons />
             <div class="d-flex justify-content-between gap-3 mt-4 small"><a
                     href="{{ route('password.request') }}">Forgot password?</a><a href="{{ route('register') }}">Create
                     account</a></div>

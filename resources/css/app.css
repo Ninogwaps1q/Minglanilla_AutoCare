@@ -3846,6 +3846,35 @@ html:not([data-theme="dark"]) .report-date-presets .btn.active {
     box-shadow: 0 .3rem 1.25rem rgb(16 29 53 / 7%);
 }
 
+@media (prefers-reduced-motion: no-preference) {
+    html:has(#home.hero-section) {
+        scroll-behavior: smooth;
+    }
+}
+
+.hero-section,
+.landing-find-section,
+#about {
+    scroll-margin-top: 1rem;
+}
+
+.landing-find-section {
+    background: var(--surface-subtle);
+}
+
+.landing-section-intro {
+    max-width: 58ch;
+}
+
+.landing-shop-search {
+    max-width: 42rem;
+}
+
+.landing-shop-search .input-group > .form-control,
+.landing-shop-search .input-group > .btn {
+    min-height: 3rem;
+}
+
 .public-navbar .navbar-brand,
 .public-navbar .nav-link {
     color: var(--ink);
@@ -4033,6 +4062,83 @@ html:not([data-theme="dark"]) .report-date-presets .btn.active {
 .auth-panel h1 {
     font-weight: 750;
     letter-spacing: -.03em;
+}
+
+.auth-social {
+    margin-top: 1.5rem;
+}
+
+.auth-social-divider {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    color: var(--muted);
+    font-size: .875rem;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.auth-social-divider::before,
+.auth-social-divider::after {
+    flex: 1;
+    height: 1px;
+    background: var(--border-color);
+    content: "";
+}
+
+.auth-social-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .75rem;
+    margin-top: 1rem;
+}
+
+.auth-social-button {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    gap: .6rem;
+    border: 1px solid var(--border-color);
+    border-radius: .625rem;
+    background: var(--surface);
+    color: var(--ink);
+    font-weight: 600;
+    text-decoration: none;
+    transition: border-color .18s ease, background-color .18s ease;
+}
+
+.auth-social-button:hover,
+.auth-social-button:focus-visible {
+    border-color: var(--bs-primary);
+    background: var(--surface-subtle);
+    color: var(--ink);
+}
+
+.auth-social-button:focus-visible {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: 2px;
+}
+
+.auth-social-button .bi-google {
+    color: #4285f4;
+}
+
+.auth-social-button .bi-facebook {
+    color: #1877f2;
+}
+
+.auth-social-note {
+    margin: .75rem 0 0;
+    color: var(--muted);
+    font-size: .8125rem;
+    line-height: 1.5;
+}
+
+@media (max-width: 380px) {
+    .auth-social-actions {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 991.98px) {

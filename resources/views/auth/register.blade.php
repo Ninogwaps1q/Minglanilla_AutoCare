@@ -21,6 +21,7 @@
                         autocomplete="new-password" required></div>
                 <button class="btn btn-primary w-100">Create account</button>
             </form>
+            <x-social-login-buttons mode="register" />
             <p class="small text-secondary mb-0 mt-4">Already registered? <a href="{{ route('login') }}">Sign in</a>.
             </p>
         </div>

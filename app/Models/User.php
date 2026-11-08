@@ -105,6 +105,11 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(MessageThread::class, 'customer_id');
     }
 
+    public function socialAccounts(): HasMany
+    {
+        return $this->hasMany(SocialAccount::class);
+    }
+
     public function maintenanceRecommendations(): HasMany
     {
         return $this->hasMany(MaintenanceRecommendation::class, 'customer_id');
