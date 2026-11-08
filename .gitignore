@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 *.log
 .DS_Store
 # .env
@@ -29,3 +30,32 @@ Thumbs.db
 /storage/app/public/
 /storage/app/private/*
 !/storage/app/private/.gitignore
+=======
+# # *.log
+# # .DS_Store
+# # .env
+# # .env.backup
+# # .env.production
+# # .phpactor.json
+# # .phpunit.result.cache
+# # /.fleet
+# # /.idea
+# # /.nova
+# # /.phpunit.cache
+# # /.vscode
+# # /.zed
+# # /auth.json
+# # /node_modules
+# # /public/build
+# # /public/hot
+# /public/storage
+# # /storage/*.key
+# # /storage/pail
+# # /vendor
+# # Homestead.json
+# # Homestead.yaml
+# # Thumbs.db
+# /test-results/
+# /playwright-report/
+# /storage/framework/testing/
+>>>>>>> Stashed changes

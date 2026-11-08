@@ -1,3 +1,9 @@
+# Design Guidance
+
+- Read [design.md](design.md) before planning or changing UI, layouts, styling, navigation, or user-facing components.
+- It describes the proposed visual direction for Minglanilla AutoCare Hub. Apply it within the requested UI scope; the document alone does not authorize a system-wide redesign or changes to business behavior.
+- Reuse existing shared components and preserve routes, permissions, and workflows. Update the guide when an explicitly requested design change adopts or revises a proposal.
+
 <laravel-boost-guidelines>
 === foundation rules ===
 

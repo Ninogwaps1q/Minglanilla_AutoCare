@@ -2956,13 +2956,15 @@ html[data-theme=dark] .ai-suggestions button:focus-visible {
     --bs-primary: #2563eb;
     --bs-primary-rgb: 37, 99, 235;
     --ink: #111827;
-    --muted: #52627a;
+    --muted: #536174;
     --surface: #ffffff;
-    --canvas: #f5f7fb;
-    --accent: #f97316;
-    --accent-dark: #d85c0b;
-    --surface-subtle: #eef3f8;
-    --border-color: #d6dee9;
+    --canvas: #f4f5f7;
+    --accent: #fb923c;
+    --accent-dark: #fdba74;
+    --surface-subtle: #edf0f4;
+    --border-color: #d5dce5;
+    --workshop-navy: #122238;
+    --workshop-radius: .75rem;
     --shadow-color: 27 46 72;
     color-scheme: light;
 }
@@ -5150,5 +5152,187 @@ html[data-theme=dark] .message-discovery-icon {
 
     .complaint-decision-actions .btn {
         width: 100%;
+    }
+}
+
+/* Service desk: shared presentation for public and operational screens. */
+body {
+    text-underline-offset: .2em;
+    caret-color: var(--ink);
+}
+
+:where(h1, h2, h3) {
+    text-wrap: balance;
+    overflow-wrap: anywhere;
+}
+
+:where(a, button, summary, input, select, textarea):focus-visible {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: 3px;
+}
+
+.portal-sidebar {
+    background: var(--workshop-navy) !important;
+}
+
+.portal-nav-link.active {
+    color: #fff;
+    background: #263d58;
+    box-shadow: inset 0 0 0 1px #536b86;
+}
+
+.portal-nav-link.active > i {
+    color: #fdba74;
+}
+
+.portal-topbar,
+.public-navbar,
+html[data-theme="dark"] .portal-topbar,
+html[data-theme="dark"] .public-navbar {
+    box-shadow: none;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.customer-welcome,
+.workspace-welcome {
+    gap: 1.25rem;
+    padding: clamp(1.25rem, 3vw, 2rem);
+    background: var(--workshop-navy);
+    border-radius: var(--workshop-radius);
+    box-shadow: none;
+}
+
+.customer-welcome h1,
+.workspace-welcome h1 {
+    max-width: 32ch;
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    line-height: 1.2;
+    letter-spacing: -.025em;
+}
+
+.customer-welcome-mark {
+    display: none;
+}
+
+.customer-welcome {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.customer-welcome-date,
+.workspace-date {
+    color: #d5dfec;
+    font-size: .875rem;
+    font-weight: 500;
+    letter-spacing: normal;
+    text-transform: none;
+}
+
+.workspace-shop-logo {
+    width: 5rem;
+    height: 5rem;
+    border-radius: var(--workshop-radius);
+}
+
+.surface,
+.metric-card,
+.feature-panel,
+.customer-stat,
+.workspace-stat,
+html[data-theme="dark"] :is(.customer-stat, .workspace-stat),
+html[data-theme="dark"] :is(.customer-stat, .workspace-stat):hover,
+.metric-card:hover,
+.feature-panel:hover,
+.customer-stat:hover,
+.workspace-stat:hover {
+    border: 1px solid var(--border-color);
+    border-radius: var(--workshop-radius);
+    box-shadow: none;
+    transform: none;
+}
+
+.customer-stat,
+.workspace-stat {
+    background: var(--surface);
+    transition: background-color .15s ease-out;
+}
+
+.customer-stat:hover,
+.workspace-stat:hover {
+    background: var(--surface-subtle);
+}
+
+.portal-content .form-label {
+    color: var(--ink);
+}
+
+.form-control::placeholder {
+    color: var(--muted);
+    opacity: 1;
+}
+
+.portal-content .table {
+    --bs-table-bg: var(--surface);
+    --bs-table-color: var(--ink);
+    --bs-table-border-color: var(--border-color);
+    --bs-table-hover-bg: var(--surface-subtle);
+}
+
+.portal-content .table thead th {
+    padding-block: .9rem;
+    color: var(--muted);
+    background: var(--surface-subtle);
+    font-size: .8125rem;
+    font-weight: 650;
+    white-space: nowrap;
+}
+
+.portal-content .table td {
+    padding-block: 1rem;
+    vertical-align: middle;
+}
+
+.service-journey-steps .is-current {
+    border-top-color: var(--accent);
+}
+
+.hero-section {
+    background: var(--workshop-navy);
+}
+
+.hero-section h1 {
+    max-width: 17ch;
+    font-size: clamp(2.25rem, 4.5vw, 3.75rem);
+    line-height: 1.1;
+    letter-spacing: -.03em;
+}
+
+.hero-route-card {
+    border-radius: var(--workshop-radius);
+    box-shadow: none;
+}
+
+.btn-accent {
+    --bs-btn-active-color: #0b1220;
+    --bs-btn-active-bg: var(--accent-dark);
+    --bs-btn-active-border-color: var(--accent-dark);
+    --bs-btn-disabled-color: #0b1220;
+    --bs-btn-disabled-bg: var(--accent);
+    --bs-btn-disabled-border-color: var(--accent);
+}
+
+@media (max-width: 575.98px) {
+    .workspace-welcome {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .workspace-shop-logo {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .customer-stat,
+    .workspace-stat {
+        transition: none;
     }
 }
