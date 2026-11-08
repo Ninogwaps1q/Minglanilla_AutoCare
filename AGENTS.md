@@ -36,6 +36,15 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 
 - If the user doesn't see a frontend change reflected in the UI, it could mean they need to run `npm run build`, `npm run dev`, or `composer run dev`. Ask them.
 
+## Minglanilla AutoCare UI/UX Contract
+
+- Read root `DESIGN.md` and the existing shared layout/components before changing Blade, CSS, or JavaScript. Keep the documented navy, blue, orange, light, and dark design language consistent across public, customer, shop owner, and admin pages.
+- Prioritize the customer's next action. Make finding a shop, booking, approving an estimate, tracking a repair, paying, and getting aftercare help easy to locate and understand. For shop owners and admins, surface the work needing attention before secondary analytics.
+- Use plain, action-specific labels and readable validation, empty, loading, success, and error states. Show status and unread counts as text as well as color; avoid duplicate navigation and decorative cards that hide the main task.
+- Reuse Bootstrap, existing Blade components, `resources/css/app.css` tokens, and existing assets. Keep data and permissions connected to real routes; never present a visual control that has no working action.
+- Check light and dark contrast, keyboard focus, mobile layouts, long names, real data, and image fallbacks. Preserve responsive tables, maps, charts, and form behavior when changing their presentation.
+- For UI changes, run the relevant build and targeted tests. If no browser/device test was performed, say so explicitly rather than claiming visual verification.
+
 ## Documentation Files
 
 - You must only create documentation files if explicitly requested by the user.

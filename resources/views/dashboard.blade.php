@@ -35,6 +35,11 @@
                     road</span></div>
         </section>
 
+        <x-action-queue :items="[
+            ['count' => $pendingEstimateCount, 'label' => 'Estimates to approve', 'detail' => 'Review the itemized price before the shop starts.', 'href' => route('customer.quotations.index')],
+            ['count' => $paymentDueCount, 'label' => 'Bills to pay', 'detail' => 'Open your invoice and record a payment.', 'href' => route('customer.invoices.index')],
+        ]" :empty-route="route('customer.services.index')" empty-label="View my services" />
+
         <section aria-labelledby="care-summary-title" class="mb-4">
             <div class="section-heading">
                 <div>
@@ -54,11 +59,6 @@
                 @endforeach
             </div>
         </section>
-
-        <x-action-queue :items="[
-            ['count' => $pendingEstimateCount, 'label' => 'Estimates to approve', 'detail' => 'Review the itemized price before the shop starts.', 'href' => route('customer.quotations.index')],
-            ['count' => $paymentDueCount, 'label' => 'Bills to pay', 'detail' => 'Open your invoice and record a payment.', 'href' => route('customer.invoices.index')],
-        ]" :empty-route="route('customer.services.index')" empty-label="View my services" />
 
         <div class="row g-4">
             <div class="col-xl-8">
@@ -112,7 +112,7 @@
                 <section class="surface p-4 mb-4" aria-labelledby="garage-title">
                     <div class="section-heading">
                         <div>
-                            <h2 id="garage-title">My garage</h2>
+                            <h2 id="garage-title">My vehicle</h2>
                             <p>Your most recently added vehicle.</p>
                         </div>
                     </div>
@@ -137,9 +137,6 @@
                     <h2 id="attention-title" class="h5">Keep track</h2>
                     <a class="attention-link" href="{{ route('customer.invoices.index') }}"><span><i class="bi bi-receipt"
                                 aria-hidden="true"></i>Payments under shop review</span><strong>{{ $paymentReviewCount }}</strong></a>
-                    <a class="attention-link" href="{{ route('customer.notifications.index') }}"><span><i class="bi bi-bell"
-                                aria-hidden="true"></i>Updates</span><i class="bi bi-chevron-right"
-                            aria-hidden="true"></i></a>
                     <a class="attention-link attention-link-emergency"
                         href="{{ route('customer.emergency-requests.index') }}"><span><i class="bi bi-life-preserver"
                                 aria-hidden="true"></i>Roadside help</span><i class="bi bi-chevron-right"
@@ -159,16 +156,16 @@
                 <a class="btn btn-primary" href="{{ route('admin.monitoring.index') }}"><i class="bi bi-activity me-2" aria-hidden="true"></i>Open operations monitor</a>
             @endif
         </div>
+        <x-action-queue :items="[
+            ['count' => $metrics['Pending verifications'], 'label' => 'Shop registrations', 'detail' => 'Review businesses waiting to join.', 'href' => route('admin.shops.index', ['status' => 'pending'])],
+            ['count' => $openComplaintCount, 'label' => 'Customer complaints', 'detail' => 'Read evidence and record a resolution.', 'href' => route('admin.service-cases.index')],
+        ]" :empty-route="route('admin.monitoring.index')" empty-label="Open operations monitor" />
         <section class="workspace-stats mb-4" aria-label="Platform totals">
             @foreach ($metrics as $label => $value)@php $icon = match ($label) { 'Users' => 'people', 'Shops' => 'shop', 'Pending verifications' => 'hourglass-split', default => 'car-front'};
                 $route = match ($label) { 'Users' => route('admin.users.index'), 'Shops', 'Pending verifications' => route('admin.shops.index'), default => route('admin.monitoring.index')}; @endphp<a
                     class="workspace-stat" href="{{ $route }}"><i class="bi bi-{{ $icon }}"
                         aria-hidden="true"></i><span><strong>{{ $value }}</strong>{{ $label }}</span><i
             class="bi bi-chevron-right ms-auto" aria-hidden="true"></i></a>@endforeach</section>
-        <x-action-queue :items="[
-            ['count' => $metrics['Pending verifications'], 'label' => 'Shop registrations', 'detail' => 'Review businesses waiting to join.', 'href' => route('admin.shops.index', ['status' => 'pending'])],
-            ['count' => $openComplaintCount, 'label' => 'Customer complaints', 'detail' => 'Read evidence and record a resolution.', 'href' => route('admin.service-cases.index')],
-        ]" :empty-route="route('admin.monitoring.index')" empty-label="Open operations monitor" />
         <div class="row g-4">
             <div class="col-xl-7">
                 <section class="surface p-4 h-100" aria-labelledby="pending-shops-title">
@@ -182,10 +179,9 @@
                         <article>
                             <div class="workspace-list-icon"><i class="bi bi-shop" aria-hidden="true"></i></div>
                             <div>
-                                <h3>{{ $shop->name }}</h3>
+                                <h3><a class="workspace-row-link" href="{{ route('admin.shops.index', ['status' => 'pending']) }}#shop-review-{{ $shop->id }}">{{ $shop->name }}</a></h3>
                                 <p>Owner: {{ $shop->owner->name }} · Submitted {{ $shop->created_at->diffForHumans() }}</p>
-                            </div><a class="btn btn-sm btn-outline-primary"
-                                href="{{ route('admin.shops.index') }}">Review</a>
+                            </div>
                     </article>@empty<div class="workspace-empty"><i class="bi bi-patch-check" aria-hidden="true"></i>
                             <div>
                                 <h3>All registrations reviewed</h3>
@@ -219,19 +215,15 @@
                 </section>
             </div>
         </div>
-        <section class="surface p-4 mt-4" aria-labelledby="admin-actions-title">
+        <section class="surface p-4 mt-4 d-lg-none" aria-labelledby="admin-actions-title">
             <div class="section-heading mb-2">
                 <div>
-                    <h2 id="admin-actions-title">Administration tools</h2>
-                    <p>Go directly to the area you need.</p>
+                    <h2 id="admin-actions-title">More tools</h2>
+                    <p>Manage services and review admin activity.</p>
                 </div>
             </div>
-            <div class="workspace-actions"><a href="{{ route('admin.users.index') }}"><i class="bi bi-people"
-                        aria-hidden="true"></i><span><strong>Users</strong>Accounts and access</span></a><a
-                    href="{{ route('admin.services.index') }}"><i class="bi bi-wrench"
+            <div class="workspace-actions"><a href="{{ route('admin.services.index') }}"><i class="bi bi-wrench"
                         aria-hidden="true"></i><span><strong>Services</strong>Manage the catalog</span></a><a
-                    href="{{ route('admin.reports.index') }}"><i class="bi bi-bar-chart"
-                        aria-hidden="true"></i><span><strong>Reports</strong>Platform analytics</span></a><a
                     href="{{ route('admin.activity-logs.index') }}"><i class="bi bi-clock-history"
                         aria-hidden="true"></i><span><strong>Audit trail</strong>Review admin activity</span></a></div>
         </section>

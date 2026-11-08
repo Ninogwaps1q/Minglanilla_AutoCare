@@ -12,10 +12,9 @@
                                 type="search" maxlength="100" placeholder="Search by shop name"><button
                                 class="btn btn-primary" type="submit">Search shops</button></div>
                     </form>
-                    <div class="d-flex flex-column flex-sm-row gap-3">
-                        <a class="btn btn-accent btn-lg" href="{{ route('shops.index') }}">Find a service shop <i
-                                class="bi bi-arrow-right ms-1" aria-hidden="true"></i></a>
-                    </div>
+                    <a class="link-light fw-semibold d-inline-flex align-items-center gap-2" href="{{ route('shops.index') }}">
+                        Browse all shops <i class="bi bi-arrow-right" aria-hidden="true"></i>
+                    </a>
                 </div>
                 <div class="col-lg-5">
                     <div class="hero-route-card">

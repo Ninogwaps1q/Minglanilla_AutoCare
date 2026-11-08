@@ -20,7 +20,7 @@
     @endphp
     <section aria-labelledby="admin-report-summary" class="mb-4">
         <div class="report-section-heading">
-            <h2 id="admin-report-summary">Business snapshot</h2><span>At a glance</span>
+            <h2 id="admin-report-summary">Business snapshot</h2>
         </div>
         <div class="report-metrics report-metrics--four">
             @foreach ($primaryMetrics as $label => $display)
@@ -31,7 +31,7 @@
     </section>
     <section aria-labelledby="admin-report-trends" class="mb-4">
         <div class="report-section-heading">
-            <h2 id="admin-report-trends">Performance over time</h2><span>Selected date range</span>
+            <h2 id="admin-report-trends">Performance over time</h2>
         </div>
         <div class="report-visual-grid">
             <div class="surface report-panel">
@@ -70,7 +70,7 @@
     </section>
     <section aria-labelledby="admin-report-activity" class="surface report-activity mb-4">
         <div class="report-section-heading">
-            <h2 id="admin-report-activity">Service activity</h2><span>Selected date range</span>
+            <h2 id="admin-report-activity">Service activity</h2>
         </div>
         <div class="report-activity-grid">
             @foreach ($activityMetrics as $label => $icon)

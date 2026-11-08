@@ -4,7 +4,7 @@
             <h1>My appointments</h1>
             <p>Review your booking requests and their current shop-confirmation status.</p>
         </div>
-        <a class="btn btn-primary" href="{{ route('customer.appointments.create') }}">Book an appointment</a>
+        <a class="btn btn-primary" href="{{ route('customer.appointments.create') }}">Book a service</a>
     </div>
 
     <form method="GET" action="{{ route('customer.appointments.index') }}" class="surface p-3 mb-3 d-flex flex-wrap align-items-end gap-2">

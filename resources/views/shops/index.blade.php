@@ -31,7 +31,6 @@
                     <article class="surface h-100 d-flex flex-column overflow-hidden">
                         <x-uploaded-image class="shop-directory-cover" :path="$shop->cover_photo" :alt="$shop->name.' cover photo'" fallback-icon="shop" />
                         <div class="p-3 d-flex flex-column flex-grow-1">
-                            <div class="mb-2"><span class="badge text-bg-light"><i class="bi bi-patch-check me-1" aria-hidden="true"></i>Approved shop</span></div>
                             <div class="shop-directory-identity mb-2">
                                 <x-uploaded-image class="shop-directory-logo" :path="$shop->logo" :alt="$shop->name.' logo'" fallback-icon="wrench-adjustable-circle" />
                                 <div class="shop-directory-identity-content">
