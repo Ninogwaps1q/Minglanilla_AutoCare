@@ -20,13 +20,13 @@ for (const path of ['/', '/login', '/register', '/forgot-password', '/shops', '/
     });
 }
 
-test('landing navigation scrolls between Home, Find a shop, and About', async ({ page }, testInfo) => {
+test('landing navigation scrolls between Home, Find a shop, Maps, and About', async ({ page }, testInfo) => {
     await page.goto('/');
     const navigation = page.getByRole('navigation', { name: 'Primary navigation' });
     const isMobile = testInfo.project.name !== 'desktop';
     const toggle = page.getByRole('button', { name: 'Toggle navigation' });
 
-    for (const [label, section] of [['Find a shop', 'find-shops'], ['About', 'about'], ['Home', 'home']]) {
+    for (const [label, section] of [['Find a shop', 'find-shops'], ['Maps', 'maps'], ['About', 'about'], ['Home', 'home']]) {
         if (isMobile) {
             await toggle.click();
         }
@@ -37,6 +37,26 @@ test('landing navigation scrolls between Home, Find a shop, and About', async ({
             await expect(toggle).toHaveAttribute('aria-expanded', 'false');
         }
     }
+});
+
+test('landing map shows approved shops and opens a real shop page', async ({ page }) => {
+    test.skip(process.env.BROWSER_ISOLATED !== '1', 'Requires the disposable browser fixture');
+    const fixture = JSON.parse(process.env.BROWSER_FIXTURE);
+    await page.goto('/');
+    await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Maps' }).click();
+    await expect(page.locator('#landing-shop-map .leaflet-marker-icon')).toHaveCount(1, { timeout: 15000 });
+    await page.locator('#landing-shop-map .leaflet-marker-icon').click();
+    await expect(page.locator('#landing-shop-map .leaflet-popup-content')).toContainText('Browser Test AutoCare');
+    await page.locator('#landing-shop-map .leaflet-popup-content').getByRole('link', { name: 'View shop' }).click();
+    await expect(page).toHaveURL(new RegExp(`/shops/${fixture.shop}$`));
+});
+
+test('landing map failure keeps the shop directory reachable', async ({ page }) => {
+    await page.route('https://unpkg.com/leaflet@1.9.4/dist/*', route => route.abort());
+    await page.goto('/');
+    await page.locator('#maps').scrollIntoViewIfNeeded();
+    await expect(page.locator('#landing-shop-map')).toContainText('The map could not load', { timeout: 15000 });
+    await expect(page.locator('#maps').getByRole('link', { name: 'Open full shop map' })).toBeVisible();
 });
 
 test('landing shop search opens the real directory with the query', async ({ page }) => {

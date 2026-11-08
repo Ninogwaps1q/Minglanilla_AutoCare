@@ -8,7 +8,7 @@
     "src": "node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff2"
   },
   "resources/css/app.css": {
-    "file": "assets/app-DUN6vwXZ.css",
+    "file": "assets/app-Do1NkC0X.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "app",
@@ -26,13 +26,20 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-C779UtXC.js",
+    "file": "assets/app-dfuFO6IR.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "dynamicImports": [
-      "resources/js/passport-scanner.js"
+      "resources/js/passport-scanner.js",
+      "resources/js/landing-map.js"
     ]
+  },
+  "resources/js/landing-map.js": {
+    "file": "assets/landing-map-Bu6Z3cMh.js",
+    "name": "landing-map",
+    "src": "resources/js/landing-map.js",
+    "isDynamicEntry": true
   },
   "resources/js/passport-scanner.js": {
     "file": "assets/passport-scanner-M6CIEUYf.js",

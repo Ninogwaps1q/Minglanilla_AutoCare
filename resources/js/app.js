@@ -24,6 +24,10 @@ if (document.querySelector('[data-passport-scanner]')) {
     import('./passport-scanner.js');
 }
 
+if (document.querySelector('#landing-shop-map')) {
+    import('./landing-map.js');
+}
+
 const systemTheme = window.matchMedia('(prefers-color-scheme: dark)');
 
 function applyTheme(theme, persist = false) {

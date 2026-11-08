@@ -25,6 +25,7 @@
                 <ul class="navbar-nav ms-lg-auto align-items-lg-center gap-lg-2">
                     <li class="nav-item public-nav-home d-flex align-items-center"><x-theme-toggle /><a class="nav-link" href="{{ $onLandingPage ? '#home' : route('home') }}">Home</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ $onLandingPage ? '#find-shops' : route('shops.index') }}">Find a shop</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ $onLandingPage ? '#maps' : route('home').'#maps' }}">Maps</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ $onLandingPage ? '#about' : route('home').'#about' }}">About</a></li>
                     @auth
                         <li class="nav-item ms-lg-2"><a class="btn btn-primary" href="{{ auth()->user()->hasVerifiedEmail() ? route(auth()->user()->role === 'shop_owner' ? 'shop.dashboard' : (auth()->user()->role === 'admin' ? 'admin.dashboard' : 'dashboard')) : route('verification.notice') }}">{{ auth()->user()->hasVerifiedEmail() ? 'Open dashboard' : 'Verify email' }}</a></li>

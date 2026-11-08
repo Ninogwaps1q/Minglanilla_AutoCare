@@ -3854,6 +3854,7 @@ html:not([data-theme="dark"]) .report-date-presets .btn.active {
 
 .hero-section,
 .landing-find-section,
+#maps,
 #about {
     scroll-margin-top: 1rem;
 }
@@ -3873,6 +3874,52 @@ html:not([data-theme="dark"]) .report-date-presets .btn.active {
 .landing-shop-search .input-group > .form-control,
 .landing-shop-search .input-group > .btn {
     min-height: 3rem;
+}
+
+.landing-map-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.landing-map-heading p {
+    max-width: 64ch;
+}
+
+.landing-shop-map {
+    display: grid;
+    height: clamp(20rem, 45vw, 30rem);
+    overflow: hidden;
+    color: var(--ink);
+    background: var(--surface-subtle);
+    border-radius: .875rem;
+    place-items: center;
+}
+
+.landing-shop-map.leaflet-container {
+    display: block;
+}
+
+.landing-map-message {
+    max-width: 36ch;
+    margin: 0;
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.landing-shop-map .leaflet-popup-content-wrapper,
+.landing-shop-map .leaflet-popup-tip {
+    color: var(--ink);
+    background: var(--surface);
+}
+
+.landing-shop-map .leaflet-popup-content strong {
+    display: block;
+    max-width: 24ch;
+    overflow-wrap: anywhere;
 }
 
 .public-navbar .navbar-brand,

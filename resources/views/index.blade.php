@@ -54,6 +54,21 @@
             </div>
         </div>
     </section>
+    <section class="container landing-map-section py-5 py-lg-6" id="maps" aria-labelledby="landing-map-title">
+        <div class="landing-map-heading">
+            <div>
+                <h2 id="landing-map-title">Explore shops on the map</h2>
+                <p class="text-secondary mb-0">See where approved service shops are in Minglanilla. Select a marker to view a shop.</p>
+            </div>
+            <a class="btn btn-outline-primary" href="{{ route('shops.index') }}#shop-map">Open full shop map</a>
+        </div>
+        <div id="landing-shop-map" class="landing-shop-map" role="region" aria-label="Map of approved service shops"
+            data-shops-url="{{ url('/api/shops') }}"
+            data-shop-url-template="{{ route('shops.show', ['shop' => '__SHOP_ID__']) }}">
+            <p class="landing-map-message">Map loads when you reach this section.</p>
+        </div>
+        <p id="landing-map-status" class="small text-secondary mt-2 mb-0" role="status" aria-live="polite">Only approved shops with saved locations appear on the map.</p>
+    </section>
     <section class="container py-5 py-lg-6" id="about" aria-labelledby="about-title">
         <h2 id="about-title" class="mb-4">Vehicle care, made easier</h2>
         <div class="row g-4">
