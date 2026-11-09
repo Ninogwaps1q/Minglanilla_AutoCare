@@ -1,7 +1,7 @@
-<x-layouts.app title="Book an appointment">
+<x-layouts.app title="Book a service">
     <div class="col-lg-9 mx-auto">
         <div class="page-heading">
-            <h1>Book an appointment</h1>
+            <h1>Book a service</h1>
             <p>Choose a verified shop and service, then request a time. The shop will confirm your visit.</p>
         </div>
 
@@ -11,8 +11,12 @@
             <div class="alert alert-info" role="status">No verified shops are available right now. <a href="{{ route('shops.index') }}" class="alert-link">Browse the directory</a></div>
         @endif
 
-        <form method="POST" action="{{ route('customer.appointments.store') }}" class="surface p-4 p-lg-5 row g-3">
+        <form method="POST" action="{{ route('customer.appointments.store') }}" class="surface booking-form p-4 p-lg-5 row g-3">
             @csrf
+            <div class="col-12 booking-form-section-head">
+                <h2>Choose your service</h2>
+                <p>Pick the shop, the work you need, and the vehicle you are bringing.</p>
+            </div>
             <div class="col-md-6">
                 <label for="shop_id" class="form-label">Service shop</label>
                 <select id="shop_id" class="form-select @error('shop_id') is-invalid @enderror" name="shop_id" required>
@@ -22,6 +26,7 @@
                     @endforeach
                 </select>
                 @error('shop_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                <div class="form-text">Need to compare shops? <a href="{{ route('shops.index') }}">Browse the shop directory</a>.</div>
             </div>
             <div class="col-md-6">
                 <label for="service_id" class="form-label">Service</label>
@@ -45,34 +50,42 @@
                 </select>
                 @error('vehicle_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
             </div>
-            <div class="col-md-3">
+            <div class="col-12 booking-form-section-head">
+                <h2>Choose a visit time</h2>
+                <p>Select a date and preferred start time. Available times appear after you choose a shop and service.</p>
+            </div>
+            <div class="col-md-6">
                 <label for="appointment_date" class="form-label">Preferred date</label>
                 <input id="appointment_date" class="form-control @error('appointment_date') is-invalid @enderror" type="date" name="appointment_date" min="{{ today()->toDateString() }}" value="{{ old('appointment_date') }}" required>
                 @error('appointment_date')<div class="invalid-feedback">{{ $message }}</div>@enderror
             </div>
-            <div class="col-md-3">
+            <div class="col-md-6">
                 <label for="appointment_time" class="form-label">Preferred time</label>
                 <input id="appointment_time" class="form-control @error('appointment_time') is-invalid @enderror" type="time" name="appointment_time" value="{{ old('appointment_time') }}" aria-describedby="slot-feedback" required>
                 @error('appointment_time')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 <div id="slot-feedback" class="form-text" aria-live="polite">Choose a shop, service, and date to check available times.</div>
-                <div id="time-suggestions" class="d-flex flex-wrap gap-2 mt-2" aria-label="Suggested available start times"></div>
+                <div id="time-suggestions" class="booking-time-suggestions d-flex flex-wrap gap-2 mt-2" aria-label="Suggested available start times"></div>
+            </div>
+            <div class="col-12 booking-form-section-head">
+                <h2>Review your request</h2>
+                <p>Add a short note if needed, then check the listed price before sending.</p>
             </div>
             <div class="col-12">
                 <label for="reason" class="form-label">What does your vehicle need?</label>
-                <textarea id="reason" class="form-control @error('reason') is-invalid @enderror" name="reason" rows="4" placeholder="Describe the concern or request (optional).">{{ old('reason') }}</textarea>
+                <textarea id="reason" class="form-control @error('reason') is-invalid @enderror" name="reason" rows="3" placeholder="For example, a noise when braking (optional).">{{ old('reason') }}</textarea>
                 @error('reason')<div class="invalid-feedback">{{ $message }}</div>@enderror
             </div>
             <div class="col-12">
                 <div class="booking-summary" aria-live="polite">
-                    <h2 class="h5 mb-2">Before you request</h2>
+                    <h3 class="h6 mb-2">Price and confirmation</h3>
                     <p class="mb-1" id="booking-service-summary">Choose a shop and service to see the listed price.</p>
                     <p class="mb-1" id="booking-inclusions">Ask the shop what labor and parts are included if they have not specified them.</p>
                     <p class="mb-0 text-secondary">This is the listed service price. Extra repair work needs a separate estimate and your approval. Your preferred time is not confirmed until the shop accepts the request.</p>
                 </div>
             </div>
-            <div class="col-12 d-flex flex-wrap gap-2">
+            <div class="col-12 booking-form-actions d-flex flex-wrap align-items-center gap-2">
                 <button class="btn btn-primary" @disabled($vehicles->isEmpty() || $shops->isEmpty())>Request appointment</button>
-                <a class="btn btn-link" href="{{ route('customer.appointments.index') }}">Cancel</a>
+                <a class="btn btn-link" href="{{ route('customer.appointments.index') }}">Back to appointments</a>
             </div>
         </form>
     </div>

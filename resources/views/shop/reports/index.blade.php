@@ -23,7 +23,7 @@
             ];
         @endphp
         <section aria-labelledby="shop-report-summary" class="mb-4">
-            <div class="report-section-heading"><h2 id="shop-report-summary">Shop snapshot</h2><span>At a glance</span></div>
+            <div class="report-section-heading"><h2 id="shop-report-summary">Shop snapshot</h2></div>
             <div class="report-metrics report-metrics--five">
                 @foreach ($metricDisplay as $label => $display)
                     <x-report-metric :label="$label" :value="$metrics[$label] ?? 0" :icon="$display['icon']" :scope="$display['scope']" :currency="$display['currency'] ?? false" />
@@ -31,7 +31,7 @@
             </div>
         </section>
         <section aria-labelledby="shop-report-trends" class="mb-4">
-            <div class="report-section-heading"><h2 id="shop-report-trends">Performance over time</h2><span>Selected date range</span></div>
+            <div class="report-section-heading"><h2 id="shop-report-trends">Performance over time</h2></div>
             <div class="report-visual-grid">
                 <div class="surface report-panel">
                     <div class="report-panel__heading"><div><h3>Confirmed revenue</h3><p>Daily payments in PHP</p></div><i class="bi bi-graph-up-arrow" aria-hidden="true"></i></div>

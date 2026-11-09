@@ -18,7 +18,9 @@ class EmergencyRequestController extends Controller
 
     public function index(Request $request): View
     {
-        return view('shop.emergency-requests.index', ['requests' => $this->shop($request)->emergencyRequests()
+        $shop = $this->shop($request);
+
+        return view('shop.emergency-requests.index', ['shop' => $shop, 'requests' => $shop->emergencyRequests()
             ->when($request->integer('focus') > 0, fn ($query) => $query->whereKey($request->integer('focus')))
             ->with(['customer', 'vehicle'])->latest('requested_at')->get()]);
     }

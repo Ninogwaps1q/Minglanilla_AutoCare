@@ -1,20 +1,15 @@
 <x-layouts.public>
-    <section class="hero-section">
+    <section class="hero-section" id="home" aria-labelledby="landing-title">
         <div class="container py-5 py-lg-6">
             <div class="row align-items-center g-5">
                 <div class="col-lg-7">
-                    <h1>Find Trusted Auto Repair Services in Minglanilla.</h1>
+                    <h1 id="landing-title">Find Trusted Auto Repair Services in Minglanilla.</h1>
                     <p class="hero-copy">Discover local automotive service providers, compare services, book
                         appointments, and manage your vehicle maintenance in one convenient platform.</p>
-                    <form action="{{ route('shops.index') }}" method="GET" class="mb-4">
-                        <label for="home-search" class="form-label text-white">Find a local shop</label>
-                        <div class="input-group"><input id="home-search" class="form-control" name="search"
-                                type="search" maxlength="100" placeholder="Search by shop name"><button
-                                class="btn btn-primary" type="submit">Search shops</button></div>
-                    </form>
-                    <div class="d-flex flex-column flex-sm-row gap-3">
-                        <a class="btn btn-accent btn-lg" href="{{ route('shops.index') }}">Find a service shop <i
-                                class="bi bi-arrow-right ms-1" aria-hidden="true"></i></a>
+                    <div class="d-flex flex-wrap align-items-center gap-3">
+                        <a class="btn btn-accent btn-lg" href="#find-shops">Find a shop <i
+                                class="bi bi-arrow-down ms-2" aria-hidden="true"></i></a>
+                        <a class="link-light fw-semibold" href="#about">How it works</a>
                     </div>
                 </div>
                 <div class="col-lg-5">
@@ -32,7 +27,42 @@
             </div>
         </div>
     </section>
-    <section class="container py-5 py-lg-6" id="about">
+    <section class="landing-find-section py-5 py-lg-6" id="find-shops" aria-labelledby="find-shops-title">
+        <div class="container">
+            <div class="row g-4 g-lg-5 align-items-center">
+                <div class="col-lg-5">
+                    <h2 id="find-shops-title">Find a shop that fits your needs</h2>
+                    <p class="text-secondary landing-section-intro mb-0">Search approved local shops by name, or explore the directory to compare services and locations.</p>
+                </div>
+                <div class="col-lg-6 offset-lg-1">
+                    <form action="{{ route('shops.index') }}" method="GET" class="landing-shop-search">
+                        <label for="home-search" class="form-label fw-semibold">Shop name</label>
+                        <div class="input-group"><input id="home-search" class="form-control" name="search"
+                                type="search" maxlength="100" placeholder="Search by shop name"><button
+                                class="btn btn-primary" type="submit">Search shops</button></div>
+                    </form>
+                    <p class="landing-discover-links mb-0"><a href="#maps">Browse the map below</a> or <a href="{{ route('shops.index') }}">see all shops</a>.</p>
+                </div>
+            </div>
+            <div class="landing-find-map" id="maps" aria-labelledby="landing-map-title">
+                <div class="landing-map-heading">
+                    <div>
+                        <h3 id="landing-map-title" class="h4">Explore shops on the map</h3>
+                        <p class="text-secondary mb-0">See where approved service shops are in Minglanilla. Select a marker to view a shop.</p>
+                    </div>
+                    <a class="btn btn-outline-primary" href="{{ route('shops.index') }}#shop-map">Open full shop map</a>
+                </div>
+                <div id="landing-shop-map" class="landing-shop-map" role="region" aria-label="Map of approved service shops"
+                    data-shops-url="{{ url('/api/shops') }}"
+                    data-shop-url-template="{{ route('shops.show', ['shop' => '__SHOP_ID__']) }}">
+                    <p class="landing-map-message">Map loads when you reach this section.</p>
+                </div>
+                <p id="landing-map-status" class="small text-secondary mt-2 mb-0" role="status" aria-live="polite">Only approved shops with saved locations appear on the map.</p>
+            </div>
+        </div>
+    </section>
+    <section class="container py-5 py-lg-6" id="about" aria-labelledby="about-title">
+        <h2 id="about-title" class="mb-4">Vehicle care, made easier</h2>
         <div class="row g-4">
             <div class="col-md-4">
                 <article class="feature-panel h-100"><i class="bi bi-geo-alt feature-icon" aria-hidden="true"></i>
@@ -57,17 +87,10 @@
             </div>
         </div>
     </section>
-    <section class="container pb-5">
-        <div class="row g-4 align-items-start">
-            <div class="col-lg-5">
-                <h2 class="h2">Your next service starts here.</h2>
-                <p class="text-secondary">Explore the map to find approved shops. Share your location only when you want
-                    nearby results.</p>
-                <a class="btn btn-primary" href="{{ route('shops.index') }}#shop-map"><i class="bi bi-geo-alt me-2"
-                        aria-hidden="true"></i>Explore the map</a>
-            </div>
-            <div class="col-lg-6 offset-lg-1">
-                <h2 class="h4 mb-3">Before you book</h2>
+    <section class="container pb-5" aria-labelledby="before-booking-title">
+        <div class="row">
+            <div class="col-lg-8">
+                <h2 id="before-booking-title" class="h4 mb-3">Before you book</h2>
                 <details class="border-bottom py-3">
                     <summary class="fw-semibold">Do I need an account?</summary>
                     <p class="text-secondary mt-3 mb-0">You can browse shops and the map without signing in. Create a

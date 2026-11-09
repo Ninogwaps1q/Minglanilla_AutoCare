@@ -34,13 +34,21 @@
                     @else
                         <a class="btn btn-accent" href="{{ route('shop.appointments.index') }}"><i class="bi bi-calendar-check me-2" aria-hidden="true"></i>Review appointments</a>
                     @endif
-                    <a class="btn btn-light" href="{{ route('shop.today-work.index') }}">Open today's work</a>
-                    <a class="btn btn-outline-light" href="{{ route('shop.repair-jobs.index') }}">View repair jobs</a>
+                    @if ($shop->verification_status === 'approved')
+                        <a class="btn btn-outline-light" href="{{ route('shop.repair-jobs.index') }}">View repair jobs</a>
+                    @endif
                 </div>
             </div>
             <x-uploaded-image class="workspace-shop-logo" :path="$shop->logo" :alt="$shop->name . ' logo'"
                 fallback-icon="wrench-adjustable-circle" />
         </section>
+
+        <x-action-queue :items="[
+            ['count' => $metrics['Waiting approval'], 'label' => 'Booking requests', 'detail' => 'Confirm or decline a customer visit.', 'href' => route('shop.appointments.index', ['status' => 'pending'])],
+            ['count' => $confirmedAppointmentCount, 'label' => 'Visits ready for a job', 'detail' => 'Open a confirmed visit and start diagnosis.', 'href' => route('shop.appointments.index', ['status' => 'confirmed'])],
+            ['count' => $approvedRepairCount, 'label' => 'Approved repairs', 'detail' => 'Start work at the customer-approved price.', 'href' => route('shop.repair-jobs.index', ['status' => 'approved'])],
+            ['count' => $pendingPaymentCount, 'label' => 'Payments to confirm', 'detail' => 'Verify money received before approving.', 'href' => route('shop.invoices.index', ['status' => 'pending'])],
+        ]" :empty-route="route('shop.today-work.index')" empty-label="Open work list" />
 
         <section class="mb-4" aria-labelledby="shop-summary-title">
             <div class="section-heading">
@@ -57,13 +65,6 @@
                 class="bi bi-chevron-right ms-auto" aria-hidden="true"></i></a>@endforeach</div>
         </section>
 
-        <x-action-queue :items="[
-            ['count' => $metrics['Waiting approval'], 'label' => 'Booking requests', 'detail' => 'Confirm or decline a customer visit.', 'href' => route('shop.appointments.index', ['status' => 'pending'])],
-            ['count' => $confirmedAppointmentCount, 'label' => 'Visits ready for a job', 'detail' => 'Open a confirmed visit and start diagnosis.', 'href' => route('shop.appointments.index', ['status' => 'confirmed'])],
-            ['count' => $approvedRepairCount, 'label' => 'Approved repairs', 'detail' => 'Start work at the customer-approved price.', 'href' => route('shop.repair-jobs.index', ['status' => 'approved'])],
-            ['count' => $pendingPaymentCount, 'label' => 'Payments to confirm', 'detail' => 'Verify money received before approving.', 'href' => route('shop.invoices.index', ['status' => 'pending'])],
-        ]" :empty-route="route('shop.today-work.index')" empty-label="Open work list" />
-
         <div class="row g-4">
             <div class="col-xl-7">
                 <section class="surface p-4 h-100" aria-labelledby="today-schedule-title">
@@ -76,7 +77,7 @@
                     <div class="workspace-list">@forelse ($todayAppointments as $appointment)
                         <article><time>{{ $appointment->appointment_time->format('g:i A') }}</time>
                             <div>
-                                <h3>{{ $appointment->serviceCase ? 'Follow-up visit' : ($appointment->service?->name ?? 'General service') }}</h3>
+                                <h3><a class="workspace-row-link" href="{{ route('shop.appointments.index', ['focus' => $appointment->id]) }}">{{ $appointment->serviceCase ? 'Follow-up visit' : ($appointment->service?->name ?? 'General service') }}</a></h3>
                                 <p>{{ $appointment->customer->name }} · {{ $appointment->vehicle->plate_number }}</p>
                             </div><span
                                 class="badge text-bg-{{ $appointment->status === 'confirmed' ? 'success' : 'warning' }} text-capitalize">{{ $appointment->status }}</span>
@@ -101,7 +102,7 @@
                     <div class="workspace-list compact">@forelse ($activeRepairs as $repair)
                         <article>
                             <div>
-                                <h3>{{ $repair->vehicle->plate_number }} · {{ $repair->customer->name }}</h3>
+                                <h3><a class="workspace-row-link" href="{{ route('shop.repair-jobs.index', ['repair_job_id' => $repair->id]) }}#repair-{{ $repair->id }}">{{ $repair->vehicle->plate_number }} · {{ $repair->customer->name }}</a></h3>
                                 <p>{{ str($repair->description)->limit(65) }}</p>
                             </div><span
                                 class="badge text-bg-secondary text-capitalize">{{ str_replace('_', ' ', $repair->status) }}</span>
@@ -119,7 +120,7 @@
             <div class="section-heading mb-2">
                 <div>
                     <h2 id="shop-actions-title">Quick actions</h2>
-                    <p>Common tasks for running the shop.</p>
+                    <p>Open estimates, payments, and parts.</p>
                 </div>
             </div>
             <div class="workspace-actions"><a href="{{ route('shop.quotations.index') }}"><i class="bi bi-file-text"
@@ -127,9 +128,7 @@
                     href="{{ route('shop.invoices.index') }}"><i class="bi bi-receipt"
                         aria-hidden="true"></i><span><strong>Payments</strong>{{ $pendingPaymentCount }} awaiting
                         verification</span></a><a href="{{ route('shop.inventory.index') }}"><i class="bi bi-box-seam"
-                        aria-hidden="true"></i><span><strong>Inventory</strong>Check parts and stock</span></a><a
-                    href="{{ route('shop.messages.index') }}"><i class="bi bi-chat-dots"
-                        aria-hidden="true"></i><span><strong>Messages</strong>Reply to customers</span></a></div>
+                        aria-hidden="true"></i><span><strong>Inventory</strong>Check parts and stock</span></a></div>
         </section>
     @endif
 </x-layouts.app>

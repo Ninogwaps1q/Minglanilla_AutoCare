@@ -20,6 +20,92 @@ for (const path of ['/', '/login', '/register', '/forgot-password', '/shops', '/
     });
 }
 
+test('landing navbar remains visible while scrolling between Home, Find a shop, and About', async ({ page }, testInfo) => {
+    test.setTimeout(60000);
+    await page.goto('/');
+    const navigation = page.getByRole('navigation', { name: 'Primary navigation' });
+    const isMobile = testInfo.project.name !== 'desktop';
+    const toggle = page.getByRole('button', { name: 'Toggle navigation' });
+    const menu = page.locator('#publicNavigation');
+    await expect(page.locator('#find-shops #maps')).toHaveCount(1);
+    await expect(navigation.getByRole('link', { name: 'Maps', exact: true })).toHaveCount(0);
+    expect(await page.evaluate(() => document.querySelector('#home').getBoundingClientRect().top >= document.querySelector('.public-navbar').getBoundingClientRect().bottom - 1)).toBe(true);
+
+    await page.evaluate(() => window.scrollTo({ top: 600, behavior: 'instant' }));
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(200);
+    await expect(navigation).toBeInViewport();
+    await expect.poll(() => navigation.evaluate(element => Math.round(element.getBoundingClientRect().top))).toBe(0);
+
+    for (const [label, section] of [['Find a shop', 'find-shops'], ['About', 'about'], ['Home', 'home']]) {
+        if (isMobile) {
+            await expect(menu).not.toHaveClass(/\bcollapsing\b/);
+            await toggle.click();
+            await expect(menu).toHaveClass(/\bshow\b/);
+        }
+        await navigation.getByRole('link', { name: label, exact: true }).click();
+        await expect(page).toHaveURL(new RegExp(`#${section}$`));
+        await expect(page.locator(`#${section}`)).toBeInViewport();
+        if (isMobile) {
+            await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+            await expect(menu).not.toHaveClass(/\bshow\b|\bcollapsing\b/);
+        }
+        await expect(navigation).toBeInViewport();
+        await expect.poll(() => navigation.evaluate(element => Math.round(element.getBoundingClientRect().top))).toBe(0);
+    }
+});
+
+test('landing map shows approved shops and opens a real shop page', async ({ page }) => {
+    test.skip(process.env.BROWSER_ISOLATED !== '1', 'Requires the disposable browser fixture');
+    const fixture = JSON.parse(process.env.BROWSER_FIXTURE);
+    await page.goto('/');
+    await page.locator('#maps').scrollIntoViewIfNeeded();
+    await expect(page.locator('#landing-shop-map .leaflet-marker-icon')).toHaveCount(1, { timeout: 15000 });
+    await page.locator('#landing-shop-map .leaflet-marker-icon').click();
+    const popup = page.locator('#landing-shop-map .leaflet-popup-content');
+    await expect(popup).toContainText('Browser Test AutoCare');
+    const logo = popup.locator('img');
+    await expect(logo).toHaveAttribute('src', /\/media\/shop-logos\//);
+    await expect.poll(() => logo.evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
+    await popup.getByRole('link', { name: 'View shop' }).click();
+    await expect(page).toHaveURL(new RegExp(`/shops/${fixture.shop}$`));
+});
+
+test('landing map failure keeps the shop directory reachable', async ({ page }) => {
+    await page.route('https://unpkg.com/leaflet@1.9.4/dist/*', route => route.abort());
+    await page.goto('/');
+    await page.locator('#maps').scrollIntoViewIfNeeded();
+    await expect(page.locator('#landing-shop-map')).toContainText('The map could not load', { timeout: 15000 });
+    await expect(page.locator('#maps').getByRole('link', { name: 'Open full shop map' })).toBeVisible();
+});
+
+test('landing shop search opens the real directory with the query', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('#find-shops').getByLabel('Shop name').fill('Browser Test AutoCare');
+    await page.locator('#find-shops').getByRole('button', { name: 'Search shops' }).click();
+
+    await expect(page).toHaveURL(/\/shops\?search=Browser(?:\+|%20)Test/);
+    await expect(page.getByLabel('Shop name')).toHaveValue('Browser Test AutoCare');
+});
+
+test('social sign-in choices stay readable on login and registration', async ({ page }, testInfo) => {
+    await page.goto('/login');
+    await expect(page.getByRole('link', { name: 'Google' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Facebook' })).toBeVisible();
+    await expect(page.getByText('New social sign-ins create customer accounts.')).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath('social-login-light.png') });
+
+    await page.evaluate(() => localStorage.setItem('autocare-theme', 'dark'));
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await expect(page.getByRole('link', { name: 'Google' })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath('social-login-dark.png') });
+
+    await page.goto('/register');
+    await expect(page.getByRole('link', { name: 'Google' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Facebook' })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+});
+
 test('password visibility control works', async ({ page }) => {
     await page.goto('/login');
     await page.locator('#password').fill('test-value-not-submitted');

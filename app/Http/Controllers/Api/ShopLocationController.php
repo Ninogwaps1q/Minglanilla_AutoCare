@@ -7,6 +7,7 @@ use App\Models\Shop;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 
 class ShopLocationController extends Controller
 {
@@ -40,7 +41,18 @@ class ShopLocationController extends Controller
 
     private function data(Shop $shop): array
     {
-        return ['id' => $shop->id, 'name' => $shop->name, 'latitude' => (float) $shop->latitude, 'longitude' => (float) $shop->longitude, 'barangay' => $shop->barangay->name, 'rating' => (float) $shop->average_rating, 'services' => $shop->services->where('availability', true)->pluck('service.name')->values()];
+        return [
+            'id' => $shop->id,
+            'name' => $shop->name,
+            'latitude' => (float) $shop->latitude,
+            'longitude' => (float) $shop->longitude,
+            'barangay' => $shop->barangay->name,
+            'rating' => (float) $shop->average_rating,
+            'services' => $shop->services->where('availability', true)->pluck('service.name')->values(),
+            'logo_url' => $shop->logo && Storage::disk('public')->exists($shop->logo)
+                ? route('media.image', ['directory' => 'shop-logos', 'filename' => basename($shop->logo)])
+                : null,
+        ];
     }
 
     private function distance(float $fromLatitude, float $fromLongitude, float $toLatitude, float $toLongitude): float

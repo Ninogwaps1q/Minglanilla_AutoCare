@@ -5,7 +5,7 @@
             <section class="surface p-4 h-100">
                 <div class="d-flex justify-content-between gap-2 mb-3"><h2 class="h5 mb-0">Today's visits · {{ $appointments->count() }}</h2><a href="{{ route('shop.appointments.index') }}">All appointments</a></div>
                 @forelse($appointments as $appointment)
-                    <article class="border rounded p-3 mb-2">
+                    <article class="border-top py-3">
                         <div class="d-flex justify-content-between gap-2"><strong>{{ $appointment->appointment_time->format('g:i A') }} · {{ $appointment->customer->name }}</strong><span class="badge text-bg-secondary">{{ ucfirst(str_replace('_', ' ', $appointment->status)) }}</span></div>
                         <p class="text-secondary small mb-2">{{ $appointment->vehicle->plate_number }} · {{ $appointment->serviceCase ? 'Follow-up visit' : ($appointment->service?->name ?? 'Vehicle service') }}</p>
                         <a href="{{ $appointment->repairJob ? route('shop.repair-jobs.index', ['appointment_id' => $appointment->id]) : route('shop.appointments.index') }}">{{ $appointment->repairJob ? 'Open repair' : 'Manage appointment' }}</a>
@@ -17,7 +17,7 @@
             <section class="surface p-4 h-100">
                 <div class="d-flex justify-content-between gap-2 mb-3"><h2 class="h5 mb-0">Active repairs · {{ $repairs->count() }}</h2><a href="{{ route('shop.repair-jobs.index') }}">All repair jobs</a></div>
                 @forelse($repairs as $repair)
-                    <article class="border rounded p-3 mb-2">
+                    <article class="border-top py-3">
                         <div class="d-flex justify-content-between gap-2"><strong>{{ $repair->job_number }}</strong><span class="badge text-bg-secondary">{{ ucfirst(str_replace('_', ' ', $repair->status)) }}</span></div>
                         <p class="text-secondary small mb-2">{{ $repair->customer->name }} · {{ $repair->vehicle->plate_number }}</p>
                         <a href="{{ route('shop.repair-jobs.index', ['repair_job_id' => $repair->id]) }}#repair-{{ $repair->id }}">Continue repair</a>
