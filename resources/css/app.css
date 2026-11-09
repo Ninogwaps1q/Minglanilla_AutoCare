@@ -3846,6 +3846,18 @@ html:not([data-theme="dark"]) .report-date-presets .btn.active {
     box-shadow: 0 .3rem 1.25rem rgb(16 29 53 / 7%);
 }
 
+.has-fixed-public-nav {
+    padding-top: 4.375rem;
+}
+
+.public-navbar-fixed {
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: 0;
+    z-index: 1030;
+}
+
 @media (prefers-reduced-motion: no-preference) {
     html:has(#home.hero-section) {
         scroll-behavior: smooth;
@@ -3856,11 +3868,15 @@ html:not([data-theme="dark"]) .report-date-presets .btn.active {
 .landing-find-section,
 #maps,
 #about {
-    scroll-margin-top: 1rem;
+    scroll-margin-top: 5rem;
 }
 
 .landing-find-section {
     background: var(--surface-subtle);
+}
+
+.landing-find-map {
+    margin-top: clamp(2.5rem, 5vw, 4.5rem);
 }
 
 .landing-section-intro {
@@ -3874,6 +3890,17 @@ html:not([data-theme="dark"]) .report-date-presets .btn.active {
 .landing-shop-search .input-group > .form-control,
 .landing-shop-search .input-group > .btn {
     min-height: 3rem;
+}
+
+.landing-discover-links {
+    margin-top: .75rem;
+    color: var(--muted);
+    font-size: .9375rem;
+    line-height: 1.6;
+}
+
+.landing-discover-links a {
+    text-underline-offset: .2em;
 }
 
 .landing-map-heading {
@@ -3894,7 +3921,8 @@ html:not([data-theme="dark"]) .report-date-presets .btn.active {
     height: clamp(20rem, 45vw, 30rem);
     overflow: hidden;
     color: var(--ink);
-    background: var(--surface-subtle);
+    background: var(--surface);
+    border: 1px solid var(--border-color);
     border-radius: .875rem;
     place-items: center;
 }

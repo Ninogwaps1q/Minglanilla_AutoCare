@@ -63,15 +63,31 @@ if (mapElement && status) {
                 const point = [Number(shop.latitude), Number(shop.longitude)];
                 bounds.push(point);
                 const popup = document.createElement('div');
+                popup.className = 'shop-map-popup';
+                const avatar = document.createElement('div');
+                avatar.className = 'shop-map-popup-logo';
+                avatar.setAttribute('role', 'img');
+                avatar.setAttribute('aria-label', `${shop.name} logo`);
+                const fallbackIcon = document.createElement('i');
+                fallbackIcon.className = 'bi bi-wrench-adjustable-circle';
+                fallbackIcon.setAttribute('aria-hidden', 'true');
+                avatar.append(fallbackIcon);
+                if (shop.logo_url) {
+                    const logo = document.createElement('img');
+                    logo.src = shop.logo_url;
+                    logo.alt = '';
+                    logo.addEventListener('error', () => logo.remove(), { once: true });
+                    avatar.append(logo);
+                }
+                const details = document.createElement('div');
+                details.className = 'shop-map-popup-details';
                 const name = document.createElement('strong');
                 name.textContent = shop.name;
-                const location = document.createElement('p');
-                location.className = 'mb-1';
-                location.textContent = shop.barangay || 'Minglanilla';
                 const link = document.createElement('a');
                 link.href = mapElement.dataset.shopUrlTemplate.replace('__SHOP_ID__', encodeURIComponent(shop.id));
                 link.textContent = 'View shop';
-                popup.append(name, location, link);
+                details.append(name, link);
+                popup.append(avatar, details);
                 window.L.marker(point).addTo(map).bindPopup(popup);
             });
 

@@ -59,6 +59,33 @@ it('includes the selected public shop logo and location in the map', function ()
             && $mapShops->first()['logo_url'] === route('media.image', ['directory' => 'shop-logos', 'filename' => 'atlas.png']));
 });
 
+it('includes existing shop logos in landing map data and falls back for missing files', function () {
+    Storage::fake('public');
+    Storage::disk('public')->put('shop-logos/landing.png', base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9JQqkAAAAASUVORK5CYII='));
+
+    $withLogo = Shop::factory()->create([
+        'name' => 'Landing Logo Shop',
+        'logo' => 'shop-logos/landing.png',
+        'latitude' => 10.2443,
+        'longitude' => 123.7898,
+        'verification_status' => 'approved',
+        'shop_status' => 'active',
+    ]);
+    Shop::factory()->create([
+        'name' => 'Missing Logo Shop',
+        'logo' => 'shop-logos/missing.png',
+        'latitude' => 10.25,
+        'longitude' => 123.79,
+        'verification_status' => 'approved',
+        'shop_status' => 'active',
+    ]);
+
+    $shops = collect($this->getJson('/api/shops')->assertOk()->assertJsonCount(2, 'data')->json('data'));
+    expect($shops->firstWhere('id', $withLogo->id)['logo_url'])
+        ->toBe(route('media.image', ['directory' => 'shop-logos', 'filename' => 'landing.png']));
+    expect($shops->firstWhere('name', 'Missing Logo Shop')['logo_url'])->toBeNull();
+});
+
 it('shows five visual stars with a one-decimal rating and does not rate shops without reviews', function () {
     $owner = User::factory()->create(['role' => 'shop_owner']);
     Shop::factory()->create([

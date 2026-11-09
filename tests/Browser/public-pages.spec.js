@@ -20,22 +20,37 @@ for (const path of ['/', '/login', '/register', '/forgot-password', '/shops', '/
     });
 }
 
-test('landing navigation scrolls between Home, Find a shop, Maps, and About', async ({ page }, testInfo) => {
+test('landing navbar remains visible while scrolling between Home, Find a shop, and About', async ({ page }, testInfo) => {
+    test.setTimeout(60000);
     await page.goto('/');
     const navigation = page.getByRole('navigation', { name: 'Primary navigation' });
     const isMobile = testInfo.project.name !== 'desktop';
     const toggle = page.getByRole('button', { name: 'Toggle navigation' });
+    const menu = page.locator('#publicNavigation');
+    await expect(page.locator('#find-shops #maps')).toHaveCount(1);
+    await expect(navigation.getByRole('link', { name: 'Maps', exact: true })).toHaveCount(0);
+    expect(await page.evaluate(() => document.querySelector('#home').getBoundingClientRect().top >= document.querySelector('.public-navbar').getBoundingClientRect().bottom - 1)).toBe(true);
 
-    for (const [label, section] of [['Find a shop', 'find-shops'], ['Maps', 'maps'], ['About', 'about'], ['Home', 'home']]) {
+    await page.evaluate(() => window.scrollTo({ top: 600, behavior: 'instant' }));
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(200);
+    await expect(navigation).toBeInViewport();
+    await expect.poll(() => navigation.evaluate(element => Math.round(element.getBoundingClientRect().top))).toBe(0);
+
+    for (const [label, section] of [['Find a shop', 'find-shops'], ['About', 'about'], ['Home', 'home']]) {
         if (isMobile) {
+            await expect(menu).not.toHaveClass(/\bcollapsing\b/);
             await toggle.click();
+            await expect(menu).toHaveClass(/\bshow\b/);
         }
         await navigation.getByRole('link', { name: label, exact: true }).click();
         await expect(page).toHaveURL(new RegExp(`#${section}$`));
         await expect(page.locator(`#${section}`)).toBeInViewport();
         if (isMobile) {
             await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+            await expect(menu).not.toHaveClass(/\bshow\b|\bcollapsing\b/);
         }
+        await expect(navigation).toBeInViewport();
+        await expect.poll(() => navigation.evaluate(element => Math.round(element.getBoundingClientRect().top))).toBe(0);
     }
 });
 
@@ -43,11 +58,15 @@ test('landing map shows approved shops and opens a real shop page', async ({ pag
     test.skip(process.env.BROWSER_ISOLATED !== '1', 'Requires the disposable browser fixture');
     const fixture = JSON.parse(process.env.BROWSER_FIXTURE);
     await page.goto('/');
-    await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Maps' }).click();
+    await page.locator('#maps').scrollIntoViewIfNeeded();
     await expect(page.locator('#landing-shop-map .leaflet-marker-icon')).toHaveCount(1, { timeout: 15000 });
     await page.locator('#landing-shop-map .leaflet-marker-icon').click();
-    await expect(page.locator('#landing-shop-map .leaflet-popup-content')).toContainText('Browser Test AutoCare');
-    await page.locator('#landing-shop-map .leaflet-popup-content').getByRole('link', { name: 'View shop' }).click();
+    const popup = page.locator('#landing-shop-map .leaflet-popup-content');
+    await expect(popup).toContainText('Browser Test AutoCare');
+    const logo = popup.locator('img');
+    await expect(logo).toHaveAttribute('src', /\/media\/shop-logos\//);
+    await expect.poll(() => logo.evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
+    await popup.getByRole('link', { name: 'View shop' }).click();
     await expect(page).toHaveURL(new RegExp(`/shops/${fixture.shop}$`));
 });
 
