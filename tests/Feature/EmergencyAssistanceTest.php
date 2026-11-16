@@ -207,5 +207,5 @@ function createEmergencyShop(Barangay $barangay, float $latitude, float $longitu
 {
     $owner = User::factory()->create(['role' => 'shop_owner']);
 
-    return Shop::query()->create(['owner_id' => $owner->id, 'name' => fake()->company(), 'phone' => fake()->unique()->numerify('0917#######'), 'email' => fake()->unique()->safeEmail(), 'address' => 'Minglanilla', 'barangay_id' => $barangay->id, 'latitude' => $latitude, 'longitude' => $longitude, 'verification_status' => 'approved', 'shop_status' => 'active']);
+    return Shop::query()->create(['owner_id' => $owner->id, 'name' => fake()->company(), 'phone' => fake()->unique()->numerify('0917#######'), 'email' => fake()->unique()->safeEmail(), 'address' => 'Minglanilla', 'barangay_id' => $barangay->id, 'latitude' => $latitude, 'longitude' => $longitude, 'verification_status' => 'approved', 'shop_status' => 'active', 'plan_slug' => 'basic', 'plan_expires_at' => now()->addMonth()]);
 }

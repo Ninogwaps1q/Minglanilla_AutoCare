@@ -35,6 +35,7 @@
                                 <x-uploaded-image class="shop-directory-logo" :path="$shop->logo" :alt="$shop->name.' logo'" fallback-icon="wrench-adjustable-circle" />
                                 <div class="shop-directory-identity-content">
                                     <h3 class="h5 mb-0">{{ $shop->name }}</h3>
+                                    @if ($shop->activePlanSlug() !== 'free')<span class="badge text-bg-primary mt-1">{{ ucfirst($shop->activePlanSlug()) }} listing</span>@endif
                                     <div class="shop-directory-rating mt-2">
                                         @if ($shop->total_reviews > 0)
                                             <x-star-rating class="small" :rating="$shop->average_rating" />

@@ -33,7 +33,7 @@ it('isolates technicians and repair jobs between shops', function () {
     $fixture = technicianFixture();
     $otherOwner = User::factory()->create(['role' => 'shop_owner']);
     $this->actingAs($otherOwner)->get(route('shop.technicians.index'))->assertNotFound();
-    $otherShop = Shop::query()->create(['owner_id' => $otherOwner->id, 'barangay_id' => $fixture['shop']->barangay_id, 'name' => 'Other Shop', 'phone' => '09170000001', 'email' => 'other-tech@example.test', 'address' => 'Other Street']);
+    $otherShop = Shop::query()->create(['owner_id' => $otherOwner->id, 'barangay_id' => $fixture['shop']->barangay_id, 'name' => 'Other Shop', 'phone' => '09170000001', 'email' => 'other-tech@example.test', 'address' => 'Other Street', 'plan_slug' => 'premium', 'plan_expires_at' => now()->addMonth()]);
     $otherTechnician = $otherShop->technicians()->create(['name' => 'Other tech', 'experience_years' => 1, 'status' => 'active']);
     $this->actingAs($otherOwner)->post(route('shop.technicians.assign', $fixture['job']), ['technician_id' => $otherTechnician->id])->assertNotFound();
 });
@@ -91,7 +91,7 @@ function technicianFixture(): array
 {
     $owner = User::factory()->create(['role' => 'shop_owner']);
     $customer = User::factory()->create(['role' => 'customer']);
-    $shop = Shop::query()->create(['owner_id' => $owner->id, 'barangay_id' => Barangay::factory()->create()->id, 'name' => 'Technician Shop', 'phone' => '09170000000', 'email' => 'tech@example.test', 'address' => 'Demo Street']);
+    $shop = Shop::query()->create(['owner_id' => $owner->id, 'barangay_id' => Barangay::factory()->create()->id, 'name' => 'Technician Shop', 'phone' => '09170000000', 'email' => 'tech@example.test', 'address' => 'Demo Street', 'plan_slug' => 'premium', 'plan_expires_at' => now()->addMonth()]);
     $vehicle = Vehicle::factory()->create(['customer_id' => $customer->id]);
     $quotation = Quotation::query()->create(['customer_id' => $customer->id, 'shop_id' => $shop->id, 'vehicle_id' => $vehicle->id, 'quotation_number' => 'QT-TECH-001', 'subtotal' => 500, 'total' => 500, 'status' => 'accepted']);
     $job = RepairJob::query()->create(['shop_id' => $shop->id, 'customer_id' => $customer->id, 'vehicle_id' => $vehicle->id, 'quotation_id' => $quotation->id, 'job_number' => 'RJ-TECH-001', 'description' => 'Inspection', 'status' => 'repairing']);

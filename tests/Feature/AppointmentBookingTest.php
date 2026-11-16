@@ -503,6 +503,8 @@ function appointmentFixture(): array
         'barangay_id' => $barangay->id,
         'verification_status' => 'approved',
         'shop_status' => 'active',
+        'plan_slug' => 'basic',
+        'plan_expires_at' => now()->addMonth(),
     ]);
     $vehicle = $customer->vehicles()->create([
         'plate_number' => 'BOOK-001',

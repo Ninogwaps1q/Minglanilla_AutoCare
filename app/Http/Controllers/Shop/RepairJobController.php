@@ -23,7 +23,11 @@ class RepairJobController extends Controller
 {
     public function storeFromQuotation(Request $request, Quotation $quotation): RedirectResponse
     {
-        abort_unless($quotation->shop_id === $this->shop($request)->id, 404);
+        $shop = $this->shop($request);
+        abort_unless($quotation->shop_id === $shop->id, 404);
+        if ($shop->verification_status !== 'approved' || $shop->shop_status !== 'active' || ! $shop->hasPlanAtLeast('basic')) {
+            throw ValidationException::withMessages(['shop' => 'An active Basic or Premium plan is needed to start a new repair. Existing records remain available.']);
+        }
         DB::transaction(function () use ($quotation, $request): void {
             $quotation = Quotation::query()->lockForUpdate()->findOrFail($quotation->id);
             abort_unless(in_array($quotation->status, ['accepted', 'approved'], true), 409);

@@ -18,6 +18,7 @@ class EmergencyDispatchService
         $shop = Shop::query()
             ->where('verification_status', 'approved')
             ->where('shop_status', 'active')
+            ->withOnlineBookings()
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
             ->whereNotIn('id', $attemptedShopIds)

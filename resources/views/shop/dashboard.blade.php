@@ -12,6 +12,11 @@
             </div>
         </div>
     @else
+        @if ($shop->verification_status === 'approved' && $shop->shop_status === 'active' && $shop->activePlanSlug() === 'free')
+            <div class="alert alert-info d-flex flex-wrap align-items-center justify-content-between gap-2" role="status"><span>Your Free listing is visible to customers. Choose Basic or Premium to accept new online bookings.</span><a class="btn btn-outline-primary" href="{{ route('shop.pricing') }}">View plans</a></div>
+        @elseif ($shop->activePlanEndsAt())
+            <div class="alert alert-info d-flex flex-wrap align-items-center justify-content-between gap-2" role="status"><span>{{ ucfirst($shop->activePlanSlug()) }} access ends {{ $shop->activePlanEndsAt()->format('M j, Y') }} ({{ $shop->daysUntilAccessEnds() }} {{ $shop->daysUntilAccessEnds() === 1 ? 'day' : 'days' }} left).</span><a class="btn btn-outline-primary" href="{{ route('shop.pricing') }}">Manage plan</a></div>
+        @endif
         <section class="workspace-welcome mb-4" aria-labelledby="shop-welcome-title">
             <div>
                 <div class="d-flex flex-wrap align-items-center gap-2 mb-2"><span

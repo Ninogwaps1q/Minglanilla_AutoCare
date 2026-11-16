@@ -53,6 +53,9 @@ class Notification extends Model
         }
 
         if ($user->role === 'shop_owner') {
+            if (in_array($this->type, ['shop_plan_payment', 'shop_plan_reminder'], true)) {
+                return route('shop.pricing');
+            }
             if ($threadId = $id('thread_id')) {
                 return route('shop.messages.show', $threadId);
             }

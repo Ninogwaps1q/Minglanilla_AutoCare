@@ -6,12 +6,19 @@
 @else
     @php
         $role = auth()->user()->role;
+        $ownerShop = $role === 'shop_owner' ? auth()->user()->shops()->first() : null;
         $navigation = match ($role) {
             'customer' => [['Start here', [['dashboard', 'Home', 'house'], ['shops.index', 'Find a shop', 'geo-alt'], ['customer.emergency-requests.index', 'Roadside assistance', 'life-preserver'], ['customer.appointments.create', 'Book a service', 'calendar-plus']]], ['Track my service', [['customer.services.index', 'My services', 'clipboard2-pulse'], ['customer.appointments.index', 'Appointments', 'calendar-check'], ['customer.repairs.index', 'Repair progress', 'tools'], ['customer.quotations.index', 'Estimates', 'file-text'], ['customer.invoices.index', 'Payments', 'receipt'], ['customer.service-cases.index', 'Follow-ups & complaints', 'chat-left-text']]], ['My vehicle', [['customer.vehicles.index', 'My Vehicle', 'car-front'], ['customer.service-history.index', 'Service history', 'clock-history'], ['customer.reminders.index', 'Maintenance planner', 'calendar-event'], ['customer.inspections.index', 'Inspection reports', 'clipboard-check']]], ['Help & account', [['customer.favorites.index', 'Saved shops', 'heart'], ['customer.reviews.index', 'My reviews', 'star']]]],
-            'shop_owner' => [['Today’s work', [['shop.dashboard', 'Home', 'house'], ['shop.today-work.index', 'Today’s work', 'list-task'], ['shop.appointments.index', 'Appointments', 'calendar-check'], ['shop.emergency-requests.index', 'Roadside requests', 'life-preserver'], ['shop.passports.scan', 'Scan passport', 'qr-code-scan'], ['shop.repair-jobs.index', 'Repair jobs', 'tools'], ['shop.quotations.index', 'Estimates', 'file-text'], ['shop.invoices.index', 'Bills & payments', 'receipt']]], ['Run the shop', [['shop.profile.edit', 'Shop profile', 'shop'], ['shop.services.index', 'Services & pricing', 'wrench'], ['shop.inventory.index', 'Parts inventory', 'box-seam'], ['shop.technicians.index', 'Team', 'people'], ['shop.reports.index', 'Business reports', 'bar-chart']]], ['Customer care', [['shop.service-cases.index', 'Follow-ups & complaints', 'chat-left-text'], ['shop.reviews.index', 'Customer reviews', 'star']]]],
-            'admin' => [['Platform', [['admin.dashboard', 'Overview', 'house'], ['admin.shops.index', 'Review shops', 'shop'], ['admin.users.index', 'Manage users', 'people'], ['admin.services.index', 'Service catalog', 'wrench'], ['barangays.index', 'Service areas', 'geo-alt']]], ['Monitor & report', [['admin.monitoring.index', 'Operations', 'activity'], ['admin.service-cases.index', 'Complaint resolution', 'chat-square-text'], ['admin.reviews.index', 'Moderate reviews', 'star'], ['admin.reports.index', 'Analytics', 'bar-chart'], ['admin.activity-logs.index', 'Audit trail', 'clock-history']]]],
+            'shop_owner' => [['Today’s work', [['shop.dashboard', 'Home', 'house'], ['shop.today-work.index', 'Today’s work', 'list-task'], ['shop.appointments.index', 'Appointments', 'calendar-check'], ['shop.emergency-requests.index', 'Roadside requests', 'life-preserver'], ['shop.passports.scan', 'Scan passport', 'qr-code-scan'], ['shop.repair-jobs.index', 'Repair jobs', 'tools'], ['shop.quotations.index', 'Estimates', 'file-text'], ['shop.invoices.index', 'Bills & payments', 'receipt']]], ['Run the shop', [['shop.profile.edit', 'Shop profile', 'shop'], ['shop.services.index', 'Services & pricing', 'wrench'], ['shop.inventory.index', 'Parts inventory', 'box-seam'], ['shop.technicians.index', 'Team', 'people'], ['shop.reports.index', 'Business reports', 'bar-chart'], ['shop.pricing', 'Plans & pricing', 'tags']]], ['Customer care', [['shop.service-cases.index', 'Follow-ups & complaints', 'chat-left-text'], ['shop.reviews.index', 'Customer reviews', 'star']]]],
+            'admin' => [['Platform', [['admin.dashboard', 'Overview', 'house'], ['admin.shops.index', 'Review shops', 'shop'], ['admin.shop-plans.index', 'Shop plans', 'tags'], ['admin.users.index', 'Manage users', 'people'], ['admin.services.index', 'Service catalog', 'wrench'], ['barangays.index', 'Service areas', 'geo-alt']]], ['Monitor & report', [['admin.monitoring.index', 'Operations', 'activity'], ['admin.service-cases.index', 'Complaint resolution', 'chat-square-text'], ['admin.reviews.index', 'Moderate reviews', 'star'], ['admin.reports.index', 'Analytics', 'bar-chart'], ['admin.activity-logs.index', 'Audit trail', 'clock-history']]]],
             default => [],
         };
+        if ($role === 'shop_owner' && ! $ownerShop?->hasPlanAtLeast('premium')) {
+            foreach ($navigation as &$group) {
+                $group[1] = array_values(array_filter($group[1], fn (array $link): bool => ! in_array($link[0], ['shop.inventory.index', 'shop.technicians.index', 'shop.reports.index'], true)));
+            }
+            unset($group);
+        }
         $roleLabel = match ($role) { 'shop_owner' => 'Shop owner', 'admin' => 'Administration', default => 'Customer'};
         $dashboardRoute = match ($role) { 'shop_owner' => 'shop.dashboard', 'admin' => 'admin.dashboard', default => 'dashboard'};
         $navigationLinks = collect($navigation)->flatMap(fn(array $group): array => $group[1]);
@@ -221,9 +228,13 @@
                 <a href="{{ route('shop.appointments.index') }}"
                     class="{{ request()->routeIs('shop.appointments.*') ? 'active' : '' }}"><i class="bi bi-calendar-check"
                         aria-hidden="true"></i><span>Bookings</span></a>
-                <a href="{{ route('shop.repair-jobs.create') }}"
-                    class="customer-mobile-book {{ request()->routeIs('shop.repair-jobs.create') ? 'active' : '' }}"><i
-                        class="bi bi-plus-lg" aria-hidden="true"></i><span>New job</span></a>
+                @if ($ownerShop?->hasPlanAtLeast('basic'))
+                    <a href="{{ route('shop.repair-jobs.create') }}"
+                        class="customer-mobile-book {{ request()->routeIs('shop.repair-jobs.create') ? 'active' : '' }}"><i
+                            class="bi bi-plus-lg" aria-hidden="true"></i><span>New job</span></a>
+                @else
+                    <a href="{{ route('shop.pricing') }}" class="customer-mobile-book {{ request()->routeIs('shop.pricing') ? 'active' : '' }}"><i class="bi bi-tags" aria-hidden="true"></i><span>Plans</span></a>
+                @endif
                 <a href="{{ route('shop.repair-jobs.index') }}"
                     class="{{ request()->routeIs('shop.repair-jobs.index') ? 'active' : '' }}"><i class="bi bi-tools"
                         aria-hidden="true"></i><span>Repairs</span></a>

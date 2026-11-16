@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureShopAcceptingWork;
+use App\Http\Middleware\EnsureShopPlan;
 use App\Http\Middleware\EnsureUserHasRole;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Services\Messaging\MessageStorage;
@@ -23,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => EnsureUserHasRole::class,
             'shop.accepting' => EnsureShopAcceptingWork::class,
+            'shop.plan' => EnsureShopPlan::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

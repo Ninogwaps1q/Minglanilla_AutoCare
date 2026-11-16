@@ -41,6 +41,7 @@ class AppointmentController extends Controller
             'date' => ['required', 'date', 'after_or_equal:today'],
         ]);
         $shop = Shop::query()->where('verification_status', 'approved')->where('shop_status', 'active')
+            ->withOnlineBookings()
             ->findOrFail($attributes['shop_id']);
         $serviceId = $request->integer('service_id');
         $offer = $serviceId > 0 ? ShopService::query()->where('shop_id', $shop->id)
@@ -72,6 +73,7 @@ class AppointmentController extends Controller
             'shops' => Shop::query()
                 ->where('verification_status', 'approved')
                 ->where('shop_status', 'active')
+                ->withOnlineBookings()
                 ->with(['services.service'])
                 ->orderBy('name')
                 ->get(),
@@ -88,6 +90,9 @@ class AppointmentController extends Controller
             $shop = Shop::query()->lockForUpdate()->findOrFail($attributes['shop_id']);
             if ($shop->verification_status !== 'approved' || $shop->shop_status !== 'active') {
                 throw ValidationException::withMessages(['shop_id' => 'This shop is no longer accepting appointments.']);
+            }
+            if (! $shop->hasPlanAtLeast('basic')) {
+                throw ValidationException::withMessages(['shop_id' => 'This shop is listed for discovery but is not accepting online bookings right now.']);
             }
             $offer = ShopService::query()->where('shop_id', $shop->id)
                 ->where('service_id', $attributes['service_id'])->where('availability', true)

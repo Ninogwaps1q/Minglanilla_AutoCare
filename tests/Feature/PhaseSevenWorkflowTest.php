@@ -186,7 +186,7 @@ function phaseSevenFixture(): array
 {
     $owner = User::factory()->create(['role' => 'shop_owner']);
     $customer = User::factory()->create(['role' => 'customer']);
-    $shop = Shop::query()->create(['owner_id' => $owner->id, 'barangay_id' => Barangay::factory()->create()->id, 'name' => 'Demo quote shop', 'phone' => '09170000000', 'email' => 'quote@example.test', 'address' => 'Demo Street', 'verification_status' => 'approved', 'shop_status' => 'active']);
+    $shop = Shop::query()->create(['owner_id' => $owner->id, 'barangay_id' => Barangay::factory()->create()->id, 'name' => 'Demo quote shop', 'phone' => '09170000000', 'email' => 'quote@example.test', 'address' => 'Demo Street', 'verification_status' => 'approved', 'shop_status' => 'active', 'plan_slug' => 'basic', 'plan_expires_at' => now()->addMonth()]);
     $vehicle = Vehicle::factory()->create(['customer_id' => $customer->id]);
 
     return compact('owner', 'customer', 'shop', 'vehicle');

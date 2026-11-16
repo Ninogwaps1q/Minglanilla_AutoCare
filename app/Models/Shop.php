@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use Carbon\CarbonInterface;
 use Database\Factories\ShopFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,7 +19,71 @@ class Shop extends Model
 
     protected function casts(): array
     {
-        return ['operating_days' => 'array'];
+        return ['operating_days' => 'array', 'trial_started_at' => 'datetime', 'trial_revoked_at' => 'datetime', 'plan_expires_at' => 'datetime'];
+    }
+
+    public function activePlanSlug(): string
+    {
+        if ($this->trialIsActive()) {
+            return 'premium';
+        }
+
+        if (in_array($this->plan_slug, ['basic', 'premium'], true) && $this->plan_expires_at?->isFuture()) {
+            return $this->plan_slug;
+        }
+
+        return 'free';
+    }
+
+    public function trialEndsAt(): ?CarbonInterface
+    {
+        return $this->trial_started_at?->copy()->addDays(30);
+    }
+
+    public function trialIsActive(): bool
+    {
+        return $this->trial_revoked_at === null && ($this->trialEndsAt()?->isFuture() ?? false);
+    }
+
+    public function activePlanEndsAt(): ?CarbonInterface
+    {
+        if ($this->trialIsActive()) {
+            return $this->trialEndsAt();
+        }
+
+        return $this->activePlanSlug() !== 'free' ? $this->plan_expires_at : null;
+    }
+
+    public function daysUntilAccessEnds(): ?int
+    {
+        $endsAt = $this->activePlanEndsAt();
+
+        return $endsAt ? max(0, (int) ceil(now()->diffInSeconds($endsAt, false) / 86400)) : null;
+    }
+
+    public function hasPlanAtLeast(string $minimum): bool
+    {
+        $rank = ['free' => 0, 'basic' => 1, 'premium' => 2];
+
+        return $rank[$this->activePlanSlug()] >= $rank[$minimum];
+    }
+
+    public function scopeWithOnlineBookings(Builder $query): Builder
+    {
+        return $query->where(function (Builder $query): void {
+            $query->where(function (Builder $query): void {
+                $query->whereNull('trial_revoked_at')->where('trial_started_at', '>', now()->subDays(30));
+            })
+                ->orWhere(function (Builder $query): void {
+                    $query->whereIn('plan_slug', ['basic', 'premium'])
+                        ->where('plan_expires_at', '>', now());
+                });
+        });
+    }
+
+    public function planPayments(): HasMany
+    {
+        return $this->hasMany(ShopPlanPayment::class);
     }
 
     public function owner(): BelongsTo

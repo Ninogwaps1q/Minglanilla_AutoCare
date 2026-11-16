@@ -62,13 +62,15 @@
                 <div class="d-grid gap-2 mb-4">
                     @auth
                         @if (auth()->user()->role === 'customer')
-                            @if ($shop->services->contains('availability', true))
+                            @if ($shop->services->contains('availability', true) && $shop->hasPlanAtLeast('basic'))
                                 <a class="btn btn-primary" href="{{ route('customer.appointments.create', ['shop_id' => $shop->id]) }}">Book a service</a>
+                            @elseif (! $shop->hasPlanAtLeast('basic'))
+                                <p class="small text-secondary mb-0">This shop is listed for discovery and is not accepting online bookings right now.</p>
                             @endif
                             <a class="btn btn-outline-primary" href="{{ route('customer.messages.show', $shop) }}">Message shop</a>
                         @endif
                     @else
-                        <a class="btn btn-primary" href="{{ route('login') }}">Sign in to book or message</a>
+                        <a class="btn btn-primary" href="{{ route('login') }}">{{ $shop->hasPlanAtLeast('basic') ? 'Sign in to book or message' : 'Sign in to message this shop' }}</a>
                     @endauth
                     @if ($shop->latitude !== null && $shop->longitude !== null)
                         <a class="btn btn-outline-secondary" href="{{ route('shops.index', ['search' => $shop->name, 'selected' => $shop->id]) }}#shop-map">View on map</a>

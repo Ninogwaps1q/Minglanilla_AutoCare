@@ -28,6 +28,8 @@ class ShopFactory extends Factory
             'address' => fake()->streetAddress(),
             'verification_status' => 'pending',
             'shop_status' => 'inactive',
+            'plan_slug' => 'premium',
+            'plan_expires_at' => now()->addYear(),
         ];
     }
 }

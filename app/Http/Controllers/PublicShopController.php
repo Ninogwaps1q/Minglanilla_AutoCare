@@ -37,6 +37,14 @@ class PublicShopController extends Controller
             ->when($filters['service'] ?? null, fn ($query, $service) => $query->whereHas('services', fn ($query) => $query->where('service_id', $service)->where('availability', true)))
             ->when($filters['sort'] === 'rating', fn ($query) => $query->orderByDesc('average_rating'), fn ($query) => $query->orderBy('name'))->get();
 
+        if ($filters['sort'] === 'name') {
+            $shops = $shops->sortBy(fn (Shop $shop): string => match ($shop->activePlanSlug()) {
+                'premium' => '0',
+                'basic' => '1',
+                default => '2',
+            }.$shop->name)->values();
+        }
+
         $distances = collect();
         if ($location !== null) {
             $distances = $shops->filter(fn (Shop $shop): bool => $shop->latitude !== null && $shop->longitude !== null)

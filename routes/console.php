@@ -16,6 +16,10 @@ Schedule::command('app:send-maintenance-reminders')
     ->daily()
     ->withoutOverlapping(30);
 
+Schedule::command('app:send-shop-plan-reminders')
+    ->daily()
+    ->withoutOverlapping(30);
+
 Schedule::command('app:reassign-unanswered-emergency-requests')
     ->everyFiveMinutes()
     ->withoutOverlapping(5);

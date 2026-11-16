@@ -21,7 +21,7 @@ class QuotationController extends Controller
     public function create(Request $request): View
     {
         return view('customer.quotations.create', [
-            'shops' => Shop::query()->where('verification_status', 'approved')->where('shop_status', 'active')->orderBy('name')->get(),
+            'shops' => Shop::query()->where('verification_status', 'approved')->where('shop_status', 'active')->withOnlineBookings()->orderBy('name')->get(),
             'vehicles' => $request->user()->vehicles()->orderBy('plate_number')->get(),
         ]);
     }
@@ -29,6 +29,10 @@ class QuotationController extends Controller
     public function store(RequestQuotationRequest $request): RedirectResponse
     {
         DB::transaction(function () use ($request): void {
+            $shop = Shop::query()->lockForUpdate()->findOrFail($request->validated('shop_id'));
+            if ($shop->verification_status !== 'approved' || $shop->shop_status !== 'active' || ! $shop->hasPlanAtLeast('basic')) {
+                throw ValidationException::withMessages(['shop_id' => 'This shop is not accepting new online estimates right now.']);
+            }
             $quotation = Quotation::query()->create([
                 ...$request->validated(), 'customer_id' => $request->user()->id,
                 'quotation_number' => 'QT-'.Str::upper(Str::random(10)), 'status' => 'draft',

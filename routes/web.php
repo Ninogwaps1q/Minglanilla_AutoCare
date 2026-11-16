@@ -9,6 +9,8 @@ use App\Http\Controllers\Admin\ServiceCaseController as AdminServiceCaseControll
 use App\Http\Controllers\Admin\ServiceCatalogController;
 use App\Http\Controllers\Admin\ServiceCategoryController;
 use App\Http\Controllers\Admin\ShopDocumentVerificationController;
+use App\Http\Controllers\Admin\ShopPlanController;
+use App\Http\Controllers\Admin\ShopPlanPaymentController as AdminShopPlanPaymentController;
 use App\Http\Controllers\Admin\ShopVerificationController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
@@ -62,14 +64,17 @@ use App\Http\Controllers\Shop\SharedVehiclePassportController;
 use App\Http\Controllers\Shop\ShopDashboardController;
 use App\Http\Controllers\Shop\ShopDocumentController;
 use App\Http\Controllers\Shop\ShopManagementController;
+use App\Http\Controllers\Shop\ShopPlanPaymentController;
 use App\Http\Controllers\Shop\TechnicianController;
 use App\Http\Controllers\Shop\TodayWorkController;
 use App\Http\Controllers\Shop\VehiclePassportScannerController;
 use App\Http\Controllers\ShopMapController;
+use App\Http\Controllers\ShopPricingController;
 use App\Http\Controllers\ShopRegistrationController;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'index')->name('home');
+Route::get('/shop/pricing', [ShopPricingController::class, 'index'])->name('shop.pricing');
 Route::get('/media/{directory}/{filename}', PublicImageController::class)
     ->whereIn('directory', ['profile-photos', 'shop-logos', 'shop-covers', 'vehicles', 'technicians'])
     ->where('filename', '[A-Za-z0-9_-]+\.(?:jpe?g|png|webp)')
@@ -102,6 +107,10 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::get('/shop/register', [ShopRegistrationController::class, 'create'])->middleware(['auth', 'role:shop_owner'])->name('shop.register');
     Route::post('/shop/register', [ShopRegistrationController::class, 'store'])->middleware(['auth', 'role:shop_owner'])->name('shop.register.store');
     Route::get('/shop/dashboard', ShopDashboardController::class)->middleware(['auth', 'role:shop_owner'])->name('shop.dashboard');
+    Route::post('/shop/pricing/trial', [ShopPricingController::class, 'startTrial'])->middleware(['auth', 'role:shop_owner', 'throttle:6,1'])->name('shop.pricing.trial');
+    Route::post('/shop/pricing/request/{shopPlan}', [ShopPricingController::class, 'requestPlan'])->middleware(['auth', 'role:shop_owner', 'throttle:6,1'])->name('shop.pricing.request');
+    Route::post('/shop/pricing/payments', [ShopPlanPaymentController::class, 'store'])->middleware(['auth', 'role:shop_owner', 'throttle:6,1'])->name('shop.pricing.payments.store');
+    Route::get('/shop/pricing/payments/{shopPlanPayment}/proof', [ShopPlanPaymentController::class, 'download'])->middleware(['auth', 'role:shop_owner'])->name('shop.pricing.payments.proof');
     Route::middleware(['auth', 'role:shop_owner'])->prefix('shop')->name('shop.')->group(function (): void {
         Route::get('today-work', TodayWorkController::class)->name('today-work.index');
         Route::get('service-cases', [ShopServiceCaseController::class, 'index'])->name('service-cases.index');
@@ -121,13 +130,13 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         Route::get('profile/documents/{shopDocument}', [ShopDocumentController::class, 'download'])->name('documents.download');
         Route::delete('profile/documents/{shopDocument}', [ShopDocumentController::class, 'destroy'])->name('documents.destroy');
         Route::get('services', [ShopManagementController::class, 'services'])->name('services.index');
-        Route::post('services', [ShopManagementController::class, 'storeService'])->middleware('shop.accepting')->name('services.store');
+        Route::post('services', [ShopManagementController::class, 'storeService'])->middleware('shop.accepting:free')->name('services.store');
         Route::delete('services/{shopService}', [ShopManagementController::class, 'destroyService'])->name('services.destroy');
         Route::get('appointments', [ShopAppointmentController::class, 'index'])->name('appointments.index');
         Route::patch('appointments/{appointment}/status', [ShopAppointmentController::class, 'update'])->name('appointments.update');
         Route::patch('appointments/{appointment}/reschedule', [ShopAppointmentController::class, 'decideReschedule'])->name('appointments.reschedule.decide');
         Route::get('repair-jobs', [RepairJobController::class, 'index'])->name('repair-jobs.index');
-        Route::get('repair-jobs/create', [RepairJobController::class, 'create'])->name('repair-jobs.create');
+        Route::get('repair-jobs/create', [RepairJobController::class, 'create'])->middleware('shop.plan:basic')->name('repair-jobs.create');
         Route::post('repair-jobs', [RepairJobController::class, 'store'])->middleware('shop.accepting')->name('repair-jobs.store');
         Route::post('repair-jobs/{repairJob}/booked-service', [RepairJobController::class, 'addBookedService'])->name('repair-jobs.booked-service');
         Route::patch('repair-jobs/{repairJob}', [RepairJobController::class, 'update'])->name('repair-jobs.update');
@@ -155,20 +164,22 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         Route::post('notifications/{notification}/open', [ShopNotificationController::class, 'open'])->name('notifications.open');
         Route::patch('notifications/bulk', [ShopNotificationController::class, 'updateReadState'])->name('notifications.bulk-update');
         Route::patch('notifications/{notification}', [ShopNotificationController::class, 'update'])->name('notifications.update');
-        Route::get('inventory', [InventoryController::class, 'index'])->name('inventory.index');
-        Route::post('inventory', [InventoryController::class, 'store'])->name('inventory.store');
-        Route::patch('inventory/{sparePart}', [InventoryController::class, 'adjust'])->name('inventory.adjust');
-        Route::post('inventory/{sparePart}/consume', [InventoryController::class, 'consume'])->name('inventory.consume');
-        Route::post('repair-job-items/{repairJobItem}/consume', [InventoryController::class, 'consumeItem'])->name('repair-job-items.consume');
-        Route::post('repair-job-items/{repairJobItem}/reserve', [InventoryController::class, 'reserveItem'])->name('repair-job-items.reserve');
-        Route::post('repair-job-items/{repairJobItem}/return', [InventoryController::class, 'returnItem'])->name('repair-job-items.return');
-        Route::get('technicians', [TechnicianController::class, 'index'])->name('technicians.index');
-        Route::post('technicians', [TechnicianController::class, 'store'])->name('technicians.store');
-        Route::patch('technicians/{technician}', [TechnicianController::class, 'update'])->name('technicians.update');
-        Route::post('repair-jobs/{repairJob}/technicians', [TechnicianController::class, 'assign'])->name('technicians.assign');
-        Route::delete('repair-jobs/{repairJob}/technicians/{technician}', [TechnicianController::class, 'unassign'])->name('technicians.unassign');
-        Route::get('reports/download', [ShopReportController::class, 'download'])->name('reports.download');
-        Route::get('reports', [ShopReportController::class, 'index'])->name('reports.index');
+        Route::middleware('shop.plan:premium')->group(function (): void {
+            Route::get('inventory', [InventoryController::class, 'index'])->name('inventory.index');
+            Route::post('inventory', [InventoryController::class, 'store'])->name('inventory.store');
+            Route::patch('inventory/{sparePart}', [InventoryController::class, 'adjust'])->name('inventory.adjust');
+            Route::post('inventory/{sparePart}/consume', [InventoryController::class, 'consume'])->name('inventory.consume');
+            Route::post('repair-job-items/{repairJobItem}/consume', [InventoryController::class, 'consumeItem'])->name('repair-job-items.consume');
+            Route::post('repair-job-items/{repairJobItem}/reserve', [InventoryController::class, 'reserveItem'])->name('repair-job-items.reserve');
+            Route::post('repair-job-items/{repairJobItem}/return', [InventoryController::class, 'returnItem'])->name('repair-job-items.return');
+            Route::get('technicians', [TechnicianController::class, 'index'])->name('technicians.index');
+            Route::post('technicians', [TechnicianController::class, 'store'])->name('technicians.store');
+            Route::patch('technicians/{technician}', [TechnicianController::class, 'update'])->name('technicians.update');
+            Route::post('repair-jobs/{repairJob}/technicians', [TechnicianController::class, 'assign'])->name('technicians.assign');
+            Route::delete('repair-jobs/{repairJob}/technicians/{technician}', [TechnicianController::class, 'unassign'])->name('technicians.unassign');
+            Route::get('reports/download', [ShopReportController::class, 'download'])->name('reports.download');
+            Route::get('reports', [ShopReportController::class, 'index'])->name('reports.index');
+        });
         Route::get('emergency-requests', [ShopEmergencyRequestController::class, 'index'])->name('emergency-requests.index');
         Route::patch('emergency-requests/{emergencyRequest}', [ShopEmergencyRequestController::class, 'update'])->name('emergency-requests.update');
     });
@@ -180,6 +191,11 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::resource('admin/service-categories', ServiceCategoryController::class)->parameters(['service-categories' => 'category'])->only(['index', 'store', 'update', 'destroy'])->names('admin.service-categories')->middleware(['auth', 'role:admin']);
     Route::resource('/admin/barangays', BarangayController::class)->only(['index', 'store', 'update'])->middleware(['auth', 'role:admin']);
     Route::get('/admin/shops', [ShopVerificationController::class, 'index'])->middleware(['auth', 'role:admin'])->name('admin.shops.index');
+    Route::get('/admin/shop-plans', [ShopPlanController::class, 'index'])->middleware(['auth', 'role:admin'])->name('admin.shop-plans.index');
+    Route::put('/admin/shop-plans/{shopPlan}', [ShopPlanController::class, 'update'])->middleware(['auth', 'role:admin'])->name('admin.shop-plans.update');
+    Route::patch('/admin/shops/{shop}/plan', [ShopPlanController::class, 'activate'])->middleware(['auth', 'role:admin'])->name('admin.shops.plan');
+    Route::patch('/admin/shop-plan-payments/{shopPlanPayment}', [AdminShopPlanPaymentController::class, 'update'])->middleware(['auth', 'role:admin'])->name('admin.shop-plan-payments.update');
+    Route::get('/admin/shop-plan-payments/{shopPlanPayment}/proof', [AdminShopPlanPaymentController::class, 'download'])->middleware(['auth', 'role:admin'])->name('admin.shop-plan-payments.proof');
     Route::patch('/admin/shops/{shop}/status', [ShopVerificationController::class, 'updateStatus'])->middleware(['auth', 'role:admin'])->name('admin.shops.status');
     Route::patch('/admin/shops/{shop}/approve', [ShopVerificationController::class, 'approve'])->middleware(['auth', 'role:admin'])->name('admin.shops.approve');
     Route::patch('/admin/shops/{shop}/reject', [ShopVerificationController::class, 'reject'])->middleware(['auth', 'role:admin'])->name('admin.shops.reject');

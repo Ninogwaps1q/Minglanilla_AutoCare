@@ -405,7 +405,7 @@ function repairFixture(): array
     $barangay = Barangay::factory()->create();
     $customer = User::factory()->create(['role' => 'customer']);
     $owner = User::factory()->create(['role' => 'shop_owner']);
-    $shop = Shop::query()->create(['owner_id' => $owner->id, 'name' => 'Repair Shop', 'phone' => '09170000000', 'email' => 'repair@example.test', 'address' => 'Demo Street', 'barangay_id' => $barangay->id, 'verification_status' => 'approved', 'shop_status' => 'active']);
+    $shop = Shop::query()->create(['owner_id' => $owner->id, 'name' => 'Repair Shop', 'phone' => '09170000000', 'email' => 'repair@example.test', 'address' => 'Demo Street', 'barangay_id' => $barangay->id, 'verification_status' => 'approved', 'shop_status' => 'active', 'plan_slug' => 'premium', 'plan_expires_at' => now()->addMonth()]);
     $vehicle = $customer->vehicles()->create(['plate_number' => 'REPAIR-001', 'make' => 'Toyota', 'model' => 'Vios', 'year' => 2020]);
     $repairJob = RepairJob::query()->create(['customer_id' => $customer->id, 'shop_id' => $shop->id, 'vehicle_id' => $vehicle->id, 'job_number' => 'RJ-TEST-001', 'description' => 'Engine inspection', 'status' => 'pending']);
 

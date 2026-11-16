@@ -102,6 +102,8 @@ it('stores and renders a technician photo only for the owning shop', function ()
         'phone' => '09170000000',
         'email' => 'technician-photo@example.test',
         'address' => 'Minglanilla',
+        'plan_slug' => 'premium',
+        'plan_expires_at' => now()->addMonth(),
     ]);
 
     $this->actingAs($owner)->post(route('shop.technicians.store'), [

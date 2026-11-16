@@ -169,6 +169,8 @@ it('limits shop reports to the authenticated owners shop', function () {
         'phone' => '09170000002',
         'email' => 'other-reporting@example.test',
         'address' => 'Other Street',
+        'plan_slug' => 'premium',
+        'plan_expires_at' => now()->addMonth(),
     ]);
 
     Payment::query()->create([
@@ -226,6 +228,8 @@ function reportingFixture(): array
         'phone' => '09170000001',
         'email' => 'reporting@example.test',
         'address' => 'Report Street',
+        'plan_slug' => 'premium',
+        'plan_expires_at' => now()->addMonth(),
     ]);
     $invoice = Invoice::query()->create([
         'customer_id' => $customer->id,
