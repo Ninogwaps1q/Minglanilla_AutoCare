@@ -87,6 +87,12 @@ class RepairJob extends Model
             if ($this->invoice->status === 'paid') {
                 return ['actor' => 'Shop', 'action' => 'Release the vehicle when it is ready for pickup.'];
             }
+            $hasOnlineCheckout = $this->invoice->relationLoaded('payments')
+                ? $this->invoice->payments->contains('status', 'checkout_pending')
+                : $this->invoice->payments()->where('status', 'checkout_pending')->exists();
+            if ($hasOnlineCheckout) {
+                return ['actor' => 'Customer', 'action' => 'Finish the PayMongo checkout for the invoice.'];
+            }
             $hasPendingPayment = $this->invoice->relationLoaded('payments')
                 ? $this->invoice->payments->contains('status', 'pending')
                 : $this->invoice->payments()->where('status', 'pending')->exists();
@@ -94,7 +100,7 @@ class RepairJob extends Model
                 return ['actor' => 'Shop', 'action' => 'Review the customer payment.'];
             }
 
-            return ['actor' => 'Customer', 'action' => 'Submit payment for the invoice.'];
+            return ['actor' => 'Customer', 'action' => 'Pay the invoice through PayMongo.'];
         }
         if ($this->quotation?->status === 'sent') {
             if ($this->quotation->valid_until?->isBefore(today())) {

@@ -10,6 +10,12 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
+beforeEach(function (): void {
+    config()->set('services.paymongo.legacy_manual_payments', true);
+    config()->set('services.paymongo.secret_key', null);
+    config()->set('services.paymongo.webhook_secret', null);
+});
+
 test('example', function () {
     $response = $this->get('/');
 

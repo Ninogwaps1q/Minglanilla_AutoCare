@@ -81,8 +81,21 @@ class ShopPlanPaymentController extends Controller
 
     public function download(ShopPlanPayment $shopPlanPayment): StreamedResponse
     {
-        abort_unless($shopPlanPayment->proof_path, 404);
+        abort_unless($shopPlanPayment->hasProof(), 404);
 
         return Storage::download($shopPlanPayment->proof_path);
+    }
+
+    public function preview(ShopPlanPayment $shopPlanPayment): StreamedResponse
+    {
+        abort_unless($shopPlanPayment->hasImageProof(), 404);
+        $mimeType = Storage::mimeType($shopPlanPayment->proof_path);
+        abort_unless(in_array($mimeType, ['image/jpeg', 'image/png', 'image/webp'], true), 404);
+
+        return Storage::response($shopPlanPayment->proof_path, headers: [
+            'Content-Type' => $mimeType,
+            'Cache-Control' => 'private, no-store',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 }

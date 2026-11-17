@@ -3,6 +3,8 @@
 use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\BarangayController;
 use App\Http\Controllers\Admin\MonitoringController;
+use App\Http\Controllers\Admin\PayMongoRefundController;
+use App\Http\Controllers\Admin\PayMongoSettlementController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\ReviewModerationController;
 use App\Http\Controllers\Admin\ServiceCaseController as AdminServiceCaseController;
@@ -31,6 +33,8 @@ use App\Http\Controllers\Customer\MaintenanceReminderController;
 use App\Http\Controllers\Customer\MaintenanceScheduleController;
 use App\Http\Controllers\Customer\MessageController as CustomerMessageController;
 use App\Http\Controllers\Customer\NotificationController;
+use App\Http\Controllers\Customer\PayMongoPaymentStatusController;
+use App\Http\Controllers\Customer\PayMongoRefundRequestController;
 use App\Http\Controllers\Customer\ProfileController;
 use App\Http\Controllers\Customer\QuotationController as CustomerQuotationController;
 use App\Http\Controllers\Customer\RepairJobController as CustomerRepairJobController;
@@ -110,6 +114,10 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::post('/shop/pricing/trial', [ShopPricingController::class, 'startTrial'])->middleware(['auth', 'role:shop_owner', 'throttle:6,1'])->name('shop.pricing.trial');
     Route::post('/shop/pricing/request/{shopPlan}', [ShopPricingController::class, 'requestPlan'])->middleware(['auth', 'role:shop_owner', 'throttle:6,1'])->name('shop.pricing.request');
     Route::post('/shop/pricing/payments', [ShopPlanPaymentController::class, 'store'])->middleware(['auth', 'role:shop_owner', 'throttle:6,1'])->name('shop.pricing.payments.store');
+    Route::post('/shop/pricing/checkout', [ShopPlanPaymentController::class, 'checkout'])->middleware(['auth', 'role:shop_owner', 'throttle:6,1'])->name('shop.pricing.checkout');
+    Route::post('/shop/pricing/checkout/{shopPlanPayment}/cancel', [ShopPlanPaymentController::class, 'cancel'])->middleware(['auth', 'role:shop_owner', 'throttle:6,1'])->name('shop.pricing.checkout.cancel');
+    Route::post('/shop/pricing/checkout/{shopPlanPayment}/check', [ShopPlanPaymentController::class, 'check'])->middleware(['auth', 'role:shop_owner', 'throttle:6,1'])->name('shop.pricing.checkout.check');
+    Route::get('/shop/pricing/plans/{shopPlan}/qr', [ShopPricingController::class, 'qr'])->middleware(['auth', 'role:shop_owner,admin'])->name('shop.pricing.qr');
     Route::get('/shop/pricing/payments/{shopPlanPayment}/proof', [ShopPlanPaymentController::class, 'download'])->middleware(['auth', 'role:shop_owner'])->name('shop.pricing.payments.proof');
     Route::middleware(['auth', 'role:shop_owner'])->prefix('shop')->name('shop.')->group(function (): void {
         Route::get('today-work', TodayWorkController::class)->name('today-work.index');
@@ -195,7 +203,14 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::put('/admin/shop-plans/{shopPlan}', [ShopPlanController::class, 'update'])->middleware(['auth', 'role:admin'])->name('admin.shop-plans.update');
     Route::patch('/admin/shops/{shop}/plan', [ShopPlanController::class, 'activate'])->middleware(['auth', 'role:admin'])->name('admin.shops.plan');
     Route::patch('/admin/shop-plan-payments/{shopPlanPayment}', [AdminShopPlanPaymentController::class, 'update'])->middleware(['auth', 'role:admin'])->name('admin.shop-plan-payments.update');
+    Route::get('/admin/paymongo-settlements', [PayMongoSettlementController::class, 'index'])->middleware(['auth', 'role:admin'])->name('admin.paymongo-settlements.index');
+    Route::patch('/admin/paymongo-settlements/{payment}', [PayMongoSettlementController::class, 'update'])->middleware(['auth', 'role:admin'])->name('admin.paymongo-settlements.update');
+    Route::get('/admin/paymongo-settlements/{payment}/proof', [PayMongoSettlementController::class, 'proof'])->middleware(['auth', 'role:admin,shop_owner'])->name('admin.paymongo-settlements.proof');
+    Route::post('/admin/paymongo-settlements/{payment}/refresh', [PayMongoSettlementController::class, 'refresh'])->middleware(['auth', 'role:admin', 'throttle:6,1'])->name('admin.paymongo-settlements.refresh');
+    Route::patch('/admin/paymongo-settlements/{payment}/dispute', [PayMongoSettlementController::class, 'dispute'])->middleware(['auth', 'role:admin'])->name('admin.paymongo-settlements.dispute');
+    Route::patch('/admin/paymongo-refunds/{payment}', PayMongoRefundController::class)->middleware(['auth', 'role:admin'])->name('admin.paymongo-refunds.update');
     Route::get('/admin/shop-plan-payments/{shopPlanPayment}/proof', [AdminShopPlanPaymentController::class, 'download'])->middleware(['auth', 'role:admin'])->name('admin.shop-plan-payments.proof');
+    Route::get('/admin/shop-plan-payments/{shopPlanPayment}/preview', [AdminShopPlanPaymentController::class, 'preview'])->middleware(['auth', 'role:admin'])->name('admin.shop-plan-payments.preview');
     Route::patch('/admin/shops/{shop}/status', [ShopVerificationController::class, 'updateStatus'])->middleware(['auth', 'role:admin'])->name('admin.shops.status');
     Route::patch('/admin/shops/{shop}/approve', [ShopVerificationController::class, 'approve'])->middleware(['auth', 'role:admin'])->name('admin.shops.approve');
     Route::patch('/admin/shops/{shop}/reject', [ShopVerificationController::class, 'reject'])->middleware(['auth', 'role:admin'])->name('admin.shops.reject');
@@ -251,6 +266,10 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         Route::get('invoices/{invoice}', [CustomerInvoiceController::class, 'show'])->name('invoices.show');
         Route::get('invoices/{invoice}/pdf', [CustomerInvoiceController::class, 'pdf'])->name('invoices.pdf');
         Route::post('invoices/{invoice}/payments', [CustomerInvoiceController::class, 'store'])->name('payments.store');
+        Route::post('invoices/{invoice}/checkout', [CustomerInvoiceController::class, 'checkout'])->middleware('throttle:6,1')->name('payments.checkout');
+        Route::post('payments/{payment}/checkout/cancel', [CustomerInvoiceController::class, 'cancel'])->middleware('throttle:6,1')->name('payments.checkout.cancel');
+        Route::post('payments/{payment}/checkout/check', PayMongoPaymentStatusController::class)->middleware('throttle:6,1')->name('payments.checkout.check');
+        Route::post('payments/{payment}/refund', PayMongoRefundRequestController::class)->middleware('throttle:3,1')->name('payments.refund.request');
         Route::get('reminders', [MaintenanceReminderController::class, 'index'])->name('reminders.index');
         Route::post('reminders', [MaintenanceReminderController::class, 'store'])->name('reminders.store');
         Route::patch('reminders/{reminder}', [MaintenanceReminderController::class, 'update'])->name('reminders.update');

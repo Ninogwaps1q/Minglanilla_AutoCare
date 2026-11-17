@@ -8,6 +8,9 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 uses(RefreshDatabase::class);
 
 it('shows shop-owned payment details only to the invoiced customer', function () {
+    config()->set('services.paymongo.legacy_manual_payments', true);
+    config()->set('services.paymongo.secret_key', null);
+    config()->set('services.paymongo.webhook_secret', null);
     $owner = User::factory()->create(['role' => 'shop_owner']);
     $shop = Shop::factory()->create(['owner_id' => $owner->id, 'verification_status' => 'approved', 'shop_status' => 'active']);
     $customer = User::factory()->create(['role' => 'customer']);

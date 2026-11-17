@@ -11,6 +11,12 @@ use Laravel\Socialite\Two\User as SocialiteUser;
 
 uses(RefreshDatabase::class);
 
+beforeEach(function (): void {
+    config()->set('app.url', 'http://localhost:8000');
+    config()->set('services.google.redirect', 'http://localhost:8000/auth/google/callback');
+    config()->set('services.facebook.redirect', 'http://localhost:8000/auth/facebook/callback');
+});
+
 it('shows Google and Facebook sign-in on the login and registration pages', function () {
     $this->get(route('login'))->assertSee(route('social.redirect', 'google'))
         ->assertSee(route('social.redirect', 'facebook'));
@@ -23,7 +29,7 @@ it('redirects to a configured provider', function (string $provider) {
     config()->set("services.{$provider}.client_secret", 'test-secret');
     Socialite::fake($provider);
 
-    $this->get(route('social.redirect', $provider))
+    $this->get(config('app.url').route('social.redirect', $provider, false))
         ->assertRedirect("https://socialite.fake/{$provider}/authorize");
 })->with(['google', 'facebook']);
 
@@ -31,7 +37,7 @@ it('includes a session-backed state token in the Google authorization request', 
     config()->set('services.google.client_id', 'test-client');
     config()->set('services.google.client_secret', 'test-secret');
 
-    $response = $this->get(route('social.redirect', 'google'));
+    $response = $this->get(config('app.url').route('social.redirect', 'google', false));
 
     $response->assertRedirect()->assertSessionHas('state');
     expect($response->headers->get('Location'))->toContain('state=');
@@ -52,14 +58,99 @@ it('starts OAuth on the configured loopback host before creating session state',
 });
 
 it('uses the configured app URL for the callback even when the request host differs', function () {
+    config()->set('app.url', 'https://autocare.example.com');
+    config()->set('services.google.redirect', 'https://autocare.example.com/auth/google/callback');
     config()->set('services.google.client_id', 'test-client');
     config()->set('services.google.client_secret', 'test-secret');
 
-    $response = $this->withServerVariables(['HTTP_HOST' => 'unexpected.example'])
-        ->get('/auth/google/redirect');
+    $this->get('http://192.168.1.2:8000/auth/google/redirect')
+        ->assertRedirect('https://autocare.example.com/auth/google/redirect')
+        ->assertSessionMissing('state');
+
+    $response = $this->get('https://autocare.example.com/auth/google/redirect');
+    $response->assertSessionHas('state');
     parse_str((string) parse_url($response->headers->get('Location'), PHP_URL_QUERY), $parameters);
 
-    expect($parameters['redirect_uri'])->toBe(rtrim(config('app.url'), '/').'/auth/google/callback');
+    expect($parameters['redirect_uri'])->toBe('https://autocare.example.com/auth/google/callback');
+});
+
+it('starts Google login on localhost when the server computer opens its LAN address', function (string $clientIp) {
+    config()->set('services.google.client_id', 'test-client');
+    config()->set('services.google.client_secret', 'test-secret');
+
+    $this->withServerVariables(['REMOTE_ADDR' => $clientIp, 'SERVER_ADDR' => '192.168.1.2'])
+        ->get('http://192.168.1.2:8000/auth/google/redirect')
+        ->assertRedirect('http://localhost:8000/auth/google/redirect')
+        ->assertSessionHasNoErrors()
+        ->assertSessionMissing('state');
+
+    $response = $this->get('http://localhost:8000/auth/google/redirect');
+    $response->assertRedirect()->assertSessionHas('state');
+    expect(parse_url($response->headers->get('Location'), PHP_URL_HOST))->toBe('accounts.google.com');
+    parse_str((string) parse_url($response->headers->get('Location'), PHP_URL_QUERY), $parameters);
+    expect($parameters['redirect_uri'])->toBe('http://localhost:8000/auth/google/callback');
+})->with(['192.168.1.2', '127.0.0.1', '::1']);
+
+it('keeps a remote device on its login page when OAuth is configured for localhost', function (string $provider) {
+    config()->set("services.{$provider}.client_id", 'test-client');
+    config()->set("services.{$provider}.client_secret", 'test-secret');
+
+    $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.25', 'SERVER_ADDR' => '192.168.1.2'])
+        ->get("http://192.168.1.2:8000/auth/{$provider}/redirect")
+        ->assertRedirect('http://192.168.1.2:8000/login')
+        ->assertSessionHasErrors([
+            'social' => ucfirst($provider).' sign-in is currently available only on the server computer. To sign in from this device, the administrator must configure a shared HTTPS site address. You can still use your email and password.',
+        ])
+        ->assertSessionMissing('state');
+})->with(['google', 'facebook']);
+
+it('explains an unsupported Google callback origin before starting OAuth', function (string $origin) {
+    config()->set('app.url', $origin);
+    config()->set('services.google.client_id', 'test-client');
+    config()->set('services.google.client_secret', 'test-secret');
+
+    $this->get($origin.'/auth/google/redirect')
+        ->assertRedirect($origin.'/login')
+        ->assertSessionHasErrors([
+            'social' => 'Google sign-in needs an HTTPS domain registered with Google. A local network IP address cannot be used. Please use your email and password until the administrator finishes setup.',
+        ])
+        ->assertSessionMissing('state');
+})->with(['http://192.168.1.2:8000', 'https://192.168.1.2', 'http://autocare.example.com']);
+
+it('starts Google OAuth over HTTPS forwarded by a local tunnel without a redirect loop', function () {
+    config()->set('app.url', 'https://autocare.example.com');
+    config()->set('services.google.redirect', 'https://autocare.example.com/auth/google/callback');
+    config()->set('services.google.client_id', 'test-client');
+    config()->set('services.google.client_secret', 'test-secret');
+
+    $response = $this->withServerVariables(['REMOTE_ADDR' => '127.0.0.1'])
+        ->withHeaders([
+            'X-Forwarded-Host' => 'autocare.example.com',
+            'X-Forwarded-Proto' => 'https',
+            'X-Forwarded-Port' => '443',
+        ])
+        ->get('http://localhost:8000/auth/google/redirect');
+
+    $response->assertRedirect()->assertSessionHas('state');
+    expect(parse_url($response->headers->get('Location'), PHP_URL_HOST))->toBe('accounts.google.com');
+    parse_str((string) parse_url($response->headers->get('Location'), PHP_URL_QUERY), $parameters);
+    expect($parameters['redirect_uri'])->toBe('https://autocare.example.com/auth/google/callback');
+});
+
+it('ignores forwarded headers from a device that is not a trusted proxy', function () {
+    config()->set('services.google.client_id', 'test-client');
+    config()->set('services.google.client_secret', 'test-secret');
+
+    $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.25', 'SERVER_ADDR' => '192.168.1.2'])
+        ->withHeaders([
+            'X-Forwarded-Host' => 'localhost:8000',
+            'X-Forwarded-Proto' => 'http',
+            'X-Forwarded-For' => '127.0.0.1',
+        ])
+        ->get('http://192.168.1.2:8000/auth/google/redirect')
+        ->assertRedirect('http://192.168.1.2:8000/login')
+        ->assertSessionHasErrors('social')
+        ->assertSessionMissing('state');
 });
 
 it('explains when a provider is not configured', function () {

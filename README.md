@@ -51,6 +51,7 @@ If images do not appear:
 
 ## Optional integrations
 
+-   Google login on another device: `localhost` always refers to the device opening the browser. Use one shared HTTPS domain or tunnel URL as `APP_URL`, register that exact origin followed by `/auth/google/callback` in the Google OAuth client's **Authorized redirect URIs**, then run `php artisan config:clear`. Open the shared HTTPS address on every device before signing in. Google does not allow ordinary LAN IP callback URLs. Keep `SESSION_DOMAIN=null`; the app trusts proxy headers only from a tunnel running on the same computer (`127.0.0.1` / `::1`). `GOOGLE_REDIRECT_URI` is not used; the callback is derived from `APP_URL` to keep both addresses consistent.
 -   AI assistant: set `AI_PROVIDER=gemini`, `GEMINI_API_KEY`, and `AI_MODEL` in `.env`. Keep the key server-side.
 -   Password-reset email: `MAIL_MAILER=log` writes development mail to Laravel logs. Configure a real mail provider before inviting users, then send and redeem a test reset link.
 -   Maps and browser location: geolocation requires the user's permission and HTTPS in production (localhost is suitable for local testing).
@@ -65,12 +66,10 @@ php artisan test --compact
 npm run build
 ```
 
-The normal PHP suite uses an in-memory SQLite database. Four concurrent-request tests are skipped unless explicitly enabled. Run them **only** against a disposable MySQL 8 test server whose credentials may create and drop databases named `autocare_concurrency_test_*`:
+The normal PHP suite uses an in-memory SQLite database. The four concurrent-request tests run separately through `phpunit.concurrency.xml`, so the normal suite does not report them as skipped warnings. Run them **only** against a disposable MySQL/MariaDB test server whose credentials may create and drop databases named `autocare_concurrency_test_*`. The tests use the configured MySQL connection, create a temporary database per case, and remove it afterward. PayMongo requests are faked; no real checkout or charge is created.
 
 ```powershell
-$env:RUN_MYSQL_CONCURRENCY='1'
-php artisan test --compact tests/Feature/ConcurrentWorkflowTest.php
-Remove-Item Env:RUN_MYSQL_CONCURRENCY
+composer test:concurrency
 ```
 
 Browser tests use an isolated temporary SQLite database and a local server on port 8877. Install the browser once with `npx playwright install chrome`, then run:

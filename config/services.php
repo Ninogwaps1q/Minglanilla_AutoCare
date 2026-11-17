@@ -18,6 +18,14 @@ return [
         'key' => env('POSTMARK_API_KEY'),
     ],
 
+    'paymongo' => [
+        'secret_key' => env('PAYMONGO_SECRET_KEY'),
+        'webhook_secret' => env('PAYMONGO_WEBHOOK_SECRET'),
+        'payment_methods' => array_values(array_filter(explode(',', env('PAYMONGO_PAYMENT_METHODS', 'card,gcash,paymaya,grab_pay,shopee_pay,qrph')))),
+        'method_labels' => ['card' => 'Card', 'gcash' => 'GCash', 'paymaya' => 'Maya', 'grab_pay' => 'GrabPay', 'shopeepay' => 'ShopeePay', 'shopee_pay' => 'ShopeePay', 'qrph' => 'QR Ph'],
+        'legacy_manual_payments' => env('PAYMONGO_LEGACY_MANUAL_PAYMENTS', false),
+    ],
+
     'resend' => [
         'key' => env('RESEND_API_KEY'),
     ],

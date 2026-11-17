@@ -13,6 +13,12 @@ use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
 
+beforeEach(function (): void {
+    config()->set('services.paymongo.legacy_manual_payments', true);
+    config()->set('services.paymongo.secret_key', null);
+    config()->set('services.paymongo.webhook_secret', null);
+});
+
 it('keeps free shops discoverable while blocking new work and premium tools', function () {
     $shop = Shop::factory()->create(['name' => 'Free Listing Garage', 'verification_status' => 'approved', 'shop_status' => 'active', 'plan_slug' => 'free', 'plan_expires_at' => null]);
     $service = Service::factory()->create();
@@ -62,16 +68,19 @@ it('records a private proof and price snapshot before an admin activates a paid 
     $basic = ShopPlan::query()->where('slug', 'basic')->firstOrFail();
     $basic->update(['payment_instructions' => 'Pay using the platform account shown here.']);
 
-    $this->actingAs($shop->owner)->post(route('shop.pricing.request', $basic))->assertRedirect();
-    $this->post(route('shop.pricing.payments.store'), ['reference' => 'PAY-123', 'proof' => UploadedFile::fake()->create('receipt.pdf', 50, 'application/pdf')])->assertRedirect();
+    $this->actingAs($shop->owner)->post(route('shop.pricing.payments.store'), ['plan_slug' => 'basic', 'amount' => 1, 'reference' => 'PAY-123', 'proof' => UploadedFile::fake()->create('receipt.pdf', 50, 'application/pdf')])->assertRedirect(route('shop.pricing'));
     $payment = ShopPlanPayment::query()->sole();
     expect($payment->amount)->toBe(499);
     expect($payment->status)->toBe('pending');
+    expect($shop->fresh()->requested_plan)->toBe('basic');
+    $this->get(route('shop.pricing'))->assertSee('Pending payment review')->assertDontSee('name="proof"', false);
     Storage::assertExists($payment->proof_path);
     $this->get(route('shop.pricing.payments.proof', $payment))->assertOk();
     $this->actingAs(User::factory()->create(['role' => 'shop_owner']))->get(route('shop.pricing.payments.proof', $payment))->assertNotFound();
     $this->actingAs($shop->owner);
-    $this->post(route('shop.pricing.payments.store'), ['reference' => 'DUPLICATE'])->assertSessionHasErrors('payment');
+    $this->post(route('shop.pricing.payments.store'), ['plan_slug' => 'premium', 'reference' => 'DUPLICATE', 'proof' => UploadedFile::fake()->create('duplicate.pdf', 50, 'application/pdf')])
+        ->assertSessionHasErrors(['payment' => 'A payment submission is already waiting for review.']);
+    Storage::assertCount("shop-plan-payments/{$shop->id}", 1);
 
     $basic->update(['monthly_price' => 650]);
     $admin = User::factory()->create(['role' => 'admin']);
@@ -93,8 +102,7 @@ it('starts a paid month after an active free trial ends', function () {
 
     $this->actingAs($shop->owner)->post(route('shop.pricing.trial'))->assertRedirect();
     $trialEndsAt = $shop->fresh()->trialEndsAt();
-    $this->post(route('shop.pricing.request', $premium))->assertRedirect();
-    $this->post(route('shop.pricing.payments.store'), ['reference' => 'TRIAL-PAYMENT'])->assertRedirect();
+    $this->post(route('shop.pricing.payments.store'), ['plan_slug' => 'premium', 'reference' => 'TRIAL-PAYMENT'])->assertRedirect();
     $payment = ShopPlanPayment::query()->sole();
 
     $this->actingAs(User::factory()->create(['role' => 'admin']))
@@ -110,15 +118,14 @@ it('requires a rejection reason and lets an owner resubmit after rejection', fun
     $shop = Shop::factory()->create(['verification_status' => 'approved', 'shop_status' => 'active', 'plan_slug' => 'free', 'plan_expires_at' => null]);
     $plan = ShopPlan::query()->where('slug', 'premium')->firstOrFail();
     $plan->update(['payment_instructions' => 'Pay using the approved platform account.']);
-    $this->actingAs($shop->owner)->post(route('shop.pricing.request', $plan))->assertRedirect();
-    $this->post(route('shop.pricing.payments.store'), ['reference' => 'WRONG-REF'])->assertRedirect();
+    $this->actingAs($shop->owner)->post(route('shop.pricing.payments.store'), ['plan_slug' => 'premium', 'reference' => 'WRONG-REF'])->assertRedirect();
     $payment = ShopPlanPayment::query()->sole();
 
     $admin = User::factory()->create(['role' => 'admin']);
     $this->actingAs($admin)->patch(route('admin.shop-plan-payments.update', $payment), ['decision' => 'rejected'])->assertSessionHasErrors('review_notes');
     $this->patch(route('admin.shop-plan-payments.update', $payment), ['decision' => 'rejected', 'review_notes' => 'Reference not found.'])->assertRedirect();
     expect($shop->fresh()->activePlanSlug())->toBe('free');
-    $this->actingAs($shop->owner)->post(route('shop.pricing.payments.store'), ['reference' => 'CORRECT-REF'])->assertRedirect();
+    $this->actingAs($shop->owner)->post(route('shop.pricing.payments.store'), ['plan_slug' => 'premium', 'reference' => 'CORRECT-REF'])->assertRedirect();
     expect(ShopPlanPayment::query()->where('status', 'pending')->count())->toBe(1);
 });
 
@@ -152,4 +159,52 @@ it('allows an admin to close a trial and records the access change', function ()
     $this->actingAs($admin)->patch(route('admin.shops.plan', $shop), ['plan_slug' => 'free'])->assertRedirect();
     expect($shop->fresh()->activePlanSlug())->toBe('free');
     $this->assertDatabaseHas('activity_logs', ['user_id' => $admin->id, 'action' => 'changed_shop_plan']);
+});
+
+it('rejects unpaid plan selections and payments from an unapproved shop', function () {
+    $shop = Shop::factory()->create(['verification_status' => 'pending', 'shop_status' => 'active']);
+    ShopPlan::query()->where('slug', 'basic')->firstOrFail()->update(['payment_instructions' => 'Transfer to the platform account.']);
+
+    $this->actingAs($shop->owner)->post(route('shop.pricing.payments.store'), ['plan_slug' => 'basic', 'reference' => 'REF-UNAPPROVED'])
+        ->assertSessionHasErrors('plan');
+    $shop->update(['verification_status' => 'approved']);
+    $this->post(route('shop.pricing.payments.store'), ['plan_slug' => 'free', 'reference' => 'REF-FREE'])->assertSessionHasErrors('plan_slug');
+    $this->post(route('shop.pricing.payments.store'), ['reference' => 'REF-NO-PLAN'])->assertSessionHasErrors('plan_slug');
+    $this->post(route('shop.pricing.payments.store'), ['plan_slug' => 'basic'])->assertSessionHasErrors(['proof', 'reference']);
+    $this->assertDatabaseCount('shop_plan_payments', 0);
+    expect($shop->fresh()->requested_plan)->toBeNull();
+});
+
+it('requires payment details before accepting a submission and allows account details without instructions', function () {
+    $shop = Shop::factory()->create(['verification_status' => 'approved', 'shop_status' => 'active']);
+    $plan = ShopPlan::query()->where('slug', 'basic')->firstOrFail();
+    $this->actingAs($shop->owner)->get(route('shop.pricing'))->assertSee('Payment details are not available yet')->assertDontSee('name="proof"', false);
+    $this->post(route('shop.pricing.payments.store'), ['plan_slug' => 'basic', 'reference' => 'REF-NO-DETAILS'])->assertSessionHasErrors('payment');
+    $this->assertDatabaseCount('shop_plan_payments', 0);
+
+    $plan->update(['payment_account_name' => 'AutoCare Billing', 'payment_account_number' => '001234567890']);
+    $this->post(route('shop.pricing.payments.store'), ['plan_slug' => 'basic', 'reference' => 'REF-ACCOUNT'])->assertSessionHasNoErrors();
+    $this->assertDatabaseHas('shop_plan_payments', ['shop_id' => $shop->id, 'plan_slug' => 'basic', 'status' => 'pending', 'reference' => 'REF-ACCOUNT']);
+});
+
+it('shows receipt previews only to administrators and handles missing receipt files', function () {
+    Storage::fake(config('filesystems.default'));
+    $shop = Shop::factory()->create(['verification_status' => 'approved', 'shop_status' => 'active']);
+    ShopPlan::query()->where('slug', 'premium')->firstOrFail()->update(['payment_instructions' => 'Use the platform account.']);
+    $this->actingAs($shop->owner)->post(route('shop.pricing.payments.store'), [
+        'plan_slug' => 'premium', 'proof' => UploadedFile::fake()->createWithContent('receipt.png', file_get_contents(public_path('images/Minglanilla AutoCare Hub Logo.png'))),
+    ])->assertSessionHasNoErrors();
+    $payment = ShopPlanPayment::query()->sole();
+    Storage::assertExists($payment->proof_path);
+
+    $this->get(route('admin.shop-plan-payments.preview', $payment))->assertForbidden();
+    $this->actingAs(User::factory()->create(['role' => 'customer']))->get(route('admin.shop-plan-payments.preview', $payment))->assertForbidden();
+    $this->actingAs(User::factory()->create(['role' => 'admin']))->get(route('admin.shop-plan-payments.preview', $payment))
+        ->assertOk()->assertHeader('Content-Type', 'image/png')->assertHeader('X-Content-Type-Options', 'nosniff');
+    $this->get(route('admin.shop-plans.index'))->assertSee(route('admin.shop-plan-payments.preview', $payment), false)
+        ->assertSeeInOrder(['Payments needing review', 'Plan pricing']);
+    Storage::delete($payment->proof_path);
+    $this->get(route('admin.shop-plan-payments.preview', $payment))->assertNotFound();
+    $this->get(route('admin.shop-plan-payments.proof', $payment))->assertNotFound();
+    $this->get(route('admin.shop-plans.index'))->assertSee('No receipt image available');
 });

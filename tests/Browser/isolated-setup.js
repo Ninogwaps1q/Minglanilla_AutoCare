@@ -1,7 +1,7 @@
 import { execFileSync, spawn } from 'node:child_process';
 import { createConnection } from 'node:net';
 import { resolve, sep } from 'node:path';
-import { existsSync, unlinkSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, unlinkSync } from 'node:fs';
 
 async function portIsOccupied() {
     return new Promise(resolveCheck => {
@@ -18,7 +18,13 @@ export default async function setup() {
     if (await portIsOccupied()) {
         throw new Error('Port 8877 is already in use; isolated browser tests will not run against an existing server.');
     }
-    const env = { ...process.env, APP_ENV: 'testing', APP_DEBUG: 'false', CACHE_STORE: 'array', SESSION_DRIVER: 'file', SESSION_COOKIE: 'autocare_browser_test', MAIL_MAILER: 'array', QUEUE_CONNECTION: 'sync' };
+    const testingDirectory = resolve('storage/framework/testing');
+    mkdirSync(testingDirectory, { recursive: true });
+    const isolatedStorage = mkdtempSync(resolve(testingDirectory, 'browser-storage-'));
+    for (const directory of ['framework/views', 'framework/sessions', 'framework/cache/data', 'logs']) {
+        mkdirSync(resolve(isolatedStorage, directory), { recursive: true });
+    }
+    const env = { ...process.env, LARAVEL_STORAGE_PATH: isolatedStorage, APP_ENV: 'testing', APP_DEBUG: 'false', CACHE_STORE: 'array', SESSION_DRIVER: 'file', SESSION_COOKIE: 'autocare_browser_test', MAIL_MAILER: 'array', QUEUE_CONNECTION: 'sync', PAYMONGO_SECRET_KEY: '', PAYMONGO_WEBHOOK_SECRET: '', PAYMONGO_LEGACY_MANUAL_PAYMENTS: 'true' };
     const fixture = JSON.parse(execFileSync('php', ['tests/Browser/prepare.php'], { env, encoding: 'utf8', timeout: 120000, windowsHide: true }));
     process.env.BROWSER_FIXTURE = JSON.stringify(fixture);
     const server = spawn('php', ['-S', '127.0.0.1:8877', resolve('vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php')], {
@@ -48,17 +54,20 @@ export default async function setup() {
         if (resolve(fixture.database).startsWith(resolve('storage/framework/testing') + sep)) {
             unlinkSync(fixture.database);
         }
-        const logoPath = resolve('storage/app/public', fixture.logo);
+        const logoPath = resolve(isolatedStorage, 'app/public', fixture.logo);
         if (/^shop-logos\/browser-map-[a-f0-9]{16}\.png$/.test(fixture.logo)
-            && logoPath.startsWith(resolve('storage/app/public/shop-logos') + sep)
+            && logoPath.startsWith(resolve(isolatedStorage, 'app/public/shop-logos') + sep)
             && existsSync(logoPath)) {
             unlinkSync(logoPath);
         }
-        const customerPhotoPath = resolve('storage/app/public', fixture.customerPhoto);
+        const customerPhotoPath = resolve(isolatedStorage, 'app/public', fixture.customerPhoto);
         if (/^profile-photos\/browser-customer-[a-f0-9]{16}\.png$/.test(fixture.customerPhoto)
-            && customerPhotoPath.startsWith(resolve('storage/app/public/profile-photos') + sep)
+            && customerPhotoPath.startsWith(resolve(isolatedStorage, 'app/public/profile-photos') + sep)
             && existsSync(customerPhotoPath)) {
             unlinkSync(customerPhotoPath);
+        }
+        if (isolatedStorage.startsWith(testingDirectory + sep) && /^browser-storage-[A-Za-z0-9]+$/.test(isolatedStorage.slice(testingDirectory.length + 1))) {
+            rmSync(isolatedStorage, { recursive: true, force: true });
         }
     };
 }

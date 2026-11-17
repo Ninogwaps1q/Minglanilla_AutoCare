@@ -37,7 +37,8 @@
 
         <x-action-queue :items="[
             ['count' => $pendingEstimateCount, 'label' => 'Estimates to approve', 'detail' => 'Review the itemized price before the shop starts.', 'href' => route('customer.quotations.index')],
-            ['count' => $paymentDueCount, 'label' => 'Bills to pay', 'detail' => 'Open your invoice and record a payment.', 'href' => route('customer.invoices.index')],
+            ['count' => $paymentDueCount, 'label' => 'Bills to pay', 'detail' => 'Open your invoice and choose a payment method.', 'href' => route('customer.invoices.index')],
+            ['count' => $onlineCheckoutCount, 'label' => 'Online checkouts to finish', 'detail' => 'Continue your PayMongo payment.', 'href' => route('customer.invoices.index')],
         ]" :empty-route="route('customer.services.index')" empty-label="View my services" />
 
         <section aria-labelledby="care-summary-title" class="mb-4">
@@ -208,7 +209,10 @@
                                 repairs</span><strong>{{ $activeRepairCount }}</strong></a><a
                             href="{{ route('admin.monitoring.index', ['module' => 'payments', 'status' => 'pending']) }}"><span><i
                                     class="bi bi-credit-card" aria-hidden="true"></i>Pending
-                                payments</span><strong>{{ $pendingPaymentCount }}</strong></a><a class="danger"
+                                payments</span><strong>{{ $pendingPaymentCount }}</strong></a><a
+                            href="{{ route('admin.paymongo-settlements.index') }}"><span><i
+                                    class="bi bi-bank" aria-hidden="true"></i>Shop settlements
+                                pending</span><strong>{{ $pendingSettlementCount }}</strong></a><a class="danger"
                             href="{{ route('admin.monitoring.index', ['module' => 'emergencies']) }}"><span><i
                                     class="bi bi-life-preserver" aria-hidden="true"></i>Active roadside
                                 requests</span><strong>{{ $activeEmergencyCount }}</strong></a></div>

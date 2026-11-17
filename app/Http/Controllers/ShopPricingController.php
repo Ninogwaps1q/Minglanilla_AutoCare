@@ -6,7 +6,9 @@ use App\Models\Shop;
 use App\Models\ShopPlan;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ShopPricingController extends Controller
 {
@@ -14,13 +16,27 @@ class ShopPricingController extends Controller
     {
         $plans = ShopPlan::query()->orderBy('sort_order')->get();
         $shop = $request->user()?->role === 'shop_owner' ? $request->user()->shops()->first() : null;
+        $defaultPlan = $shop && $shop->activePlanSlug() !== 'free' ? $shop->activePlanSlug() : 'basic';
+        $selectedSlug = $request->old('plan_slug', $request->query('plan', $shop?->requested_plan ?? $defaultPlan));
+        $selectedPlan = $plans->whereIn('slug', ['basic', 'premium'])->firstWhere('slug', $selectedSlug)
+            ?? $plans->firstWhere('slug', 'basic');
 
         return view('shop.pricing', [
             'plans' => $plans,
             'shop' => $shop,
-            'requestedPlan' => $plans->firstWhere('slug', $shop?->requested_plan),
+            'selectedPlan' => $selectedPlan,
             'payments' => $shop?->planPayments()->latest()->limit(10)->get() ?? collect(),
-            'pendingPayment' => $shop?->planPayments()->where('status', 'pending')->first(),
+            'pendingPayment' => $shop?->planPayments()->whereIn('status', ['pending', 'checkout_pending'])->first(),
+        ]);
+    }
+
+    public function qr(ShopPlan $shopPlan): StreamedResponse
+    {
+        abort_unless($shopPlan->hasPaymentQr(), 404);
+
+        return Storage::disk('local')->response($shopPlan->payment_qr_path, headers: [
+            'Cache-Control' => 'private, no-store',
+            'X-Content-Type-Options' => 'nosniff',
         ]);
     }
 
@@ -46,12 +62,11 @@ class ShopPricingController extends Controller
         if ($shop->verification_status !== 'approved' || $shop->shop_status !== 'active') {
             return back()->withErrors(['plan' => 'Your shop must be approved and active before requesting a paid plan.']);
         }
-        if ($shop->planPayments()->where('status', 'pending')->exists()) {
+        if ($shop->planPayments()->whereIn('status', ['pending', 'checkout_pending'])->exists()) {
             return back()->withErrors(['plan' => 'Your payment submission is waiting for review. Please wait before changing plans.']);
         }
-        $shop->update(['requested_plan' => $shopPlan->slug]);
 
-        return back()->with('status', "Your {$shopPlan->name} request was sent to the administrator.");
+        return redirect()->to(route('shop.pricing', ['plan' => $shopPlan->slug]).'#plan-payment');
     }
 
     private function ownedShop(Request $request): Shop

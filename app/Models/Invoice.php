@@ -53,7 +53,10 @@ class Invoice extends Model
 
     public function confirmedPaymentsTotal(): float
     {
-        return (float) $this->payments()->where('status', 'confirmed')->sum('amount');
+        $confirmed = (float) $this->payments()->where('status', 'confirmed')->sum('amount');
+        $refunded = (float) $this->payments()->where('refund_status', 'succeeded')->sum('refund_amount');
+
+        return max(0, round($confirmed - $refunded, 2));
     }
 
     public function remainingBalance(): float

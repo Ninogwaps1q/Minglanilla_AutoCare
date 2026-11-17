@@ -44,8 +44,9 @@ class DashboardController extends Controller
                 'pendingEstimateCount' => Quotation::query()->where('customer_id', $user->id)->where('status', 'sent')
                     ->where(fn ($query) => $query->whereNull('valid_until')->orWhereDate('valid_until', '>=', today()))->count(),
                 'paymentDueCount' => $user->invoices()->where('status', 'unpaid')
-                    ->whereDoesntHave('payments', fn ($query) => $query->where('status', 'pending'))->count(),
+                    ->whereDoesntHave('payments', fn ($query) => $query->whereIn('status', ['pending', 'checkout_pending']))->count(),
                 'paymentReviewCount' => Payment::query()->where('customer_id', $user->id)->where('status', 'pending')->count(),
+                'onlineCheckoutCount' => Payment::query()->where('customer_id', $user->id)->where('status', 'checkout_pending')->count(),
             ];
         }
 
@@ -55,6 +56,7 @@ class DashboardController extends Controller
                 'todayAppointmentCount' => Appointment::query()->whereDate('appointment_date', today())->count(),
                 'activeRepairCount' => RepairJob::query()->whereNotIn('status', ['completed', 'released', 'cancelled'])->count(),
                 'pendingPaymentCount' => Payment::query()->where('status', 'pending')->count(),
+                'pendingSettlementCount' => Payment::query()->where('settlement_status', 'pending')->whereNotNull('paymongo_payment_id')->count(),
                 'activeEmergencyCount' => EmergencyRequest::query()->whereNotIn('status', ['completed', 'cancelled'])->count(),
                 'openComplaintCount' => ServiceCase::query()->where('type', 'complaint')->whereIn('status', ['open', 'reviewing'])->count(),
             ];

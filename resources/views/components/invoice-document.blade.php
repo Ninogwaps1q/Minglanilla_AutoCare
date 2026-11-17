@@ -65,7 +65,7 @@
 
     <h2>Payment record</h2>
     @forelse ($invoice->payments as $payment)
-        <p>PHP {{ number_format($payment->amount, 2) }} · {{ ucfirst($payment->status) }} · {{ ucfirst(str_replace('_', ' ', $payment->payment_method)) }}@if ($payment->reference_number) · Ref {{ $payment->reference_number }}@endif</p>
+        <p>PHP {{ number_format($payment->amount, 2) }} · {{ ucfirst($payment->status) }} · {{ ucfirst(str_replace('_', ' ', $payment->payment_method)) }}@if ($payment->paymongo_method) ({{ config('services.paymongo.method_labels.'.$payment->paymongo_method, ucfirst($payment->paymongo_method)) }})@endif @if ($payment->reference_number) · Ref {{ $payment->reference_number }}@endif</p>
     @empty
         <p class="muted">No payments submitted.</p>
     @endforelse

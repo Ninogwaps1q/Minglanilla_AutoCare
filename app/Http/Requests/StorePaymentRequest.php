@@ -16,9 +16,13 @@ class StorePaymentRequest extends FormRequest
      */
     public function rules(): array
     {
+        if (! config('services.paymongo.legacy_manual_payments')) {
+            return [];
+        }
+
         return [
             'amount' => ['required', 'numeric', 'min:0.01', 'max:9999999999.99', 'decimal:0,2'],
-            'payment_method' => ['required', 'in:cash,gcash,bank_transfer,other'],
+            'payment_method' => ['required', filled(config('services.paymongo.secret_key')) && filled(config('services.paymongo.webhook_secret')) ? 'in:cash' : 'in:cash,gcash,bank_transfer,other'],
             'reference_number' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ];

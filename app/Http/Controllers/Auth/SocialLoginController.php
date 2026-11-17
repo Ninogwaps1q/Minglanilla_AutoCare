@@ -27,15 +27,47 @@ class SocialLoginController extends Controller
         }
 
         $configuredUrl = rtrim((string) config('app.url'), '/');
-        $configuredHost = parse_url($configuredUrl, PHP_URL_HOST);
+        $configuredHost = strtolower((string) parse_url($configuredUrl, PHP_URL_HOST));
+        $loopbackHosts = ['localhost', '127.0.0.1', '[::1]'];
+        $usesLoopback = in_array($configuredHost, $loopbackHosts, true);
 
-        if (in_array($configuredHost, ['localhost', '127.0.0.1'], true)
-            && in_array($request->getHost(), ['localhost', '127.0.0.1'], true)
-            && $request->getSchemeAndHttpHost() !== $configuredUrl) {
+        if ($usesLoopback && ! in_array($request->getHost(), $loopbackHosts, true)
+            && ! $this->isServerComputer($request)) {
+            return to_route('login')->withErrors([
+                'social' => ucfirst($provider).' sign-in is currently available only on the server computer. To sign in from this device, the administrator must configure a shared HTTPS site address. You can still use your email and password.',
+            ]);
+        }
+
+        if ($provider === 'google' && ! $usesLoopback
+            && (parse_url($configuredUrl, PHP_URL_SCHEME) !== 'https'
+                || filter_var(trim($configuredHost, '[]'), FILTER_VALIDATE_IP))) {
+            return to_route('login')->withErrors([
+                'social' => 'Google sign-in needs an HTTPS domain registered with Google. A local network IP address cannot be used. Please use your email and password until the administrator finishes setup.',
+            ]);
+        }
+
+        if ($request->getSchemeAndHttpHost() !== $configuredUrl) {
             return redirect()->away($configuredUrl.route('social.redirect', $provider, false));
         }
 
         return Socialite::driver($provider)->redirect();
+    }
+
+    private function isServerComputer(Request $request): bool
+    {
+        $clientIp = $request->ip();
+
+        if ($clientIp === null) {
+            return false;
+        }
+
+        if (in_array($clientIp, ['127.0.0.1', '::1', $request->server('SERVER_ADDR')], true)) {
+            return true;
+        }
+
+        $hostname = gethostname();
+
+        return $hostname !== false && in_array($clientIp, gethostbynamel($hostname) ?: [], true);
     }
 
     public function callback(Request $request, string $provider): RedirectResponse

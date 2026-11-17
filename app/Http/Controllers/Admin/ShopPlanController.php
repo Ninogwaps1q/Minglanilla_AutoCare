@@ -11,6 +11,7 @@ use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -20,7 +21,6 @@ class ShopPlanController extends Controller
     {
         return view('admin.shop-plans.index', [
             'plans' => ShopPlan::query()->orderBy('sort_order')->get(),
-            'requests' => Shop::query()->with(['owner:id,name', 'planPayments' => fn ($query) => $query->where('status', 'pending')])->whereNotNull('requested_plan')->orderBy('name')->paginate(10, ['*'], 'requests_page'),
             'payments' => ShopPlanPayment::query()->with(['shop.owner:id,name'])->where('status', 'pending')->oldest()->paginate(10, ['*'], 'payments_page'),
             'reviewedPayments' => ShopPlanPayment::query()->with('shop:id,name')->whereIn('status', ['approved', 'rejected'])->latest('reviewed_at')->paginate(15, ['*'], 'history_page'),
             'subscribers' => Shop::query()->with('owner:id,name')
@@ -38,21 +38,56 @@ class ShopPlanController extends Controller
             'features' => ['required', 'array', 'size:3'],
             'features.*' => ['required', 'string', 'max:120'],
             'payment_instructions' => ['nullable', 'string', 'max:1000'],
+            'payment_account_name' => ['nullable', 'required_with:payment_account_number', 'string', 'max:255'],
+            'payment_account_number' => ['nullable', 'required_with:payment_account_name', 'string', 'max:100'],
+            'payment_qr' => ['nullable', 'prohibited_if:remove_payment_qr,1', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048', 'dimensions:max_width=4096,max_height=4096'],
+            'remove_payment_qr' => ['sometimes', 'boolean'],
         ]);
+        unset($attributes['payment_qr'], $attributes['remove_payment_qr']);
         if ($shopPlan->slug === 'free') {
             $attributes['monthly_price'] = 0;
+            unset($attributes['payment_instructions'], $attributes['payment_account_name'], $attributes['payment_account_number']);
+        } elseif ($attributes['monthly_price'] < 1) {
+            throw ValidationException::withMessages(['monthly_price' => 'A paid plan must cost at least PHP 1 per month.']);
         }
-        $shopPlan->update($attributes);
-        ActivityLog::query()->create([
-            'user_id' => $request->user()->id,
-            'action' => 'updated_shop_plan_pricing',
-            'module' => 'shop_plans',
-            'description' => "{$shopPlan->name} monthly price set to PHP {$shopPlan->monthly_price}.",
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-        ]);
 
-        return back()->with('status', "{$shopPlan->name} pricing updated.");
+        $qrPath = null;
+        $oldQrPath = null;
+        if ($shopPlan->slug !== 'free' && $request->hasFile('payment_qr')) {
+            $qrPath = $request->file('payment_qr')->store('shop-plan-qrs', 'local');
+            if (! $qrPath) {
+                throw ValidationException::withMessages(['payment_qr' => 'The QR image could not be saved. Please upload it again.']);
+            }
+        }
+
+        try {
+            DB::transaction(function () use ($shopPlan, $attributes, $request, $qrPath, &$oldQrPath): void {
+                $plan = ShopPlan::query()->lockForUpdate()->findOrFail($shopPlan->id);
+                if ($plan->slug !== 'free' && ($qrPath || $request->boolean('remove_payment_qr'))) {
+                    $oldQrPath = $plan->payment_qr_path;
+                    $attributes['payment_qr_path'] = $qrPath;
+                }
+                $plan->update($attributes);
+                ActivityLog::query()->create([
+                    'user_id' => $request->user()->id,
+                    'action' => 'updated_shop_plan_pricing',
+                    'module' => 'shop_plans',
+                    'description' => "{$plan->name} pricing and payment details updated; monthly price PHP {$plan->monthly_price}.",
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                ]);
+            });
+        } catch (\Throwable $exception) {
+            if ($qrPath) {
+                Storage::disk('local')->delete($qrPath);
+            }
+            throw $exception;
+        }
+        if ($oldQrPath) {
+            Storage::disk('local')->delete($oldQrPath);
+        }
+
+        return back()->with('status', "{$shopPlan->name} pricing and payment details updated.");
     }
 
     public function activate(Request $request, Shop $shop): RedirectResponse

@@ -111,12 +111,11 @@ class InvoiceController extends Controller
             $invoice = $payment->invoice()->lockForUpdate()->firstOrFail();
             $payment = $invoice->payments()->lockForUpdate()->findOrFail($payment->id);
             abort_unless($payment->status === 'pending', 404);
-            if ($request->validated('status') === 'confirmed' && (int) round(((float) $invoice->payments()->where('status', 'confirmed')->sum('amount') + (float) $payment->amount) * 100) > (int) round((float) $invoice->total * 100)) {
+            if ($request->validated('status') === 'confirmed' && (int) round(($invoice->confirmedPaymentsTotal() + (float) $payment->amount) * 100) > (int) round((float) $invoice->total * 100)) {
                 throw ValidationException::withMessages(['status' => 'This payment would exceed the invoice total. Review the recorded payments before confirming.']);
             }
             $payment->update([...$request->validated(), 'reviewed_by' => $request->user()->id, 'reviewed_at' => now()]);
-            $confirmedTotal = $invoice->payments()->where('status', 'confirmed')->sum('amount');
-            $confirmedCents = (int) round((float) $confirmedTotal * 100);
+            $confirmedCents = (int) round($invoice->confirmedPaymentsTotal() * 100);
             $totalCents = (int) round((float) $invoice->total * 100);
             $invoice->update(['status' => $confirmedCents >= $totalCents ? 'paid' : 'unpaid']);
             $payment->customer->notifications()->create([

@@ -58,6 +58,19 @@
                 @empty
                     <p class="text-secondary mb-0">No payment is waiting for review.</p>
                 @endforelse
+                @foreach ($invoice->payments->whereNotNull('paymongo_payment_id') as $payment)
+                    <div class="small mb-2">
+                        <strong>Platform settlement: {{ $payment->settlement_status === 'settled' ? 'Settled to shop' : 'Pending' }}</strong>
+                        <div>Customer paid: PHP {{ number_format($payment->amount, 2) }}</div>
+                        @if ($payment->paymongo_method)<div>Payment method: {{ config('services.paymongo.method_labels.'.$payment->paymongo_method, ucfirst($payment->paymongo_method)) }}</div>@endif
+                        <div>PayMongo fee: {{ $payment->paymongo_fee !== null ? 'PHP '.number_format($payment->paymongo_fee, 2) : 'Awaiting fee details' }}</div>
+                        <div>Platform fee: PHP {{ number_format($payment->platform_fee, 2) }}</div>
+                        @if ($payment->refund_status === 'succeeded')<div>Refunded: PHP {{ number_format($payment->refund_amount, 2) }}</div>@endif
+                        <div>Shop transfer: {{ $payment->settlement_status === 'settled' ? 'PHP '.number_format($payment->settlement_amount, 2) : 'Pending' }}</div>
+                        @if ($payment->settlement_reference)<div>Transfer reference: {{ $payment->settlement_reference }}</div>@endif
+                        @if ($payment->settlement_proof_path)<a href="{{ route('admin.paymongo-settlements.proof', $payment) }}">Download transfer proof</a>@endif
+                    </div>
+                @endforeach
             </article>
         @empty
             <div class="surface p-4">

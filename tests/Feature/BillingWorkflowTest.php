@@ -11,6 +11,12 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
+beforeEach(function (): void {
+    config()->set('services.paymongo.legacy_manual_payments', true);
+    config()->set('services.paymongo.secret_key', null);
+    config()->set('services.paymongo.webhook_secret', null);
+});
+
 it('lets a shop owner issue an invoice for a completed repair job', function () {
     $fixture = billingFixture();
     $fixture['repairJob']->update(['status' => 'completed', 'actual_cost' => 1850]);

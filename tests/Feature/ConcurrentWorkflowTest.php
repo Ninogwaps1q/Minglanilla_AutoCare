@@ -63,8 +63,8 @@ it('prevents duplicate records when simultaneous requests compete for the same w
         } else {
             $lock = Invoice::query()->create(['customer_id' => $customer->id, 'shop_id' => $shop->id,
                 'invoice_number' => 'INV-CONCURRENT', 'subtotal' => 1000, 'total' => 1000]);
-            $payload = ['amount' => 1000, 'payment_method' => 'cash'];
-            $path = route('customer.payments.store', $lock, absolute: false);
+            $payload = [];
+            $path = route('customer.payments.checkout', $lock, absolute: false);
         }
 
         DB::beginTransaction();
@@ -94,11 +94,14 @@ it('prevents duplicate records when simultaneous requests compete for the same w
         DB::commit();
 
         $statuses = [];
+        $responses = [];
         foreach ($workers as $worker) {
             $worker->wait();
             expect($worker->getExitCode())->toBe(0);
             $lines = explode("\n", trim($worker->getOutput()));
-            $statuses[] = json_decode(end($lines), true, flags: JSON_THROW_ON_ERROR)['status'];
+            $response = json_decode(end($lines), true, flags: JSON_THROW_ON_ERROR);
+            $responses[] = $response;
+            $statuses[] = $response['status'];
         }
         sort($statuses);
         if ($isMariaDb) {
@@ -106,7 +109,7 @@ it('prevents duplicate records when simultaneous requests compete for the same w
         } else {
             $this->assertSame(2, $waiting, 'Workers: '.json_encode(array_map(fn (Process $worker): array => ['output' => $worker->getOutput(), 'error' => $worker->getErrorOutput()], $workers)));
         }
-        expect($statuses)->toBe($operation === 'invoice' ? [302, 302] : [302, 422]);
+        expect($statuses)->toBe(in_array($operation, ['invoice', 'payment'], true) ? [302, 302] : [302, 422]);
         if ($operation === 'booking') {
             $this->assertDatabaseCount('appointments', 1);
             $this->assertDatabaseHas('appointments', ['shop_id' => $shop->id, 'status' => 'pending']);
@@ -125,10 +128,25 @@ it('prevents duplicate records when simultaneous requests compete for the same w
             ]);
         } else {
             $this->assertDatabaseCount('payments', 1);
-            $this->assertDatabaseHas('payments', ['invoice_id' => $lock->id, 'amount' => 1000, 'status' => 'pending']);
+            $payment = $lock->payments()->sole();
+            $sessionId = 'cs_concurrent_invoice-'.$payment->id;
+            $this->assertDatabaseHas('payments', [
+                'invoice_id' => $lock->id, 'amount' => 1000, 'status' => 'checkout_pending',
+                'payment_method' => 'paymongo', 'paymongo_session_id' => $sessionId,
+                'paymongo_checkout_url' => 'https://checkout.paymongo.com/'.$sessionId,
+            ]);
             $this->assertDatabaseHas('invoices', ['id' => $lock->id, 'status' => 'unpaid']);
-            $this->assertDatabaseCount('notifications', 1);
-            $this->assertDatabaseHas('notifications', ['user_id' => $owner->id, 'type' => 'payment_submitted']);
+            $this->assertDatabaseCount('notifications', 0);
+            expect(array_column($responses, 'redirect'))->toBe(array_fill(0, 2, 'https://checkout.paymongo.com/'.$sessionId));
+            $checkoutRequests = array_merge(...array_column($responses, 'checkout_requests'));
+            expect(count($checkoutRequests))->toBeGreaterThanOrEqual(1)->toBeLessThanOrEqual(2);
+            foreach ($checkoutRequests as $checkoutRequest) {
+                expect($checkoutRequest)->toBe([
+                    'reference' => 'invoice-'.$payment->id,
+                    'idempotency_key' => 'invoice-'.$payment->id,
+                    'amount' => 100000,
+                ]);
+            }
         }
     } finally {
         if (DB::connection('mysql')->transactionLevel() > 0) {

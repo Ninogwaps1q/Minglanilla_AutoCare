@@ -11,7 +11,7 @@ class Payment extends Model
 
     protected function casts(): array
     {
-        return ['amount' => 'decimal:2', 'payment_date' => 'datetime', 'reviewed_at' => 'datetime'];
+        return ['amount' => 'decimal:2', 'paymongo_fee' => 'decimal:2', 'paymongo_net_amount' => 'decimal:2', 'platform_fee' => 'decimal:2', 'refund_amount' => 'decimal:2', 'dispute_amount' => 'decimal:2', 'payment_date' => 'datetime', 'reviewed_at' => 'datetime', 'settlement_amount' => 'decimal:2', 'settled_at' => 'datetime', 'refund_requested_at' => 'datetime', 'refunded_at' => 'datetime', 'payment_alerted_at' => 'datetime'];
     }
 
     public function invoice(): BelongsTo

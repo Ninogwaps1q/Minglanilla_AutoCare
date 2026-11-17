@@ -56,6 +56,7 @@
         </div>
         <div class="col-12"><label class="form-label">Description</label><textarea class="form-control"
                 name="description" rows="4">{{ old('description', $shop->description) }}</textarea></div>
+        @if (config('services.paymongo.legacy_manual_payments'))
         <div class="col-12">
             <h2 class="h5 mb-1">Payment instructions</h2>
             <p class="text-secondary mb-0">Only customers with an invoice can see these details. Leave a method blank if
@@ -74,6 +75,7 @@
                 placeholder="Bank name, account name, and account number">{{ old('bank_transfer_details', $shop->bank_transfer_details) }}</textarea>@error('bank_transfer_details')
                 <div class="invalid-feedback">{{ $message }}</div>@enderror
         </div>
+        @endif
         <div class="col-md-6"><label for="logo" class="form-label">Shop logo</label><input id="logo"
                 class="form-control @error('logo') is-invalid @enderror" type="file" name="logo"
                 accept="image/png,image/jpeg,image/webp" aria-describedby="logo-help"
