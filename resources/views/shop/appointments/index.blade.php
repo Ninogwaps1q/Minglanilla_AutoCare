@@ -27,7 +27,7 @@
                     @forelse ($appointments as $appointment)
                         <tr>
                             <td data-label="Schedule"><strong>{{ $appointment->appointment_date->format('M j, Y') }}</strong><br><span class="text-secondary small">{{ $appointment->appointment_time->format('g:i A') }}</span></td>
-                            <td data-label="Customer & vehicle">{{ $appointment->customer->name }}<br><span class="text-secondary small">{{ $appointment->vehicle->plate_number }}</span></td>
+                            <td data-label="Customer & vehicle">{{ $appointment->customer->name }}<br><span class="text-secondary small">{{ $appointment->vehicle->plate_number }}</span>@if ($appointment->service_address)<br><span class="small"><strong>Meet at:</strong> {{ $appointment->service_address }}</span>@endif</td>
                             <td data-label="Service">{{ $appointment->serviceCase ? 'Follow-up visit' : ($appointment->service?->name ?? 'Vehicle service') }}@if ($appointment->reason)<br><span class="text-secondary small">{{ $appointment->reason }}</span>@endif @if ($appointment->serviceCase)<br><a class="small" href="{{ route('shop.service-cases.index', ['focus' => $appointment->serviceCase->id]) }}">View aftercare request</a>@endif</td>
                             <td data-label="Status"><span class="badge text-bg-{{ $appointment->status === 'confirmed' ? 'success' : ($appointment->status === 'pending' ? 'warning' : 'secondary') }}">{{ match ($appointment->status) { 'pending' => 'Needs decision', 'confirmed' => 'Ready for repair', 'in_progress' => 'In repair', 'completed' => 'Completed', default => 'Cancelled' } }}</span></td>
                             <td data-label="Next action" class="appointment-action-cell">

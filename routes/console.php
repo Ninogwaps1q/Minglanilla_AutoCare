@@ -20,6 +20,10 @@ Schedule::command('app:send-shop-plan-reminders')
     ->daily()
     ->withoutOverlapping(30);
 
+Schedule::command('app:sync-shop-subscriptions')->everyMinute()->withoutOverlapping(5);
+
+Schedule::command('app:reconcile-paymongo-payments')->everyMinute()->withoutOverlapping(5);
+
 Schedule::command('app:alert-stale-paymongo-payments')
     ->everyFiveMinutes()
     ->withoutOverlapping(5);

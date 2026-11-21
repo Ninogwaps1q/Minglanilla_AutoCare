@@ -15,14 +15,14 @@ class InspectionController extends Controller
 {
     public function create(Request $request, RepairJob $repairJob): View
     {
-        abort_unless($repairJob->shop->owner_id === $request->user()->id, 404);
+        abort_unless($request->user()->canAccessShop($repairJob->shop_id), 404);
 
         return view('shop.inspections.create', ['repairJob' => $repairJob->load('vehicle')]);
     }
 
     public function store(StoreInspectionRequest $request, RepairJob $repairJob): RedirectResponse
     {
-        abort_unless($repairJob->shop->owner_id === $request->user()->id, 404);
+        abort_unless($request->user()->canAccessShop($repairJob->shop_id), 404);
 
         DB::transaction(function () use ($request, $repairJob): void {
             $inspection = VehicleInspection::query()->create([

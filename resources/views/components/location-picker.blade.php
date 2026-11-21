@@ -1,7 +1,7 @@
-@props(['latitude' => null, 'longitude' => null])
+@props(['latitude' => null, 'longitude' => null, 'label' => 'Shop location', 'hint' => 'Click the map to place your shop pin in Minglanilla, Cebu.'])
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<div class="col-12"><label class="form-label">Shop location</label>
-    <p class="small text-secondary">Click the map to place your shop pin in Minglanilla, Cebu.</p>
+<div class="col-12"><label class="form-label">{{ $label }}</label>
+    <p class="small text-secondary">{{ $hint }}</p>
     <div id="location-picker-map" class="surface" style="height:360px"></div>
     <div class="row g-3 mt-1">
         <div class="col-md-6"><label class="form-label">Latitude</label><input id="latitude" class="form-control"

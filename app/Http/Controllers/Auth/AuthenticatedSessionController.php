@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\AdminTwoFactor;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\LoginRequest;
 use App\Models\SocialAccount;
@@ -19,7 +20,7 @@ class AuthenticatedSessionController extends Controller
         return view('auth.login');
     }
 
-    public function store(LoginRequest $request): RedirectResponse
+    public function store(LoginRequest $request, AdminTwoFactor $twoFactor): RedirectResponse
     {
         if (! Auth::attempt([...$request->safe()->only('email', 'password'), 'status' => 'active'], $request->boolean('remember'))) {
             return back()->withErrors([
@@ -34,9 +35,14 @@ class AuthenticatedSessionController extends Controller
         if (! $request->user()->hasVerifiedEmail()) {
             return redirect()->route('verification.notice');
         }
+        if ($request->user()->isAdmin()) {
+            $twoFactor->begin($request, $request->user());
+
+            return to_route('admin.two-factor.create');
+        }
 
         $dashboardRoute = match ($request->user()->role) {
-            'shop_owner' => 'shop.dashboard',
+            'shop_owner', 'mechanic', 'shop_staff' => 'shop.dashboard',
             'admin' => 'admin.dashboard',
             default => 'dashboard',
         };

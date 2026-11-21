@@ -58,7 +58,7 @@ class VehiclePassportScannerController extends Controller
 
     private function ensureShopCanViewPassports(Request $request): void
     {
-        $shop = $request->user()->shops()->firstOrFail();
+        $shop = $request->user()->managedShopOrFail();
 
         abort_unless($shop->verification_status === 'approved' && $shop->shop_status === 'active', 403);
     }

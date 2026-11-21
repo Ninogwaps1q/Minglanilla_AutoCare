@@ -23,9 +23,9 @@ class ShopPlanController extends Controller
             'plans' => ShopPlan::query()->orderBy('sort_order')->get(),
             'payments' => ShopPlanPayment::query()->with(['shop.owner:id,name'])->where('status', 'pending')->oldest()->paginate(10, ['*'], 'payments_page'),
             'reviewedPayments' => ShopPlanPayment::query()->with('shop:id,name')->whereIn('status', ['approved', 'rejected'])->latest('reviewed_at')->paginate(15, ['*'], 'history_page'),
-            'subscribers' => Shop::query()->with('owner:id,name')
+            'subscribers' => Shop::query()->with('owner:id,name')->withCount(['planPayments as paid_coverage_count' => fn ($query) => $query->validPeriods()->where('period_ends_at', '>', now())])
                 ->where(function ($query): void {
-                    $query->where('plan_slug', '!=', 'free')->orWhereNotNull('trial_started_at')->orWhereNotNull('requested_plan');
+                    $query->where('plan_slug', '!=', 'free')->orWhereNotNull('trial_started_at')->orWhereNotNull('requested_plan')->orWhereNotNull('next_plan_starts_at');
                 })->orderBy('name')->paginate(15, ['*'], 'subscribers_page'),
         ]);
     }
@@ -98,8 +98,12 @@ class ShopPlanController extends Controller
         ]);
         DB::transaction(function () use ($shop, $request, $attributes): void {
             $shop = Shop::query()->lockForUpdate()->findOrFail($shop->id);
-            if ($shop->planPayments()->where('status', 'pending')->exists()) {
+            if ($shop->planPayments()->whereIn('status', ['pending', 'checkout_pending'])->exists()) {
                 throw ValidationException::withMessages(['plan' => 'Review the pending payment before changing this shop’s plan.']);
+            }
+
+            if ($shop->planPayments()->validPeriods()->where('period_ends_at', '>', now())->exists()) {
+                throw ValidationException::withMessages(['plan' => 'This shop has paid coverage. Use the next billing period for a plan change, or complete a full refund before removing access.']);
             }
 
             $shop->update([
@@ -107,6 +111,8 @@ class ShopPlanController extends Controller
                 'plan_expires_at' => $attributes['plan_slug'] === 'free' ? null : Carbon::parse($attributes['plan_expires_at'])->endOfDay(),
                 'trial_revoked_at' => $shop->trialIsActive() ? now() : $shop->trial_revoked_at,
                 'requested_plan' => null,
+                'plan_payment_id' => null,
+                'next_plan_starts_at' => null,
             ]);
             ActivityLog::query()->create([
                 'user_id' => $request->user()->id,

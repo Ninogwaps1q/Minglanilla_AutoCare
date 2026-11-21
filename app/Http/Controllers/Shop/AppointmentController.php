@@ -114,6 +114,6 @@ class AppointmentController extends Controller
 
     private function shop(Request $request): Shop
     {
-        return $request->user()->shops()->firstOrFail();
+        return $request->user()->managedShopOrFail();
     }
 }

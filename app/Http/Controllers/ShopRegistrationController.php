@@ -9,6 +9,7 @@ use App\Models\Shop;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class ShopRegistrationController extends Controller
@@ -34,7 +35,19 @@ class ShopRegistrationController extends Controller
 
         try {
             DB::transaction(function () use ($attributes, $request, $services): void {
-                $shop = Shop::query()->create([...$attributes, 'owner_id' => $request->user()->id]);
+                $owner = $request->user()->newQuery()->lockForUpdate()->findOrFail($request->user()->id);
+                if ($owner->shops()->exists()) {
+                    throw ValidationException::withMessages(['name' => 'You already have a provider profile. Update it from your dashboard.']);
+                }
+                $isMechanic = $owner->role === 'mechanic';
+                $shop = Shop::query()->create([
+                    ...$attributes,
+                    'owner_id' => $owner->id,
+                    'provider_type' => $isMechanic ? 'independent_mechanic' : 'shop',
+                    'booking_capacity' => 1,
+                    'roadside_available' => false,
+                    'roadside_radius_km' => $isMechanic ? 20 : null,
+                ]);
 
                 $shop->services()->createMany($services->map(fn (Service $service): array => [
                     'service_id' => $service->id,
@@ -48,6 +61,7 @@ class ShopRegistrationController extends Controller
             throw $exception;
         }
 
-        return redirect()->route('dashboard')->with('status', 'Your shop registration was submitted for verification. You can update service prices after approval.');
+        return redirect()->route($request->user()->role === 'mechanic' ? 'shop.dashboard' : 'dashboard')
+            ->with('status', 'Your provider registration was submitted for verification. Upload the required documents from your profile.');
     }
 }

@@ -12,7 +12,7 @@ class SharedVehiclePassportController extends Controller
 {
     public function __invoke(Request $request, VehiclePassportShare $passportShare): Response
     {
-        $shop = $request->user()->shops()->firstOrFail();
+        $shop = $request->user()->managedShopOrFail();
         abort_unless($shop->verification_status === 'approved' && $shop->shop_status === 'active', 403);
         abort_unless($passportShare->revoked_at === null && $passportShare->expires_at->isFuture(), 404);
 

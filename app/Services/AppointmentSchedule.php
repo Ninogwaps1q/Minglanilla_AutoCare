@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Appointment;
 use App\Models\ServiceCase;
 use App\Models\Shop;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 
 class AppointmentSchedule
@@ -50,6 +51,25 @@ class AppointmentSchedule
             && (! $shop->closing_time || $end <= $this->minutes(substr($shop->closing_time, 0, 5)));
     }
 
+    public function isAvailable(Shop $shop, string $date, string $time, int $duration): bool
+    {
+        if (! $this->fitsHours($shop, $time, $duration)) {
+            return false;
+        }
+        if ($shop->operating_days !== null && ! in_array(Carbon::parse($date)->dayOfWeekIso, array_map('intval', $shop->operating_days), true)) {
+            return false;
+        }
+        $start = $this->minutes($time);
+        $end = $start + $duration;
+        foreach ($shop->schedule_blocks ?? [] as $block) {
+            if (($block['date'] ?? null) === $date && $start < $this->minutes($block['end']) && $end > $this->minutes($block['start'])) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public function assertRescheduleAvailable(Shop $shop, Appointment $appointment, string $date, string $time): void
     {
         if ($shop->shop_status !== 'active' || $shop->verification_status !== 'approved') {
@@ -59,8 +79,8 @@ class AppointmentSchedule
             throw ValidationException::withMessages(['requested_time' => 'Choose a future appointment time.']);
         }
         $duration = (int) ($appointment->duration_minutes ?: $appointment->service?->estimated_duration ?: 60);
-        if (! $this->fitsHours($shop, $time, $duration)) {
-            throw ValidationException::withMessages(['requested_time' => 'The service must finish before the shop closes.']);
+        if (! $this->isAvailable($shop, $date, $time, $duration)) {
+            throw ValidationException::withMessages(['requested_time' => 'The shop is closed or this time is blocked. Choose another slot.']);
         }
         if (! $this->hasCapacity($this->bookedIntervals($shop, $date, $appointment->id), $time, $duration, (int) $shop->booking_capacity)) {
             throw ValidationException::withMessages(['requested_time' => 'The shop is fully booked at that time. Choose another slot.']);

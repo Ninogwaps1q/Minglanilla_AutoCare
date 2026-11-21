@@ -29,18 +29,22 @@ Http::fake(['https://api.paymongo.com/v2/checkout_sessions' => function (ClientR
     $sessionId = 'cs_concurrent_'.$request['data']['attributes']['reference_number'];
 
     return Http::response(['data' => ['id' => $sessionId, 'attributes' => ['checkout_url' => 'https://checkout.paymongo.com/'.$sessionId]]]);
+}, 'https://api.paymongo.com/v1/refunds' => function (ClientRequest $request): PromiseInterface {
+    return Http::response(['data' => ['id' => 'ref_concurrent', 'attributes' => ['payment_id' => $request['data']['attributes']['payment_id'], 'amount' => $request['data']['attributes']['amount'], 'currency' => 'PHP', 'status' => 'processing']]]);
 }]);
 Auth::guard('web')->setUser(User::query()->findOrFail((int) $argv[2]));
+session()->put('auth.password_confirmed_at', now()->timestamp);
 $payload = json_decode(stream_get_contents(STDIN), true, flags: JSON_THROW_ON_ERROR);
 echo DB::selectOne('SELECT CONNECTION_ID() AS id')->id."\n";
 flush();
-$request = Request::create($argv[3], 'POST', $payload, server: ['HTTP_ACCEPT' => 'application/json']);
+$request = Request::create($argv[3], $argv[4] ?? 'POST', $payload, server: ['HTTP_ACCEPT' => 'application/json']);
 $kernel = $app->make(Kernel::class);
 $response = $kernel->handle($request);
 echo json_encode([
     'status' => $response->getStatusCode(),
     'redirect' => $response->headers->get('Location'),
-    'checkout_requests' => Http::recorded()->map(fn (array $record): array => [
+    'refund_requests' => Http::recorded(fn (ClientRequest $request): bool => $request->url() === 'https://api.paymongo.com/v1/refunds')->count(),
+    'checkout_requests' => Http::recorded(fn (ClientRequest $request): bool => $request->url() === 'https://api.paymongo.com/v2/checkout_sessions')->map(fn (array $record): array => [
         'reference' => $record[0]['data']['attributes']['reference_number'],
         'idempotency_key' => $record[0]->header('Idempotency-Key')[0] ?? null,
         'amount' => $record[0]['data']['attributes']['line_items'][0]['amount'],

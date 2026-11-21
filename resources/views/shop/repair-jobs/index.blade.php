@@ -34,7 +34,7 @@
                     <p class="mb-0">This older repair does not yet list the service chosen in the appointment. Check the
                         work items to avoid a duplicate charge.</p>
                 </div>
-                @if (!in_array($repairJob->status, ['completed', 'released', 'cancelled'], true) && !in_array($repairJob->quotation?->status, ['sent', 'accepted', 'approved'], true) && !$repairJob->invoice)
+                @if (auth()->user()->staff_role !== 'receptionist' && !in_array($repairJob->status, ['completed', 'released', 'cancelled'], true) && !in_array($repairJob->quotation?->status, ['sent', 'accepted', 'approved'], true) && !$repairJob->invoice)
                     <form method="POST" action="{{ route('shop.repair-jobs.booked-service', $repairJob) }}">@csrf<button
                             class="btn btn-outline-primary">Add booked service</button></form>
                 @else
@@ -70,7 +70,7 @@
                             <td class="text-end">₱{{ number_format($item->unit_price, 2) }}</td>
                             <td class="text-end">₱{{ number_format($item->subtotal, 2) }}</td>
                             <td class="text-end">@if ($item->service_id !== null)<span
-                            class="text-secondary small">Included</span>@elseif (!in_array($repairJob->status, ['completed', 'released', 'cancelled'], true) && !in_array($repairJob->quotation?->status, ['sent', 'accepted', 'approved'], true) && !$repairJob->invoice && $item->inventoryTransactions->isEmpty())
+                            class="text-secondary small">Included</span>@elseif (auth()->user()->staff_role !== 'receptionist' && !in_array($repairJob->status, ['completed', 'released', 'cancelled'], true) && !in_array($repairJob->quotation?->status, ['sent', 'accepted', 'approved'], true) && !$repairJob->invoice && $item->inventoryTransactions->isEmpty())
                                         <form method="POST" action="{{ route('shop.repair-job-items.destroy', $item) }}">@csrf
                                             @method('DELETE')<button class="btn btn-sm btn-outline-danger"
                                     aria-label="Remove {{ $item->description }}">Remove</button></form>@endif
@@ -92,7 +92,7 @@
                 <p class="text-secondary small">
                     {{ $repairJob->quotation->status === 'sent' ? 'Estimate awaiting customer approval. Work items are locked.' : 'Customer-approved price: ₱' . number_format($repairJob->quotation->total, 2) . '. Work items are locked.' }}
                 </p>
-            @elseif (!in_array($repairJob->status, ['completed', 'released', 'cancelled'], true) && !$repairJob->invoice)
+            @elseif (auth()->user()->staff_role !== 'receptionist' && !in_array($repairJob->status, ['completed', 'released', 'cancelled'], true) && !$repairJob->invoice)
                 <form method="POST" action="{{ route('shop.repair-job-items.store', $repairJob) }}"
                     class="row g-2 align-items-end mb-3">@csrf<div class="col-md-2"><label class="form-label">Type<select
                                 class="form-select" name="type" required>
@@ -109,8 +109,11 @@
                                 name="unit_price" min="0" step="0.01" required></label></div>
                     <div class="col-md-2 d-grid"><button class="btn btn-outline-primary">Add item</button></div>
             </form>@endif
-            @include('shop.repair-jobs.partials.stock-parts')
+            @if (auth()->user()->staff_role !== 'receptionist')
+                @include('shop.repair-jobs.partials.stock-parts')
+            @endif
         </details>
+        @unless (auth()->user()->role === 'mechanic')
         <details class="repair-details mb-3">
             <summary>Technicians · {{ $repairJob->technicianAssignments->whereNull('completed_at')->count() }} assigned
             </summary>
@@ -118,7 +121,7 @@
                 <h3 class="h6">Assigned technicians</h3>
                 @forelse ($repairJob->technicianAssignments->whereNull('completed_at') as $assignment)
                     <div class="d-flex align-items-center gap-2 mb-2"><span>{{ $assignment->technician->name }}</span><small
-                            class="text-secondary">{{ $assignment->notes }}</small>@if (!in_array($repairJob->status, ['completed', 'released', 'cancelled'], true))
+                            class="text-secondary">{{ $assignment->notes }}</small>@if (auth()->user()->isShopOwner() && !in_array($repairJob->status, ['completed', 'released', 'cancelled'], true))
                                 <form method="POST"
                                     action="{{ route('shop.technicians.unassign', [$repairJob, $assignment->technician]) }}"
                                     class="ms-auto">@csrf @method('DELETE')<button
@@ -132,7 +135,7 @@
                         <p class="text-secondary small">No technician assigned yet.</p>
                     @endif
                 @endforelse
-                @if (!in_array($repairJob->status, ['completed', 'released', 'cancelled'], true))
+                @if (auth()->user()->isShopOwner() && !in_array($repairJob->status, ['completed', 'released', 'cancelled'], true))
                     @if ($technicians->isNotEmpty())
                         <form method="POST" action="{{ route('shop.technicians.assign', $repairJob) }}"
                             class="d-flex flex-wrap gap-2">@csrf<label class="visually-hidden"
@@ -147,6 +150,7 @@
                 @endif
             </section>
         </details>
+        @endunless
         <details class="repair-details mb-3">
             <summary>Before & after photos · {{ $repairJob->photos->count() }}</summary>
             <p class="text-secondary small mt-3">Photos stay private to this customer, this shop, and admins.</p>
@@ -164,7 +168,7 @@
                     @endforeach
                 </div>
             @else<p>No repair photos have been recorded yet.</p>@endif
-            @if($repairJob->status !== 'cancelled')
+            @if(auth()->user()->staff_role !== 'receptionist' && $repairJob->status !== 'cancelled')
                 <form method="POST" action="{{ route('shop.repair-photos.store', $repairJob) }}"
                     enctype="multipart/form-data" class="row g-2 align-items-end">
                     @csrf
@@ -195,7 +199,7 @@
                         <p class="small text-secondary mb-0">Issued {{ $repairJob->warranty->valid_from->format('M j, Y') }} ·
                             Ends {{ $repairJob->warranty->valid_until->format('M j, Y') }}</p>
                     </div>
-                @else
+                @elseif (auth()->user()->isProviderOwner())
                     <p class="text-secondary small mt-3">Issue a warranty only if your shop offers one for this completed
                         repair. The customer will see exactly what is covered and when it ends.</p>
                     <form method="POST" action="{{ route('shop.repair-warranties.store', $repairJob) }}"
@@ -216,21 +220,21 @@
                     customer aftercare {{ str('request')->plural($repairJob->serviceCases->count()) }} for this repair</a>
         </p>@endif
         <div class="d-flex flex-wrap gap-2 mb-3">
-            @if (!in_array($repairJob->status, ['completed', 'released', 'cancelled'], true) && !in_array($repairJob->quotation?->status, ['sent', 'accepted', 'approved'], true) && !$repairJob->hasUnbilledBookedService())<a
+            @if (auth()->user()->isShopOperator() && auth()->user()->staff_role !== 'technician' && !in_array($repairJob->status, ['completed', 'released', 'cancelled'], true) && !in_array($repairJob->quotation?->status, ['sent', 'accepted', 'approved'], true) && !$repairJob->hasUnbilledBookedService())<a
                 class="btn btn-primary" href="{{ route('shop.quotations.create', $repairJob) }}">Send estimate for approval</a>@endif
-            @if (in_array($repairJob->quotation?->status, ['accepted', 'approved'], true) && !in_array($repairJob->status, ['completed', 'released', 'cancelled'], true) && !$repairJob->pendingSupplementalQuotation)
+            @if (auth()->user()->staff_role !== 'technician' && in_array($repairJob->quotation?->status, ['accepted', 'approved'], true) && !in_array($repairJob->status, ['completed', 'released', 'cancelled'], true) && !$repairJob->pendingSupplementalQuotation)
                 <a class="btn btn-outline-primary"
                     href="{{ route('shop.quotations.supplement.create', $repairJob) }}">Request approval for extra work</a>
             @elseif($repairJob->pendingSupplementalQuotation)
                 <span class="badge text-bg-warning align-self-center">Revised estimate awaiting customer approval</span>
             @endif
-            @if (!in_array($repairJob->status, ['completed', 'released', 'cancelled'], true))<a
+            @if (auth()->user()->staff_role !== 'receptionist' && !in_array($repairJob->status, ['completed', 'released', 'cancelled'], true))<a
                 class="btn btn-outline-secondary" href="{{ route('shop.inspections.create', $repairJob) }}">Record
             inspection</a>@endif
-            @if (in_array($repairJob->status, ['completed', 'released'], true) && !$repairJob->invoice)
+            @if (auth()->user()->isProviderOwner() && in_array($repairJob->status, ['completed', 'released'], true) && !$repairJob->invoice)
                 <form method="POST" action="{{ route('shop.invoices.store', $repairJob) }}">@csrf<button
             class="btn btn-success">Issue invoice</button></form>@endif
-            @if ($repairJob->invoice)<a class="btn btn-outline-primary"
+            @if (auth()->user()->isProviderOwner() && $repairJob->invoice)<a class="btn btn-outline-primary"
             href="{{ route('shop.invoices.show', $repairJob->invoice) }}">View invoice</a>@endif
         </div>
         @if ($repairJob->status === 'waiting_approval')
@@ -242,7 +246,7 @@
         <x-service-journey :repair-job="$repairJob" />
         <x-repair-timeline :repair-job="$repairJob" />
         @php($nextStages = collect($repairJob->availableStatuses())->except('cancelled'))
-        @if ($nextStages->isNotEmpty())
+        @if ($nextStages->isNotEmpty() && auth()->user()->staff_role !== 'receptionist')
             <form method="POST" action="{{ route('shop.repair-jobs.update', $repairJob) }}" class="row g-3">
                 @csrf @method('PATCH')
                 @if ($nextStages->count() === 1)
@@ -272,7 +276,7 @@
                         class="btn btn-primary">{{ $nextStages->count() === 1 ? $nextStages->first() : 'Update repair stage' }}</button>
                 </div>
             </form>
-        @elseif (in_array($repairJob->status, ['diagnosis', 'waiting_approval'], true))
+        @elseif (auth()->user()->staff_role !== 'receptionist' && in_array($repairJob->status, ['diagnosis', 'waiting_approval'], true))
             <form method="POST" action="{{ route('shop.repair-jobs.update', $repairJob) }}" class="row g-3">
                 @csrf @method('PATCH')
                 <input type="hidden" name="status" value="{{ $repairJob->status }}">
@@ -287,7 +291,7 @@
                         {{ $repairJob->status === 'diagnosis' ? 'diagnosis and notes' : 'technician notes' }}</button></div>
             </form>
         @endif
-        @if (array_key_exists('cancelled', $repairJob->availableStatuses()))
+        @if (auth()->user()->staff_role !== 'receptionist' && array_key_exists('cancelled', $repairJob->availableStatuses()))
             <details class="mt-3">
                 <summary class="text-secondary small">Need to cancel this repair?</summary>
                 <form method="POST" action="{{ route('shop.repair-jobs.update', $repairJob) }}" class="mt-2">@csrf

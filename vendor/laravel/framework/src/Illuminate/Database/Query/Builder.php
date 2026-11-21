@@ -541,7 +541,7 @@ class Builder implements BuilderContract
     public function from($table, $as = null)
     {
         if ($this->isQueryable($table)) {
-            return $this->fromSub($table, $as);
+            return $this->fromSub($table, $as ?? '');
         }
 
         $this->from = $as ? "{$table} as {$as}" : $table;
@@ -2167,6 +2167,10 @@ class Builder implements BuilderContract
     {
         if (count($columns) !== count($values)) {
             throw new InvalidArgumentException('The number of columns must match the number of values');
+        }
+
+        if ($this->invalidOperator($operator)) {
+            throw new InvalidArgumentException('Invalid operator passed to whereRowValues method.');
         }
 
         $type = 'RowValues';

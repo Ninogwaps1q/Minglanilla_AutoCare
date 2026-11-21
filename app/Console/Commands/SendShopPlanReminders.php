@@ -51,6 +51,10 @@ class SendShopPlanReminders extends Command
                             return 0;
                         }
 
+                        if ($shop->planPayments()->validPeriods()->where('period_starts_at', '<=', $end)->where('period_ends_at', '>', $end)->exists()) {
+                            return 0;
+                        }
+
                         $days = (int) today()->diffInDays($end->copy()->startOfDay(), false);
                         if (! in_array($days, [7, 1, 0], true)) {
                             return 0;

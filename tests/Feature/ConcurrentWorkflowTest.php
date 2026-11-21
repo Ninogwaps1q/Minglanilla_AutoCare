@@ -51,6 +51,11 @@ it('prevents duplicate records when simultaneous requests compete for the same w
             $payload = [];
             $user = $owner;
             $path = route('shop.invoices.store', $lock, absolute: false);
+        } elseif ($operation === 'refund') {
+            $lock = $shop->planPayments()->create(['plan_slug' => 'premium', 'amount' => 999, 'status' => 'approved', 'paymongo_payment_id' => 'pay_concurrent_refund', 'refund_status' => 'requested', 'refund_amount' => 999, 'refund_reason' => 'Cancel next month', 'refund_requested_at' => now()]);
+            $user = User::factory()->create(['role' => 'admin']);
+            $payload = ['decision' => 'approved'];
+            $path = route('admin.subscription-billing.refund', $lock, absolute: false);
         } elseif ($operation === 'inventory') {
             $repairJob = RepairJob::query()->create(['customer_id' => $customer->id, 'shop_id' => $shop->id,
                 'vehicle_id' => $vehicle->id, 'job_number' => 'JOB-STOCK-CONCURRENT', 'description' => 'Brake inspection',
@@ -70,7 +75,7 @@ it('prevents duplicate records when simultaneous requests compete for the same w
         DB::beginTransaction();
         $lock->newQuery()->lockForUpdate()->findOrFail($lock->id);
         foreach ([1, 2] as $number) {
-            $worker = new Process([PHP_BINARY, base_path('tests/Fixtures/concurrent-request.php'), $database, (string) $user->id, $path], base_path(), [
+            $worker = new Process([PHP_BINARY, base_path('tests/Fixtures/concurrent-request.php'), $database, (string) $user->id, $path, $operation === 'refund' ? 'PATCH' : 'POST'], base_path(), [
                 'APP_ENV' => 'testing', 'CACHE_STORE' => 'array', 'SESSION_DRIVER' => 'array', 'QUEUE_CONNECTION' => 'sync', 'MAIL_MAILER' => 'array',
             ]);
             $worker->setInput(json_encode($payload, JSON_THROW_ON_ERROR));
@@ -119,6 +124,11 @@ it('prevents duplicate records when simultaneous requests compete for the same w
             $this->assertDatabaseCount('invoices', 1);
             $this->assertDatabaseCount('invoice_items', 1);
             $this->assertDatabaseHas('invoices', ['repair_job_id' => $lock->id, 'total' => 1000]);
+        } elseif ($operation === 'refund') {
+            expect($lock->fresh()->refund_status)->toBe('processing');
+            expect(array_sum(array_column($responses, 'refund_requests')))->toBe(1);
+            $this->assertDatabaseCount('activity_logs', 2);
+            $this->assertDatabaseHas('activity_logs', ['user_id' => $user->id, 'action' => 'refund_approved']);
         } elseif ($operation === 'inventory') {
             $this->assertDatabaseHas('spare_parts', ['id' => $lock->id, 'quantity' => 1]);
             $this->assertDatabaseCount('inventory_transactions', 1);
@@ -159,4 +169,4 @@ it('prevents duplicate records when simultaneous requests compete for the same w
         $admin->statement("DROP DATABASE `{$database}`");
         DB::purge('concurrency_admin');
     }
-})->with(['booking', 'invoice', 'payment', 'inventory'])->skip(fn (): bool => getenv('RUN_MYSQL_CONCURRENCY') !== '1', 'Requires an isolated database and permission to inspect InnoDB transactions.');
+})->with(['booking', 'invoice', 'payment', 'inventory', 'refund'])->skip(fn (): bool => getenv('RUN_MYSQL_CONCURRENCY') !== '1', 'Requires an isolated database and permission to inspect InnoDB transactions.');

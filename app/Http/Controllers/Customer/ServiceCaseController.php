@@ -81,7 +81,7 @@ class ServiceCaseController extends Controller
                     throw ValidationException::withMessages(['decision' => 'This visit time is no longer available. Ask the shop for a new proposal.']);
                 }
                 $intervals = $schedule->bookedIntervals($shop, $date, null, $case->id);
-                if (! $schedule->fitsHours($shop, $time, 60)
+                if (! $schedule->isAvailable($shop, $date, $time, 60)
                     || ! $schedule->hasCapacity($intervals, $time, 60, (int) $shop->booking_capacity)) {
                     throw ValidationException::withMessages(['decision' => 'This time has filled up. Ask the shop for a new visit time.']);
                 }

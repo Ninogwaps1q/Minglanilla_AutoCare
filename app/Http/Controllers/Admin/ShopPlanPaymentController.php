@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Shop;
 use App\Models\ShopPlanPayment;
+use App\Services\ShopSubscriptionBilling;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -31,33 +32,17 @@ class ShopPlanPaymentController extends Controller
             if ($attributes['decision'] === 'approved' && ($shop->verification_status !== 'approved' || $shop->shop_status !== 'active')) {
                 throw ValidationException::withMessages(['payment' => 'Approve and reactivate the shop before activating its paid plan.']);
             }
-            $periodStartsAt = null;
-            $periodEndsAt = null;
-
-            if ($attributes['decision'] === 'approved') {
-                $periodStartsAt = now();
-                if ($shop->plan_expires_at?->isFuture()) {
-                    $periodStartsAt = $shop->plan_expires_at->copy();
-                }
-                if ($shop->trialIsActive() && $shop->trialEndsAt()->greaterThan($periodStartsAt)) {
-                    $periodStartsAt = $shop->trialEndsAt();
-                }
-                $periodEndsAt = $periodStartsAt->copy()->addMonthNoOverflow();
-                $shop->update([
-                    'plan_slug' => $payment->plan_slug,
-                    'plan_expires_at' => $periodEndsAt,
-                    'requested_plan' => null,
-                ]);
-            }
-
-            $payment->update([
+            $review = [
                 'status' => $attributes['decision'],
                 'review_notes' => $attributes['review_notes'] ?? null,
                 'reviewed_by' => $request->user()->id,
                 'reviewed_at' => now(),
-                'period_starts_at' => $periodStartsAt,
-                'period_ends_at' => $periodEndsAt,
-            ]);
+            ];
+            if ($attributes['decision'] === 'approved') {
+                app(ShopSubscriptionBilling::class)->approve($shop, $payment, $review);
+            } else {
+                $payment->update($review);
+            }
             ActivityLog::query()->create([
                 'user_id' => $request->user()->id,
                 'action' => 'reviewed_shop_plan_payment',
@@ -68,9 +53,9 @@ class ShopPlanPaymentController extends Controller
             ]);
             $shop->owner->notifications()->create([
                 'type' => 'shop_plan_payment',
-                'title' => $payment->status === 'approved' ? 'Shop plan activated' : 'Shop plan payment needs attention',
+                'title' => $payment->status === 'approved' ? 'Shop plan payment confirmed' : 'Shop plan payment needs attention',
                 'message' => $payment->status === 'approved'
-                    ? ucfirst($payment->plan_slug).' is active through '.$periodEndsAt->format('M j, Y').'.'
+                    ? ucfirst($payment->plan_slug).' coverage: '.$payment->period_starts_at->format('M j, Y').' to '.$payment->period_ends_at->format('M j, Y').'.'
                     : 'Your payment details were not approved. Check the review note and submit again.',
                 'data' => ['shop_plan_payment_id' => $payment->id],
             ]);

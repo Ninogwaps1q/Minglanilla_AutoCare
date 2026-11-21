@@ -13,7 +13,7 @@ class UpdateAppointmentStatusRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->isShopOwner() === true;
+        return $this->user()?->isShopOperator() === true;
     }
 
     /**

@@ -19,6 +19,7 @@ class PublicShopController extends Controller
             'search' => ['nullable', 'string', 'max:100'],
             'barangay' => ['nullable', 'integer', 'exists:barangays,id'],
             'service' => ['nullable', 'integer', 'exists:services,id'],
+            'provider' => ['nullable', 'in:shop,independent_mechanic'],
             'sort' => ['nullable', 'in:name,rating,distance'],
             'selected' => ['nullable', 'integer', 'min:1'],
             'latitude' => ['nullable', 'required_with:longitude', 'numeric', 'between:-90,90'],
@@ -33,6 +34,7 @@ class PublicShopController extends Controller
         }
 
         $shops = $this->publicShops()->when($filters['search'] ?? null, fn ($query, $search) => $query->where('name', 'like', '%'.$search.'%'))
+            ->when($filters['provider'] ?? null, fn ($query, $provider) => $query->where('provider_type', $provider))
             ->when($filters['barangay'] ?? null, fn ($query, $barangay) => $query->where('barangay_id', $barangay))
             ->when($filters['service'] ?? null, fn ($query, $service) => $query->whereHas('services', fn ($query) => $query->where('service_id', $service)->where('availability', true)))
             ->when($filters['sort'] === 'rating', fn ($query) => $query->orderByDesc('average_rating'), fn ($query) => $query->orderBy('name'))->get();
@@ -58,6 +60,7 @@ class PublicShopController extends Controller
             ->map(fn (Shop $shop): array => [
                 'id' => $shop->id,
                 'name' => $shop->name,
+                'provider_type' => $shop->provider_type,
                 'latitude' => (float) $shop->latitude,
                 'longitude' => (float) $shop->longitude,
                 'logo_url' => $shop->logo && Storage::disk('public')->exists($shop->logo)
@@ -78,21 +81,23 @@ class PublicShopController extends Controller
 
     public function show(Shop $shop): View
     {
-        abort_unless($shop->verification_status === 'approved' && $shop->shop_status === 'active', 404);
+        abort_unless($shop->verification_status === 'approved' && $shop->shop_status === 'active' && $shop->owner->status === 'active', 404);
 
         return view('shops.show', ['shop' => $shop->load(['barangay', 'services.service.category', 'reviews' => fn ($query) => $query->where('status', 'published')->with('customer:id,name')->latest()->limit(5)])]);
     }
 
     public function compare(Service $service): View
     {
-        $offers = ShopService::query()->with(['shop.barangay', 'service'])->where('service_id', $service->id)->where('availability', true)->whereHas('shop', fn ($query) => $query->where('verification_status', 'approved')->where('shop_status', 'active'))->orderBy('price')->get();
+        $offers = ShopService::query()->with(['shop.barangay', 'service'])->where('service_id', $service->id)->where('availability', true)->whereHas('shop', fn ($query) => $query->where('verification_status', 'approved')->where('shop_status', 'active')->whereHas('owner', fn ($query) => $query->where('status', 'active')))->orderBy('price')->get();
 
         return view('shops.compare', ['service' => $service, 'offers' => $offers]);
     }
 
     private function publicShops(): Builder
     {
-        return Shop::query()->where('verification_status', 'approved')->where('shop_status', 'active')->with(['barangay:id,name', 'services.service:id,name']);
+        return Shop::query()->where('verification_status', 'approved')->where('shop_status', 'active')
+            ->whereHas('owner', fn (Builder $query): Builder => $query->where('status', 'active'))
+            ->with(['barangay:id,name', 'services.service:id,name']);
     }
 
     private function distance(float $fromLatitude, float $fromLongitude, float $toLatitude, float $toLongitude): float

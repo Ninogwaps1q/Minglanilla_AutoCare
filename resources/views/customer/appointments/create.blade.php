@@ -2,31 +2,31 @@
     <div class="col-lg-9 mx-auto">
         <div class="page-heading">
             <h1>Book a service</h1>
-            <p>Choose a verified shop and service, then request a time. The shop will confirm your visit.</p>
+            <p>Choose a verified shop or mobile mechanic, then request a time. The provider will confirm your visit.</p>
         </div>
 
         @if ($vehicles->isEmpty())
             <div class="alert alert-info" role="status">Add a vehicle before booking. <a href="{{ route('customer.vehicles.create') }}" class="alert-link">Add my vehicle</a></div>
         @elseif ($shops->isEmpty())
-            <div class="alert alert-info" role="status">No verified shops are available right now. <a href="{{ route('shops.index') }}" class="alert-link">Browse the directory</a></div>
+            <div class="alert alert-info" role="status">No verified providers are available right now. <a href="{{ route('shops.index') }}" class="alert-link">Browse the directory</a></div>
         @endif
 
         <form method="POST" action="{{ route('customer.appointments.store') }}" class="surface booking-form p-4 p-lg-5 row g-3">
             @csrf
             <div class="col-12 booking-form-section-head">
                 <h2>Choose your service</h2>
-                <p>Pick the shop, the work you need, and the vehicle you are bringing.</p>
+                <p>Pick a provider, the work you need, and the vehicle being serviced.</p>
             </div>
             <div class="col-md-6">
-                <label for="shop_id" class="form-label">Service shop</label>
+                <label for="shop_id" class="form-label">Service provider</label>
                 <select id="shop_id" class="form-select @error('shop_id') is-invalid @enderror" name="shop_id" required>
-                    <option value="">Choose a shop</option>
+                    <option value="">Choose a shop or mechanic</option>
                     @foreach ($shops as $shop)
-                        <option value="{{ $shop->id }}" @selected(old('shop_id', $selectedShopId) == $shop->id)>{{ $shop->name }}</option>
+                        <option value="{{ $shop->id }}" data-provider-type="{{ $shop->provider_type }}" @selected(old('shop_id', $selectedShopId) == $shop->id)>{{ $shop->name }} · {{ $shop->providerLabel() }}</option>
                     @endforeach
                 </select>
                 @error('shop_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                <div class="form-text">Need to compare shops? <a href="{{ route('shops.index') }}">Browse the shop directory</a>.</div>
+                <div class="form-text">Need to compare providers? <a href="{{ route('shops.index') }}">Browse the directory</a>.</div>
             </div>
             <div class="col-md-6">
                 <label for="service_id" class="form-label">Service</label>
@@ -50,9 +50,16 @@
                 </select>
                 @error('vehicle_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
             </div>
+            @php($selectedProvider = $shops->firstWhere('id', old('shop_id', $selectedShopId)))
+            <div class="col-12" id="service-address-field" @if(! $selectedProvider?->isIndependentMechanic()) hidden @endif>
+                <label for="service_address" class="form-label">Where should the mechanic meet you?</label>
+                <input id="service_address" class="form-control @error('service_address') is-invalid @enderror" name="service_address" value="{{ old('service_address') }}" maxlength="500" autocomplete="street-address" @if($selectedProvider?->isIndependentMechanic()) required @endif>
+                @error('service_address')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                <div class="form-text">Enter the vehicle's service address. The mechanic will travel here after confirming the booking.</div>
+            </div>
             <div class="col-12 booking-form-section-head">
                 <h2>Choose a visit time</h2>
-                <p>Select a date and preferred start time. Available times appear after you choose a shop and service.</p>
+                <p>Select a date and preferred start time. Available times appear after you choose a provider and service.</p>
             </div>
             <div class="col-md-6">
                 <label for="appointment_date" class="form-label">Preferred date</label>
@@ -92,6 +99,8 @@
 
     <script>
         const shopSelect = document.querySelector('#shop_id');
+        const serviceAddressField = document.querySelector('#service-address-field');
+        const serviceAddressInput = document.querySelector('#service_address');
         const serviceSelect = document.querySelector('#service_id');
         const dateInput = document.querySelector('#appointment_date');
         const timeInput = document.querySelector('#appointment_time');
@@ -128,9 +137,10 @@
         };
         const fitsDuration = (time) => {
             const end = asMinutes(time) + availability.duration_minutes;
-            return end <= 1440
+            return availability.is_open_day && end <= 1440
                 && (!availability.opening_time || asMinutes(time) >= asMinutes(availability.opening_time))
-                && (!availability.closing_time || end <= asMinutes(availability.closing_time));
+                && (!availability.closing_time || end <= asMinutes(availability.closing_time))
+                && !availability.schedule_blocks.some(block => asMinutes(time) < asMinutes(block.end) && end > asMinutes(block.start));
         };
         const hasSpace = (time) => {
             const start = asMinutes(time);
@@ -162,7 +172,7 @@
                 slotFeedback.textContent = 'Choose a future appointment time.';
                 slotFeedback.classList.add('text-danger');
             } else if (time && !fitsDuration(time)) {
-                slotFeedback.textContent = `Allow ${availability.duration_minutes} minutes for this service during shop hours.`;
+                slotFeedback.textContent = availability.is_open_day ? `This time is outside shop hours or blocked. Allow ${availability.duration_minutes} minutes for this service.` : 'The shop is closed on this day.';
                 slotFeedback.classList.add('text-danger');
             } else if (time && !hasSpace(time)) {
                 slotFeedback.textContent = 'The shop is fully booked during this service. Choose another time.';
@@ -229,6 +239,10 @@
             }
         };
         const syncServices = () => {
+            const isMechanic = shopSelect.selectedOptions[0]?.dataset.providerType === 'independent_mechanic';
+            serviceAddressField.hidden = !isMechanic;
+            serviceAddressInput.required = isMechanic;
+            if (!isMechanic) serviceAddressInput.value = '';
             [...serviceSelect.options].forEach(option => {
                 if (!option.dataset.shopId) return;
                 option.hidden = option.dataset.shopId !== shopSelect.value;

@@ -302,7 +302,7 @@ class RepairJobController extends Controller
 
     private function shop(Request $request): Shop
     {
-        return $request->user()->shops()->firstOrFail();
+        return $request->user()->managedShopOrFail();
     }
 
     private function bookedServicePrice(Appointment $appointment, Shop $shop): ?string

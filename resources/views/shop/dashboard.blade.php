@@ -1,14 +1,14 @@
-<x-layouts.app title="Shop dashboard">
+<x-layouts.app :title="auth()->user()->role === 'mechanic' ? 'Mechanic dashboard' : 'Shop dashboard'">
     @if ($shop === null)
         <div class="page-heading">
-            <h1>Set up your service shop</h1>
-            <p>Register the business once, then manage bookings, repairs, staff, and payments from this workspace.</p>
+            <h1>{{ auth()->user()->role === 'mechanic' ? 'Set up your mobile mechanic profile' : 'Set up your service shop' }}</h1>
+            <p>{{ auth()->user()->role === 'mechanic' ? 'Register once, upload your verification documents, then manage bookings, repairs, and payments here.' : 'Register the business once, then manage bookings, repairs, staff, and payments from this workspace.' }}</p>
         </div>
         <div class="surface p-4 p-lg-5 shop-onboarding"><i class="bi bi-shop" aria-hidden="true"></i>
             <div>
-                <h2 class="h4">Start with your shop registration</h2>
-                <p class="text-secondary">An administrator reviews your business details before it appears to customers.</p>
-                <a class="btn btn-primary" href="{{ route('shop.register') }}">Register my shop</a>
+                <h2 class="h4">{{ auth()->user()->role === 'mechanic' ? 'Start your mechanic registration' : 'Start with your shop registration' }}</h2>
+                <p class="text-secondary">An administrator reviews your details and documents before your profile appears to customers.</p>
+                <a class="btn btn-primary" href="{{ route('shop.register') }}">{{ auth()->user()->role === 'mechanic' ? 'Register as a mechanic' : 'Register my shop' }}</a>
             </div>
         </div>
     @else
@@ -24,7 +24,7 @@
                         class="badge text-bg-{{ $shop->verification_status === 'approved' ? 'success' : 'warning' }} text-capitalize">{{ $shop->verification_status }}</span>
                 </div>
                 <h1 id="shop-welcome-title">{{ $shop->name }}</h1>
-                <p>@if ($shop->verification_status !== 'approved') Your shop is not approved yet. Check your business details and verification documents.
+                <p>@if ($shop->verification_status !== 'approved') Your profile is not approved yet. Check your details and verification documents.
                     @elseif ($metrics['Waiting approval'] > 0) You have {{ $metrics['Waiting approval'] }} {{ str('booking')->plural($metrics['Waiting approval']) }} waiting for a decision.
                     @elseif ($pendingPaymentCount > 0) {{ $pendingPaymentCount }} {{ str('payment')->plural($pendingPaymentCount) }} need your confirmation.
                     @else Review today's visits and keep each repair moving.

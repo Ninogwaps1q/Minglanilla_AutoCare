@@ -11,7 +11,10 @@ use App\Models\Shop;
 use App\Models\ShopService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class ShopManagementController extends Controller
@@ -25,6 +28,9 @@ class ShopManagementController extends Controller
     {
         $shop = $this->shop($request);
         $attributes = $request->safe()->except(['logo', 'cover_photo']);
+        if ($request->boolean('operating_days_present')) {
+            $attributes['operating_days'] = array_map('intval', $request->input('operating_days', []));
+        }
         $newPaths = [];
         $previousPaths = [];
 
@@ -56,6 +62,38 @@ class ShopManagementController extends Controller
         Storage::disk('public')->delete($previousPaths);
 
         return back()->with('status', 'Shop profile updated.');
+    }
+
+    public function addScheduleBlock(Request $request): RedirectResponse
+    {
+        $attributes = $request->validate([
+            'date' => ['required', 'date', 'after_or_equal:today'],
+            'start' => ['required', 'date_format:H:i'],
+            'end' => ['required', 'date_format:H:i', 'after:start'],
+            'reason' => ['required', 'string', 'max:160'],
+        ]);
+        DB::transaction(function () use ($request, $attributes): void {
+            $shop = Shop::query()->where('owner_id', $request->user()->id)->lockForUpdate()->firstOrFail();
+            $blocks = $shop->schedule_blocks ?? [];
+            $blocks[] = ['id' => (string) Str::uuid(), ...$attributes];
+            $shop->update(['schedule_blocks' => $blocks]);
+        });
+
+        return back()->with('status', 'Closed time added. Existing appointments must be handled separately.');
+    }
+
+    public function removeScheduleBlock(Request $request, string $blockId): RedirectResponse
+    {
+        DB::transaction(function () use ($request, $blockId): void {
+            $shop = Shop::query()->where('owner_id', $request->user()->id)->lockForUpdate()->firstOrFail();
+            $blocks = collect($shop->schedule_blocks ?? []);
+            if (! $blocks->contains('id', $blockId)) {
+                throw ValidationException::withMessages(['schedule' => 'This closed time no longer exists.']);
+            }
+            $shop->update(['schedule_blocks' => $blocks->reject(fn (array $block): bool => $block['id'] === $blockId)->values()->all()]);
+        });
+
+        return back()->with('status', 'Closed time removed.');
     }
 
     public function services(Request $request): View

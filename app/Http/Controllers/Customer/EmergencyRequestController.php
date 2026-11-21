@@ -52,7 +52,7 @@ class EmergencyRequestController extends Controller
             return $emergencyRequest;
         });
 
-        return back()->with('status', $emergencyRequest->assigned_shop_id === null ? 'Your request was recorded. No eligible nearby shop is currently available.' : 'Your request was sent to the nearest eligible shop.');
+        return back()->with('status', $emergencyRequest->assigned_shop_id === null ? 'Your request was recorded. No eligible nearby provider is currently available.' : 'Your request was sent to the nearest eligible provider.');
     }
 
     public function destroy(Request $request, EmergencyRequest $emergencyRequest): RedirectResponse
@@ -61,7 +61,7 @@ class EmergencyRequestController extends Controller
         DB::transaction(function () use ($emergencyRequest, $request): void {
             $emergencyRequest = $request->user()->emergencyRequests()->lockForUpdate()->findOrFail($emergencyRequest->id);
             if (! in_array($emergencyRequest->status, ['pending', 'accepted'], true)) {
-                throw ValidationException::withMessages(['request' => 'This request can no longer be cancelled online. Contact the assigned shop for help.']);
+                throw ValidationException::withMessages(['request' => 'This request can no longer be cancelled online. Contact the assigned provider for help.']);
             }
             $shop = $emergencyRequest->assignedShop;
             $emergencyRequest->update(['status' => 'cancelled', 'completed_at' => now()]);

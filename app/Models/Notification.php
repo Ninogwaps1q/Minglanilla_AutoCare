@@ -2,12 +2,30 @@
 
 namespace App\Models;
 
+use App\Notifications\ImportantEventMail;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Notification extends Model
 {
     protected $guarded = [];
+
+    protected static function booted(): void
+    {
+        static::created(function (self $notification): void {
+            if (! in_array($notification->type, [
+                'appointment_requested', 'appointment_status', 'appointment_reschedule_requested', 'appointment_reschedule_decided', 'appointment_cancelled',
+                'quotation_sent', 'quotation_requested', 'quotation_response', 'quotation_expired', 'repair_status', 'shop_plan_reminder',
+                'shop_plan_payment', 'emergency_request', 'emergency_status',
+            ], true)) {
+                return;
+            }
+            $user = $notification->user;
+            if ($user?->status === 'active' && $user->email) {
+                $user->notify(new ImportantEventMail($notification->title, $notification->message, $notification->destinationFor($user)));
+            }
+        });
+    }
 
     protected function casts(): array
     {
@@ -52,7 +70,7 @@ class Notification extends Model
             return route('customer.notifications.index');
         }
 
-        if ($user->role === 'shop_owner') {
+        if ($user->isProviderOwner()) {
             if (in_array($this->type, ['shop_plan_payment', 'shop_plan_reminder'], true)) {
                 return route('shop.pricing');
             }

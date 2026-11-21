@@ -59,8 +59,18 @@ class Invoice extends Model
         return max(0, round($confirmed - $refunded, 2));
     }
 
+    public function creditNoteTotal(): float
+    {
+        return (float) $this->payments()->where('refund_status', 'succeeded')->where('refund_resolution', 'credit')->sum('refund_amount');
+    }
+
+    public function payableTotal(): float
+    {
+        return max(0, round((float) $this->total - $this->creditNoteTotal(), 2));
+    }
+
     public function remainingBalance(): float
     {
-        return max(0, round((float) $this->total - $this->confirmedPaymentsTotal(), 2));
+        return max(0, round($this->payableTotal() - $this->confirmedPaymentsTotal(), 2));
     }
 }

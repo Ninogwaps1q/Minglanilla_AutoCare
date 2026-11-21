@@ -14,7 +14,7 @@ class RepairPhotoController extends Controller
 {
     public function store(Request $request, RepairJob $repairJob): RedirectResponse
     {
-        abort_unless($repairJob->shop_id === $request->user()->shops()->firstOrFail()->id, 404);
+        abort_unless($repairJob->shop_id === $request->user()->managedShopOrFail()->id, 404);
         $data = $request->validate([
             'stage' => ['required', Rule::in(['before', 'after'])],
             'photo' => ['required', 'image', 'mimes:jpeg,png,webp', 'max:5120'],

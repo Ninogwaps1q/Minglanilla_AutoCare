@@ -19,13 +19,27 @@ class Shop extends Model
 
     protected function casts(): array
     {
-        return ['operating_days' => 'array', 'trial_started_at' => 'datetime', 'trial_revoked_at' => 'datetime', 'plan_expires_at' => 'datetime'];
+        return ['operating_days' => 'array', 'schedule_blocks' => 'array', 'roadside_available' => 'boolean', 'trial_started_at' => 'datetime', 'trial_revoked_at' => 'datetime', 'plan_expires_at' => 'datetime', 'next_plan_starts_at' => 'datetime'];
+    }
+
+    public function isIndependentMechanic(): bool
+    {
+        return $this->provider_type === 'independent_mechanic';
+    }
+
+    public function providerLabel(): string
+    {
+        return $this->isIndependentMechanic() ? 'Independent mechanic' : 'Service shop';
     }
 
     public function activePlanSlug(): string
     {
         if ($this->trialIsActive()) {
             return 'premium';
+        }
+
+        if ($this->next_plan_starts_at?->lte(now())) {
+            return $this->currentPaidPeriod()?->plan_slug ?? ($this->plan_expires_at?->isFuture() ? $this->plan_slug : 'free');
         }
 
         if (in_array($this->plan_slug, ['basic', 'premium'], true) && $this->plan_expires_at?->isFuture()) {
@@ -51,7 +65,16 @@ class Shop extends Model
             return $this->trialEndsAt();
         }
 
+        if ($this->next_plan_starts_at?->lte(now()) && ($current = $this->currentPaidPeriod())) {
+            return $current->period_ends_at;
+        }
+
         return $this->activePlanSlug() !== 'free' ? $this->plan_expires_at : null;
+    }
+
+    private function currentPaidPeriod(): ?ShopPlanPayment
+    {
+        return $this->planPayments()->validPeriods()->where('period_starts_at', '<=', now())->where('period_ends_at', '>', now())->latest('period_starts_at')->first();
     }
 
     public function daysUntilAccessEnds(): ?int
@@ -77,7 +100,8 @@ class Shop extends Model
                 ->orWhere(function (Builder $query): void {
                     $query->whereIn('plan_slug', ['basic', 'premium'])
                         ->where('plan_expires_at', '>', now());
-                });
+                })
+                ->orWhereHas('planPayments', fn (Builder $query): Builder => $query->validPeriods()->where('period_starts_at', '<=', now())->where('period_ends_at', '>', now()));
         });
     }
 
@@ -89,6 +113,11 @@ class Shop extends Model
     public function owner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'owner_id');
+    }
+
+    public function staff(): HasMany
+    {
+        return $this->hasMany(User::class, 'staff_shop_id');
     }
 
     public function barangay(): BelongsTo
@@ -128,7 +157,11 @@ class Shop extends Model
     {
         $documents = $this->relationLoaded('documents') ? $this->documents : $this->documents()->get();
 
-        return collect(['business_permit' => 'Business permit', 'mayors_permit' => 'Mayor’s permit'])
+        $requiredDocuments = $this->isIndependentMechanic()
+            ? ['government_id' => 'Government ID', 'mechanic_credentials' => 'Mechanic qualifications or work history']
+            : ['business_permit' => 'Business permit', 'mayors_permit' => 'Mayor’s permit'];
+
+        return collect($requiredDocuments)
             ->map(function (string $label, string $type) use ($documents): array {
                 $document = $documents->where('document_type', $type)->sortByDesc('id')->first();
                 $status = match (true) {

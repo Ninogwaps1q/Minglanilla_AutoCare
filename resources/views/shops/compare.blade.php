@@ -8,7 +8,7 @@
             <table class="table mb-0">
                 <thead>
                     <tr>
-                        <th>Shop</th>
+                        <th>Provider</th>
                         <th>Barangay</th>
                         <th>Price</th>
                         <th>Rating</th>
@@ -16,12 +16,12 @@
                 </thead>
                 <tbody>@forelse($offers as $offer)
                     <tr>
-                        <td><a href="{{ route('shops.show', $offer->shop) }}">{{ $offer->shop->name }}</a></td>
+                        <td><a href="{{ route('shops.show', $offer->shop) }}">{{ $offer->shop->name }}</a><br><span class="small text-secondary">{{ $offer->shop->providerLabel() }}</span></td>
                         <td>{{ $offer->shop->barangay->name }}</td>
                         <td>₱{{ number_format($offer->price, 2) }}</td>
                         <td>@if ($offer->shop->total_reviews > 0)<x-star-rating :rating="$offer->shop->average_rating" />@else<span class="text-secondary">Not yet rated</span>@endif</td>
                 </tr>@empty<tr>
-                        <td colspan="4" class="text-secondary p-4">No approved shops currently offer this service.</td>
+                        <td colspan="4" class="text-secondary p-4">No approved providers currently offer this service.</td>
                     </tr>@endforelse
                 </tbody>
             </table>

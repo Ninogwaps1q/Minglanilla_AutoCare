@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\AdminTwoFactor;
 use App\Http\Controllers\Controller;
 use App\Models\SocialAccount;
 use App\Models\User;
@@ -177,9 +178,14 @@ class SocialLoginController extends Controller
         if (! $user->hasVerifiedEmail()) {
             return to_route('verification.notice');
         }
+        if ($user->isAdmin()) {
+            app(AdminTwoFactor::class)->begin($request, $user);
+
+            return to_route('admin.two-factor.create');
+        }
 
         $dashboardRoute = match ($user->role) {
-            'shop_owner' => 'shop.dashboard',
+            'shop_owner', 'mechanic', 'shop_staff' => 'shop.dashboard',
             'admin' => 'admin.dashboard',
             default => 'dashboard',
         };

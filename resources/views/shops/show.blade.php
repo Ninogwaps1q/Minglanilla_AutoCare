@@ -5,7 +5,8 @@
             <x-uploaded-image class="shop-public-logo" :path="$shop->logo" :alt="$shop->name.' logo'" fallback-icon="wrench-adjustable-circle" />
             <div>
                 <h1 class="mb-1">{{ $shop->name }}</h1>
-                <p class="text-secondary mb-2">{{ $shop->address }}, {{ $shop->barangay->name }}, Minglanilla, Cebu</p>
+                <p class="text-secondary mb-2">{{ $shop->providerLabel() }} · {{ $shop->isIndependentMechanic() ? 'Mobile service around '.$shop->barangay->name.', Minglanilla, Cebu' : $shop->address.', '.$shop->barangay->name.', Minglanilla, Cebu' }}</p>
+                @if ($shop->isIndependentMechanic())<p class="small text-secondary mb-2">The mechanic travels to your service address. Confirm any travel details before the appointment.</p>@endif
                 @if ($shop->total_reviews > 0)
                     <div class="d-flex flex-wrap align-items-center gap-2"><x-star-rating :rating="$shop->average_rating" /><span class="text-secondary small">from {{ $shop->total_reviews }} {{ $shop->total_reviews === 1 ? 'review' : 'reviews' }}</span></div>
                 @else
@@ -18,7 +19,7 @@
     <div class="row g-4">
         <div class="col-lg-8 d-grid gap-4">
             <section class="surface p-4" aria-labelledby="shop-about-heading">
-                <h2 id="shop-about-heading" class="h4">About this shop</h2>
+                <h2 id="shop-about-heading" class="h4">About this {{ $shop->isIndependentMechanic() ? 'mechanic' : 'shop' }}</h2>
                 <p>{{ $shop->description ?: 'No description provided.' }}</p>
                 <h3 class="h5 mt-4">Services and listed prices</h3>
                 <div class="list-group list-group-flush">
@@ -27,10 +28,10 @@
                             <span>{{ $offer->service->name }}</span><strong>PHP {{ number_format($offer->price, 2) }}</strong>
                         </div>
                     @empty
-                        <div class="text-secondary">No active services listed. Message the shop to ask what is available.</div>
+                        <div class="text-secondary">No active services listed. Message the provider to ask what is available.</div>
                     @endforelse
                 </div>
-                <p class="text-secondary small mb-0 mt-3">The listed service price may not include additional repair work. The shop must send an estimate for your approval before extra work begins.</p>
+                <p class="text-secondary small mb-0 mt-3">The listed service price may not include additional repair work. The provider must send an estimate for your approval before extra work begins.</p>
             </section>
 
             <section class="surface p-4" aria-labelledby="shop-reviews-heading">
@@ -46,7 +47,7 @@
                         </div>
                         <p class="mb-0">{{ $review->comment }}</p>
                         @if ($review->response)
-                            <div class="mt-3 ps-3 border-start"><strong>Shop response</strong><p class="mb-0">{{ $review->response }}</p></div>
+                            <div class="mt-3 ps-3 border-start"><strong>Provider response</strong><p class="mb-0">{{ $review->response }}</p></div>
                         @endif
                     </article>
                 @empty
@@ -58,24 +59,24 @@
         <aside class="col-lg-4">
             <div class="surface p-4">
                 <h2 class="h5">Ready to get started?</h2>
-                <p class="text-secondary small">Choose a service or ask the shop a question before booking.</p>
+                <p class="text-secondary small">Choose a service or ask the provider a question before booking.</p>
                 <div class="d-grid gap-2 mb-4">
                     @auth
                         @if (auth()->user()->role === 'customer')
                             @if ($shop->services->contains('availability', true) && $shop->hasPlanAtLeast('basic'))
                                 <a class="btn btn-primary" href="{{ route('customer.appointments.create', ['shop_id' => $shop->id]) }}">Book a service</a>
                             @elseif (! $shop->hasPlanAtLeast('basic'))
-                                <p class="small text-secondary mb-0">This shop is listed for discovery and is not accepting online bookings right now.</p>
+                                <p class="small text-secondary mb-0">This provider is listed for discovery and is not accepting online bookings right now.</p>
                             @endif
-                            <a class="btn btn-outline-primary" href="{{ route('customer.messages.show', $shop) }}">Message shop</a>
+                            <a class="btn btn-outline-primary" href="{{ route('customer.messages.show', $shop) }}">Message {{ $shop->isIndependentMechanic() ? 'mechanic' : 'shop' }}</a>
                         @endif
                     @else
-                        <a class="btn btn-primary" href="{{ route('login') }}">{{ $shop->hasPlanAtLeast('basic') ? 'Sign in to book or message' : 'Sign in to message this shop' }}</a>
+                        <a class="btn btn-primary" href="{{ route('login') }}">{{ $shop->hasPlanAtLeast('basic') ? 'Sign in to book or message' : 'Sign in to message this provider' }}</a>
                     @endauth
                     @if ($shop->latitude !== null && $shop->longitude !== null)
                         <a class="btn btn-outline-secondary" href="{{ route('shops.index', ['search' => $shop->name, 'selected' => $shop->id]) }}#shop-map">View on map</a>
                     @else
-                        <span class="text-secondary small">Map location is not available for this shop yet.</span>
+                        <span class="text-secondary small">Map location is not available for this provider yet.</span>
                     @endif
                 </div>
                 <h3 class="h6">Contact</h3>

@@ -1,5 +1,5 @@
 <x-layouts.app title="Roadside assistance">
-    <div class="page-heading"><h1>Roadside assistance</h1><p>Tell us where you are and what happened. We will send the request to an eligible nearby shop.</p></div>
+    <div class="page-heading"><h1>Roadside assistance</h1><p>Tell us where you are and what happened. We will send the request to an eligible nearby shop or mechanic.</p></div>
     <div class="row g-4">
         <div class="col-lg-5"><section class="surface p-4" aria-labelledby="request-help-title">
             <h2 class="h4" id="request-help-title">Request help</h2><x-form-errors />
@@ -9,7 +9,7 @@
                 <div><label class="form-label" for="address">Location details</label><input id="address" class="form-control" name="address" maxlength="500" value="{{ old('address') }}" placeholder="Street, landmark, or barangay"></div>
                 <div><label class="form-label" for="description">What happened?</label><textarea id="description" class="form-control" name="description" rows="3" maxlength="2000" placeholder="Describe your situation briefly">{{ old('description') }}</textarea></div>
                 <input id="latitude" type="hidden" name="latitude" value="{{ old('latitude') }}"><input id="longitude" type="hidden" name="longitude" value="{{ old('longitude') }}">
-                <div><button id="location-button" class="btn btn-outline-primary" type="button">Use my current location</button><p id="location-status" class="small text-secondary mt-2 mb-0" role="status" aria-live="polite">Location is needed to find the nearest eligible shop.</p></div>
+                <div><button id="location-button" class="btn btn-outline-primary" type="button">Use my current location</button><p id="location-status" class="small text-secondary mt-2 mb-0" role="status" aria-live="polite">Location is needed to find the nearest eligible provider.</p></div>
                 <button class="btn btn-primary" type="submit">Send assistance request</button>
             </form>
         </section></div>
@@ -21,21 +21,21 @@
                     <div class="d-flex flex-wrap justify-content-between gap-2 mb-2"><strong>{{ ucfirst(str_replace('_', ' ', $emergencyRequest->emergency_type)) }}</strong><span class="badge text-bg-{{ $emergencyRequest->status === 'completed' ? 'success' : ($emergencyRequest->status === 'cancelled' ? 'secondary' : 'warning') }} text-capitalize">{{ str_replace('_', ' ', $emergencyRequest->status) }}</span></div>
                     <p class="small text-secondary mb-2">Requested {{ $emergencyRequest->requested_at?->format('M j, Y · g:i A') }} · {{ $emergencyRequest->address ?: 'Location coordinates shared' }}</p>
                     @if ($emergencyRequest->assignedShop)
-                        <p class="mb-1"><strong>Assigned shop:</strong> {{ $emergencyRequest->assignedShop->name }}</p>
+                        <p class="mb-1"><strong>Assigned {{ $emergencyRequest->assignedShop->isIndependentMechanic() ? 'mechanic' : 'shop' }}:</strong> {{ $emergencyRequest->assignedShop->name }}</p>
                         @if ($emergencyRequest->assignedShop->phone)<p class="mb-1"><strong>Contact:</strong> <a href="tel:{{ preg_replace('/[^+0-9]/', '', $emergencyRequest->assignedShop->phone) }}">{{ $emergencyRequest->assignedShop->phone }}</a></p>@endif
-                        @if ($emergencyRequest->status === 'pending')<p class="small mb-1">Waiting for the shop to accept. You will receive a notification when its status changes.</p>@endif
+                        @if ($emergencyRequest->status === 'pending')<p class="small mb-1">Waiting for the provider to accept. You will receive a notification when its status changes.</p>@endif
                     @else
-                        <p class="mb-1"><strong>No shop assigned.</strong> {{ $emergencyRequest->status === 'cancelled' ? 'No eligible shop could take this request. If urgent, contact local emergency services or another assistance provider.' : 'We are looking for an eligible shop. If urgent, contact local emergency services.' }}</p>
+                        <p class="mb-1"><strong>No provider assigned.</strong> {{ $emergencyRequest->status === 'cancelled' ? 'No eligible provider could take this request. If urgent, contact local emergency services or another assistance provider.' : 'We are looking for an eligible provider. If urgent, contact local emergency services.' }}</p>
                     @endif
-                    @if ($attempts->count() > 1)<p class="small text-secondary mb-1">Reassigned {{ $attempts->count() - 1 }} {{ $attempts->count() === 2 ? 'time' : 'times' }} after a shop could not assist.</p>@endif
+                    @if ($attempts->count() > 1)<p class="small text-secondary mb-1">Reassigned {{ $attempts->count() - 1 }} {{ $attempts->count() === 2 ? 'time' : 'times' }} after a provider could not assist.</p>@endif
                     @if ($attempts->isNotEmpty())<details class="small mt-2"><summary>Dispatch history ({{ $attempts->count() }})</summary><ol class="mb-0 mt-2">@foreach ($attempts as $attempt)<li>{{ $attempt->shop_name }} · {{ ucfirst(str_replace('_', ' ', $attempt->status)) }} · {{ \Illuminate\Support\Carbon::parse($attempt->assigned_at)->format('M j, g:i A') }}</li>@endforeach</ol></details>@endif
                     @if (in_array($emergencyRequest->status, ['pending', 'accepted'], true))
                         <form method="POST" action="{{ route('customer.emergency-requests.destroy', $emergencyRequest) }}" class="mt-3">@csrf @method('DELETE')
-                            <button class="btn btn-sm btn-outline-danger" type="submit" data-confirm="Cancel this roadside request? The assigned shop will be notified.">Cancel request</button>
+                            <button class="btn btn-sm btn-outline-danger" type="submit" data-confirm="Cancel this roadside request? The assigned provider will be notified.">Cancel request</button>
                         </form>
                     @endif
                 </article>
-            @empty<p class="text-secondary mb-0">No roadside assistance requests yet. Your requests and shop responses will appear here.</p>@endforelse</div>
+            @empty<p class="text-secondary mb-0">No roadside assistance requests yet. Your requests and provider responses will appear here.</p>@endforelse</div>
         </section></div>
     </div>
     @push('scripts')

@@ -16,7 +16,7 @@ class EnsureShopAcceptingWork
      */
     public function handle(Request $request, Closure $next, string $minimum = 'basic'): Response
     {
-        $shop = $request->user()?->shops()->first();
+        $shop = $request->user()?->managedShop();
         if ($shop === null || $shop->verification_status !== 'approved' || $shop->shop_status !== 'active') {
             throw ValidationException::withMessages(['shop' => 'Your shop must be approved and active before accepting new work. Existing invoices and customer requests remain available.']);
         }

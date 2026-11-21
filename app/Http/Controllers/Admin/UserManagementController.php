@@ -16,7 +16,7 @@ class UserManagementController extends Controller
     {
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
-            'role' => ['nullable', 'in:customer,shop_owner,admin'],
+            'role' => ['nullable', 'in:customer,shop_owner,mechanic,admin'],
             'status' => ['nullable', 'in:active,suspended'],
         ]);
 

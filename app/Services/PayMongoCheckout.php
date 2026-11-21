@@ -105,7 +105,29 @@ class PayMongoCheckout
                 ->withHeaders(['Idempotency-Key' => $idempotencyKey])->connectTimeout(3)->timeout(10)
                 ->post('https://api.paymongo.com/v1/refunds', ['data' => ['attributes' => ['payment_id' => $paymentId, 'amount' => $amountCentavos, 'reason' => $reason]]]);
 
+            if ($response->clientError() && ! in_array($response->status(), [408, 409, 429], true)) {
+                throw new RuntimeException('PayMongo declined this refund. Check the payment method, refund eligibility, and available balance in PayMongo.');
+            }
+
             return $response->successful() ? $response->json('data') : null;
+        } catch (ConnectionException $exception) {
+            report($exception);
+
+            return null;
+        }
+    }
+
+    /** @return array<string, mixed>|null */
+    public function retrieveRefund(string $refundId): ?array
+    {
+        if (! $this->configured() || ! preg_match('/^ref_[A-Za-z0-9_-]+$/', $refundId)) {
+            return null;
+        }
+        try {
+            $response = Http::withBasicAuth(config('services.paymongo.secret_key'), '')->connectTimeout(3)->timeout(10)
+                ->get('https://api.paymongo.com/v1/refunds/'.$refundId);
+
+            return $response->successful() && $response->json('data.id') === $refundId ? $response->json('data') : null;
         } catch (ConnectionException $exception) {
             report($exception);
 

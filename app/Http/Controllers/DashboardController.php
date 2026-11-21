@@ -21,7 +21,7 @@ class DashboardController extends Controller
     {
         $user = $request->user();
 
-        if ($request->routeIs('dashboard') && $user->role === 'shop_owner') {
+        if ($request->routeIs('dashboard') && $user->isProviderOwner()) {
             return redirect()->route('shop.dashboard');
         }
 
@@ -31,7 +31,7 @@ class DashboardController extends Controller
 
         $viewData = ['user' => $user, 'metrics' => match ($user->role) {
             'admin' => ['Users' => User::query()->count(), 'Shops' => Shop::query()->count(), 'Pending verifications' => Shop::query()->where('verification_status', 'pending')->count(), 'Vehicles' => Vehicle::query()->count()],
-            'shop_owner' => ['Registered shops' => $user->shops()->count(), 'Pending verification' => $user->shops()->where('verification_status', 'pending')->count()],
+            'shop_owner', 'mechanic' => ['Registered providers' => $user->shops()->count(), 'Pending verification' => $user->shops()->where('verification_status', 'pending')->count()],
             default => ['My vehicles' => $user->vehicles()->count(), 'Upcoming visits' => $user->appointments()->whereIn('status', ['pending', 'confirmed'])->whereDate('appointment_date', '>=', today())->count(), 'Active repairs' => $user->repairJobs()->whereNotIn('status', ['completed', 'released', 'cancelled'])->count(), 'Saved shops' => $user->favorites()->count()],
         }];
 

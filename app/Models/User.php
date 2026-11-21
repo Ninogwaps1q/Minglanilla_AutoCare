@@ -24,7 +24,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'name',
         'email',
         'password',
-        'phone', 'role', 'profile_photo', 'address', 'barangay_id', 'status',
+        'phone', 'role', 'profile_photo', 'address', 'barangay_id', 'status', 'staff_shop_id', 'staff_role',
     ];
 
     /**
@@ -58,6 +58,28 @@ class User extends Authenticatable implements MustVerifyEmail
     public function shops(): HasMany
     {
         return $this->hasMany(Shop::class, 'owner_id');
+    }
+
+    public function staffShop(): BelongsTo
+    {
+        return $this->belongsTo(Shop::class, 'staff_shop_id');
+    }
+
+    public function managedShop(): ?Shop
+    {
+        return $this->role === 'shop_staff' ? $this->staffShop : $this->shops()->first();
+    }
+
+    public function managedShopOrFail(): Shop
+    {
+        return $this->managedShop() ?? abort(404);
+    }
+
+    public function canAccessShop(int $shopId): bool
+    {
+        return $this->role === 'shop_staff'
+            ? (int) $this->staff_shop_id === $shopId
+            : $this->shops()->whereKey($shopId)->exists();
     }
 
     public function vehicles(): HasMany
@@ -128,5 +150,15 @@ class User extends Authenticatable implements MustVerifyEmail
     public function isShopOwner(): bool
     {
         return $this->role === 'shop_owner';
+    }
+
+    public function isProviderOwner(): bool
+    {
+        return in_array($this->role, ['shop_owner', 'mechanic'], true);
+    }
+
+    public function isShopOperator(): bool
+    {
+        return in_array($this->role, ['shop_owner', 'mechanic', 'shop_staff'], true);
     }
 }

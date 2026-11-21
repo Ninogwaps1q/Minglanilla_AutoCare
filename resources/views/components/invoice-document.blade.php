@@ -34,7 +34,7 @@
     </div>
 
     <table class="columns"><tr>
-        <td><strong>FROM</strong><p>{{ $invoice->shop->name }}</p><p>{{ $invoice->shop->address }}</p><p>{{ $invoice->shop->phone }}</p></td>
+        <td><strong>FROM</strong><p>{{ $invoice->shop->name }}</p><p>{{ $invoice->shop->isIndependentMechanic() ? 'Independent mobile mechanic · '.$invoice->shop->barangay?->name.', Minglanilla' : $invoice->shop->address }}</p><p>{{ $invoice->shop->phone }}</p></td>
         <td><strong>BILL TO</strong><p>{{ $invoice->customer->name }}</p><p>{{ $invoice->customer->email }}</p><p>Repair: {{ $invoice->repairJob?->job_number ?? 'Service invoice' }}</p></td>
     </tr></table>
 
@@ -59,6 +59,10 @@
         @if ((float) $invoice->discount > 0)<tr><td>Discount</td><td>− PHP {{ number_format($invoice->discount, 2) }}</td></tr>@endif
         @if ((float) $invoice->tax > 0)<tr><td>Tax</td><td>PHP {{ number_format($invoice->tax, 2) }}</td></tr>@endif
         <tr class="total-row"><td>Total</td><td>PHP {{ number_format($invoice->total, 2) }}</td></tr>
+        @if ($invoice->creditNoteTotal() > 0)
+            <tr><td>Credit note for refunded service</td><td>−PHP {{ number_format($invoice->creditNoteTotal(), 2) }}</td></tr>
+            <tr><td>Adjusted amount due</td><td>PHP {{ number_format($invoice->payableTotal(), 2) }}</td></tr>
+        @endif
         <tr><td>Confirmed payments</td><td>PHP {{ number_format($invoice->confirmedPaymentsTotal(), 2) }}</td></tr>
         <tr class="total-row"><td>Balance due</td><td>PHP {{ number_format($invoice->remainingBalance(), 2) }}</td></tr>
     </table>

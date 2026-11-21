@@ -13,6 +13,7 @@ class ShopMapController extends Controller
             'search' => ['nullable', 'string', 'max:100'],
             'barangay' => ['nullable', 'integer', 'exists:barangays,id'],
             'service' => ['nullable', 'integer', 'exists:services,id'],
+            'provider' => ['nullable', 'in:shop,independent_mechanic'],
             'sort' => ['nullable', 'in:name,rating,distance'],
             'latitude' => ['nullable', 'required_with:longitude', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'required_with:latitude', 'numeric', 'between:-180,180'],

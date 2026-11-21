@@ -32,7 +32,7 @@ npm run build
 php artisan app:deployment-check
 ```
 
-Start the app with `composer run dev`, or run `php artisan serve`, `npm run dev`, and `php artisan queue:work` in separate terminals. Run `php artisan schedule:work` in another terminal if you want reminders, quotation expiry, and unanswered roadside reassignment to execute locally.
+Start the app with `composer run dev`, which also starts the scheduler. Alternatively, run `php artisan serve`, `npm run dev`, `php artisan queue:work`, and `php artisan schedule:work` in separate terminals. Keep the scheduler running for scheduled subscription activation, background PayMongo checkout/refund checks, reminders, quotation expiry, and unanswered roadside reassignment. Payment checks need both the PayMongo secret key and webhook secret; they recover missed callbacks without an open browser.
 
 `php artisan db:seed` is optional **only on a fresh local database**. It creates demo accounts with known passwords; never expose those accounts to the internet and change their passwords if you keep them. Do not run `migrate:fresh` or reset an existing database to set up this project.
 

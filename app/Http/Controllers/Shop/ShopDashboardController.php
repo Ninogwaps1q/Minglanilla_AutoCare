@@ -11,10 +11,13 @@ class ShopDashboardController extends Controller
 {
     public function __invoke(Request $request): View
     {
-        $shop = $request->user()->shops()->first();
+        $shop = $request->user()->managedShop();
 
         if ($shop === null) {
             return view('shop.dashboard', ['shop' => null, 'metrics' => []]);
+        }
+        if ($request->user()->role === 'shop_staff') {
+            return view('shop.staff.dashboard', ['shop' => $shop, 'staffRole' => $request->user()->staff_role]);
         }
 
         return view('shop.dashboard', [

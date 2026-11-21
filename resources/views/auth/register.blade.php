@@ -2,7 +2,7 @@
     <section class="auth-page container py-5">
         <div class="auth-panel mx-auto">
             <h1>Create your account</h1>
-            <p class="text-secondary mb-4">Start as a customer or register as a shop owner.</p>
+            <p class="text-secondary mb-4">Choose a customer, shop owner, or independent mechanic account.</p>
             <x-form-errors />
             <form method="POST" action="{{ route('register') }}" class="vstack gap-3">@csrf
                 <div><label class="form-label" for="name">Full name</label><input id="name" class="form-control"
@@ -13,6 +13,7 @@
                         class="form-select" name="role">
                         <option value="customer" @selected(old('role') === 'customer')>Customer</option>
                         <option value="shop_owner" @selected(old('role') === 'shop_owner')>Shop owner</option>
+                        <option value="mechanic" @selected(old('role') === 'mechanic')>Independent mechanic</option>
                     </select></div>
                 <div><label class="form-label" for="password">Password</label><input id="password" class="form-control"
                         name="password" type="password" autocomplete="new-password" required></div>

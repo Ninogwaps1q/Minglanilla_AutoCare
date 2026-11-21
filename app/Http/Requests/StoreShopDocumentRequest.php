@@ -13,7 +13,7 @@ class StoreShopDocumentRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->isShopOwner() === true;
+        return $this->user()?->isProviderOwner() === true;
     }
 
     /**
@@ -24,7 +24,9 @@ class StoreShopDocumentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'document_type' => ['required', Rule::in(['business_permit', 'bir_registration', 'dti_registration', 'mayors_permit', 'other'])],
+            'document_type' => ['required', Rule::in($this->user()?->role === 'mechanic'
+                ? ['government_id', 'mechanic_credentials', 'other']
+                : ['business_permit', 'bir_registration', 'dti_registration', 'mayors_permit', 'other'])],
             'document' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'extensions:pdf,jpg,jpeg,png', 'max:5120'],
             'expires_at' => ['nullable', 'date', 'after_or_equal:today'],
         ];

@@ -13,7 +13,7 @@ class RepairWarrantyController extends Controller
 {
     public function store(Request $request, RepairJob $repairJob): RedirectResponse
     {
-        abort_unless($repairJob->shop_id === $request->user()->shops()->firstOrFail()->id, 404);
+        abort_unless($repairJob->shop_id === $request->user()->managedShopOrFail()->id, 404);
         $data = $request->validate([
             'coverage' => ['required', 'string', 'min:10', 'max:2000'],
             'duration_days' => ['required', 'integer', 'between:1,730'],

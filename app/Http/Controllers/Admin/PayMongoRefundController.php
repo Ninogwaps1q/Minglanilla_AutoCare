@@ -4,34 +4,28 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
-use App\Services\PayMongoCheckout;
+use App\Services\PayMongoRefunds;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
 class PayMongoRefundController extends Controller
 {
-    public function __invoke(Request $request, Payment $payment, PayMongoCheckout $checkout): RedirectResponse
+    public function __invoke(Request $request, Payment $payment, PayMongoRefunds $refunds): RedirectResponse
     {
-        $attributes = $request->validate(['decision' => ['required', 'in:approved,rejected']]);
-        if ($payment->refund_status !== 'requested' || ! $payment->paymongo_payment_id || $payment->settlement_status === 'settled') {
-            throw ValidationException::withMessages(['refund' => 'This refund cannot be reviewed here. Check its settlement and status.']);
-        }
-        if ($attributes['decision'] === 'rejected') {
-            $payment->update(['refund_status' => 'rejected']);
+        $attributes = $request->validate(['decision' => ['required', 'in:approved,rejected'], 'notes' => ['nullable', 'string', 'max:1000'], 'refund_resolution' => ['required_if:decision,approved', 'nullable', 'in:credit,replacement']]);
+        $refunds->review($payment, $request->user()->id, $attributes['decision'], $attributes['notes'] ?? null, $attributes['refund_resolution'] ?? null);
 
-            return back()->with('status', 'Refund request rejected.');
-        }
-        $refund = $checkout->refund($payment->paymongo_payment_id, (int) round((float) $payment->refund_amount * 100), 'others', 'refund-payment-'.$payment->id);
-        if (! is_array($refund) || ! is_string($refund['id'] ?? null) || ! str_starts_with($refund['id'], 'ref_') || ($refund['attributes']['payment_id'] ?? null) !== $payment->paymongo_payment_id) {
-            throw ValidationException::withMessages(['refund' => 'PayMongo has not accepted this refund. Check the payment in PayMongo before retrying.']);
-        }
-        $status = $refund['attributes']['status'] ?? 'processing';
-        $payment->update(['paymongo_refund_id' => $refund['id'], 'refund_status' => in_array($status, ['processing', 'succeeded'], true) ? $status : 'processing', 'refunded_at' => $status === 'succeeded' ? now() : null]);
-        if ($status === 'succeeded') {
-            $payment->invoice->update(['status' => 'unpaid']);
+        return back()->with('status', 'Refund review saved. Status: '.str_replace('_', ' ', $payment->fresh()->refund_status).'.');
+    }
+
+    public function check(Request $request, Payment $payment, PayMongoRefunds $refunds): RedirectResponse
+    {
+        $attributes = $request->validate(['refund_id' => ['nullable', 'string', 'regex:/^ref_[A-Za-z0-9_-]+$/', 'max:100']]);
+        if (! $refunds->check($payment, $attributes['refund_id'] ?? null)) {
+            throw ValidationException::withMessages(['refund' => 'The refund could not be verified. Check its ID, payment, and amount in PayMongo.']);
         }
 
-        return back()->with('status', 'PayMongo refund submitted.');
+        return back()->with('status', 'Refund status checked with PayMongo.');
     }
 }

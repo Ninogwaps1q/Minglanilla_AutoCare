@@ -8,6 +8,8 @@ use App\Models\Payment;
 use App\Models\Shop;
 use App\Models\ShopPlanPayment;
 use App\Models\User;
+use App\Services\PayMongoRefunds;
+use App\Services\ShopSubscriptionBilling;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Cache;
@@ -73,6 +75,18 @@ class PayMongoWebhookController extends Controller
         $resource = $attributes['data'] ?? [];
         $eventType = $attributes['type'];
         $paymentId = $resource['attributes']['payment_id'] ?? $resource['attributes']['payment']['id'] ?? null;
+        if ($eventType === 'payment.refund.updated') {
+            if (! is_string($paymentId)) {
+                return response('Invalid refund payment', 422);
+            }
+            $refundPayment = Payment::query()->where('paymongo_payment_id', $paymentId)->first()
+                ?? ShopPlanPayment::query()->where('paymongo_payment_id', $paymentId)->first();
+            if ($refundPayment && ! app(PayMongoRefunds::class)->apply($refundPayment, $resource)) {
+                return response('Refund mismatch', 422);
+            }
+
+            return response('Processed', 200);
+        }
         $payment = is_string($paymentId) ? Payment::query()->where('paymongo_payment_id', $paymentId)->first() : null;
         if (! $payment && str_starts_with($eventType, 'dispute.') && is_string($resource['id'] ?? null)) {
             $payment = Payment::query()->where('paymongo_dispute_id', $resource['id'])->first();
@@ -89,21 +103,17 @@ class PayMongoWebhookController extends Controller
         if (! $payment) {
             return response('Unknown payment', 200);
         }
-        if ($eventType === 'payment.refund.updated') {
-            $status = $resource['attributes']['status'] ?? null;
-            if (in_array($status, ['processing', 'succeeded', 'failed'], true) && $payment->paymongo_refund_id === ($resource['id'] ?? null)) {
-                $payment->update(['refund_status' => $status, 'refunded_at' => $status === 'succeeded' ? now() : null]);
-                if ($status === 'succeeded') {
-                    $payment->invoice->update(['status' => 'unpaid']);
-                }
-            }
-        } else {
+        DB::transaction(function () use ($payment, $resource, $eventType): void {
+            $payment = Payment::query()->lockForUpdate()->findOrFail($payment->id);
             $dispute = $resource['attributes'] ?? [];
+            if ($eventType === 'dispute.created' && $payment->paymongo_dispute_id === ($resource['id'] ?? null) && in_array($payment->dispute_status, ['won', 'lost', 'resolved'], true)) {
+                return;
+            }
             $payment->update(['dispute_status' => $eventType === 'dispute.created' ? 'open' : ($dispute['status'] ?? 'resolved'), 'paymongo_dispute_id' => $resource['id'] ?? null, 'dispute_amount' => is_int($dispute['amount'] ?? null) ? $dispute['amount'] / 100 : $payment->dispute_amount, 'dispute_reason' => $dispute['reason'] ?? $payment->dispute_reason]);
             if ($eventType === 'dispute.created') {
                 $this->alertAdmins('PayMongo dispute '.($resource['id'] ?? '').' opened for payment '.$payment->paymongo_payment_id.'. Review the shop settlement.', 'PayMongo dispute opened');
             }
-        }
+        });
 
         return response('Processed', 200);
     }
@@ -152,17 +162,8 @@ class PayMongoWebhookController extends Controller
             }
 
             $shop = Shop::query()->lockForUpdate()->findOrFail($payment->shop_id);
-            $startsAt = now();
-            if ($shop->plan_expires_at?->isFuture()) {
-                $startsAt = $shop->plan_expires_at->copy();
-            }
-            if ($shop->trialIsActive() && $shop->trialEndsAt()->greaterThan($startsAt)) {
-                $startsAt = $shop->trialEndsAt();
-            }
-            $endsAt = $startsAt->copy()->addMonthNoOverflow();
-            $payment->update(['status' => 'approved', 'paymongo_session_id' => $sessionId, 'paymongo_payment_id' => $paymentId, 'paymongo_method' => $method, 'reference' => $paymentId, 'reviewed_at' => now(), 'period_starts_at' => $startsAt, 'period_ends_at' => $endsAt]);
-            $shop->update(['plan_slug' => $payment->plan_slug, 'plan_expires_at' => $endsAt, 'requested_plan' => null]);
-            $shop->owner->notifications()->create(['type' => 'shop_plan_payment', 'title' => 'Shop plan activated', 'message' => ucfirst($payment->plan_slug).' is active through '.$endsAt->format('M j, Y').'.', 'data' => ['shop_plan_payment_id' => $payment->id]]);
+            app(ShopSubscriptionBilling::class)->approve($shop, $payment, ['paymongo_session_id' => $sessionId, 'paymongo_payment_id' => $paymentId, 'paymongo_method' => $method, 'reference' => $paymentId, 'reviewed_at' => now()]);
+            $shop->owner->notifications()->create(['type' => 'shop_plan_payment', 'title' => 'Shop plan payment confirmed', 'message' => ucfirst($payment->plan_slug).' coverage: '.$payment->period_starts_at->format('M j, Y').' to '.$payment->period_ends_at->format('M j, Y').'. Your current paid days are preserved.', 'data' => ['shop_plan_payment_id' => $payment->id]]);
 
             return response('Processed', 200);
         });
@@ -197,14 +198,14 @@ class PayMongoWebhookController extends Controller
             }
             $invoice = Invoice::query()->lockForUpdate()->findOrFail($payment->invoice_id);
             $confirmedCents = (int) round($invoice->confirmedPaymentsTotal() * 100);
-            if ($confirmedCents + $amount > (int) round((float) $invoice->total * 100)) {
+            if ($confirmedCents + $amount > (int) round($invoice->payableTotal() * 100)) {
                 return response('Invoice total conflict', 409);
             }
             $fee = $gatewayPayment['fee'] ?? null;
             $netAmount = $gatewayPayment['net_amount'] ?? null;
             $method = $gatewayPayment['source']['type'] ?? null;
             $payment->update(['status' => 'confirmed', 'paymongo_session_id' => $sessionId, 'paymongo_payment_id' => $paymentId, 'paymongo_method' => is_string($method) && strlen($method) <= 50 ? $method : null, 'paymongo_fee' => is_int($fee) ? $fee / 100 : null, 'paymongo_net_amount' => is_int($netAmount) ? $netAmount / 100 : null, 'reference_number' => $paymentId, 'settlement_status' => 'pending', 'reviewed_at' => now()]);
-            $invoice->update(['status' => $confirmedCents + $amount >= (int) round((float) $invoice->total * 100) ? 'paid' : 'unpaid']);
+            $invoice->update(['status' => $confirmedCents + $amount >= (int) round($invoice->payableTotal() * 100) ? 'paid' : 'unpaid']);
             $payment->customer->notifications()->create(['type' => 'payment_verification', 'title' => 'Payment confirmed', 'message' => 'Your PayMongo payment was confirmed.', 'data' => ['payment_id' => $payment->id]]);
             $payment->shop->owner->notifications()->create(['type' => 'payment_verification', 'title' => 'Online payment received', 'message' => 'A customer invoice payment was received by the platform. Settlement is pending.', 'data' => ['payment_id' => $payment->id]]);
 

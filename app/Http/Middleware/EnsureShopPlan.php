@@ -15,7 +15,7 @@ class EnsureShopPlan
      */
     public function handle(Request $request, Closure $next, string $minimum = 'basic'): Response
     {
-        $shop = $request->user()->shops()->firstOrFail();
+        $shop = $request->user()->managedShopOrFail();
         if (! $shop->hasPlanAtLeast($minimum)) {
             if ($request->expectsJson()) {
                 abort(403, "An active {$minimum} plan is required.");

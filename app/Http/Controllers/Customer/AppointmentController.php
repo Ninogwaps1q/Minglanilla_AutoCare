@@ -11,6 +11,7 @@ use App\Services\AppointmentSchedule;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -41,6 +42,7 @@ class AppointmentController extends Controller
             'date' => ['required', 'date', 'after_or_equal:today'],
         ]);
         $shop = Shop::query()->where('verification_status', 'approved')->where('shop_status', 'active')
+            ->whereHas('owner', fn ($query) => $query->where('status', 'active'))
             ->withOnlineBookings()
             ->findOrFail($attributes['shop_id']);
         $serviceId = $request->integer('service_id');
@@ -55,6 +57,8 @@ class AppointmentController extends Controller
         return response()->json([
             'opening_time' => $shop->opening_time ? substr($shop->opening_time, 0, 5) : null,
             'closing_time' => $shop->closing_time ? substr($shop->closing_time, 0, 5) : null,
+            'is_open_day' => $shop->operating_days === null || in_array(Carbon::parse($attributes['date'])->dayOfWeekIso, array_map('intval', $shop->operating_days), true),
+            'schedule_blocks' => collect($shop->schedule_blocks ?? [])->where('date', $attributes['date'])->values(),
             'taken_times' => collect($intervals)->map(fn (array $interval): string => sprintf('%02d:%02d', intdiv($interval['start'], 60), $interval['start'] % 60))->values(),
             'booked_intervals' => $intervals,
             'duration_minutes' => (int) ($offer?->service?->estimated_duration ?: 60),
@@ -73,6 +77,7 @@ class AppointmentController extends Controller
             'shops' => Shop::query()
                 ->where('verification_status', 'approved')
                 ->where('shop_status', 'active')
+                ->whereHas('owner', fn ($query) => $query->where('status', 'active'))
                 ->withOnlineBookings()
                 ->with(['services.service'])
                 ->orderBy('name')
@@ -88,11 +93,17 @@ class AppointmentController extends Controller
         $attributes = $request->validated();
         $appointment = DB::transaction(function () use ($request, $attributes, $schedule): Appointment {
             $shop = Shop::query()->lockForUpdate()->findOrFail($attributes['shop_id']);
-            if ($shop->verification_status !== 'approved' || $shop->shop_status !== 'active') {
+            if ($shop->verification_status !== 'approved' || $shop->shop_status !== 'active' || $shop->owner->status !== 'active') {
                 throw ValidationException::withMessages(['shop_id' => 'This shop is no longer accepting appointments.']);
             }
             if (! $shop->hasPlanAtLeast('basic')) {
                 throw ValidationException::withMessages(['shop_id' => 'This shop is listed for discovery but is not accepting online bookings right now.']);
+            }
+            if ($shop->isIndependentMechanic() && blank($attributes['service_address'] ?? null)) {
+                throw ValidationException::withMessages(['service_address' => 'Enter the address where the mechanic should meet you.']);
+            }
+            if (! $shop->isIndependentMechanic()) {
+                unset($attributes['service_address']);
             }
             $offer = ShopService::query()->where('shop_id', $shop->id)
                 ->where('service_id', $attributes['service_id'])->where('availability', true)
@@ -104,8 +115,8 @@ class AppointmentController extends Controller
             if (now()->format('Y-m-d H:i') >= $attributes['appointment_date'].' '.$attributes['appointment_time']) {
                 throw ValidationException::withMessages(['appointment_time' => 'Choose a future appointment time.']);
             }
-            if (! $schedule->fitsHours($shop, $attributes['appointment_time'], $duration)) {
-                throw ValidationException::withMessages(['appointment_time' => 'Choose a time that leaves enough time for this service before the shop closes.']);
+            if (! $schedule->isAvailable($shop, $attributes['appointment_date'], $attributes['appointment_time'], $duration)) {
+                throw ValidationException::withMessages(['appointment_time' => 'The shop is closed or this time is blocked. Choose another slot.']);
             }
             if (! $schedule->hasCapacity($schedule->bookedIntervals($shop, $attributes['appointment_date']), $attributes['appointment_time'], $duration, (int) $shop->booking_capacity)) {
                 throw ValidationException::withMessages([

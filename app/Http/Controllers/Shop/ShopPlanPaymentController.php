@@ -84,7 +84,7 @@ class ShopPlanPaymentController extends Controller
         }
 
         try {
-            $session = $checkout->create('shop-plan-'.$payment->id, ucfirst($payment->plan_slug).' shop plan', $payment->amount * 100, $request->user()->email, route('shop.pricing'), route('shop.pricing'));
+            $session = $checkout->create('shop-plan-'.$payment->id, ucfirst($payment->plan_slug).' provider plan', $payment->amount * 100, $request->user()->email, route('shop.pricing'), route('shop.pricing'));
         } catch (\Throwable $exception) {
             report($exception);
             if ($exception instanceof RuntimeException && $exception->getCode() >= 400 && $exception->getCode() < 500 && $exception->getCode() !== 429) {

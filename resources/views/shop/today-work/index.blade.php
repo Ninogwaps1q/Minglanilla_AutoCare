@@ -1,6 +1,7 @@
 <x-layouts.app title="Today's work">
     <div class="page-heading"><h1>Today's work</h1><p>Work through today's visits, active repairs, and customer follow-ups.</p></div>
     <div class="row g-4">
+        @if (auth()->user()->staff_role !== 'technician')
         <div class="col-xl-6">
             <section class="surface p-4 h-100">
                 <div class="d-flex justify-content-between gap-2 mb-3"><h2 class="h5 mb-0">Today's visits · {{ $appointments->count() }}</h2><a href="{{ route('shop.appointments.index') }}">All appointments</a></div>
@@ -13,6 +14,7 @@
                 @empty<p class="text-secondary mb-0">No visits scheduled today.</p>@endforelse
             </section>
         </div>
+        @endif
         <div class="col-xl-6">
             <section class="surface p-4 h-100">
                 <div class="d-flex justify-content-between gap-2 mb-3"><h2 class="h5 mb-0">Active repairs · {{ $repairs->count() }}</h2><a href="{{ route('shop.repair-jobs.index') }}">All repair jobs</a></div>

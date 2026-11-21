@@ -11,7 +11,7 @@ class TodayWorkController extends Controller
 {
     public function __invoke(Request $request): View
     {
-        $shop = $request->user()->shops()->firstOrFail();
+        $shop = $request->user()->managedShopOrFail();
 
         return view('shop.today-work.index', [
             'appointments' => $shop->appointments()->whereDate('appointment_date', today())

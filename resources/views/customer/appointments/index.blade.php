@@ -22,6 +22,7 @@
                         <div>
                             <p class="text-secondary mb-1">{{ $appointment->appointment_date->format('M j, Y') }} at {{ $appointment->appointment_time->format('g:i A') }}</p>
                             <h2 class="h5 mb-2">{{ $appointment->shop->name }}</h2>
+                            @if ($appointment->service_address)<p class="small mb-1"><strong>Service address:</strong> {{ $appointment->service_address }}</p>@endif
                             <p class="mb-0">{{ $appointment->serviceCase ? 'Follow-up visit' : ($appointment->service?->name ?? 'Vehicle service') }} · {{ $appointment->vehicle->plate_number }}</p>
                             @if ($appointment->reason)
                                 <p class="text-secondary small mb-0 mt-2">{{ $appointment->reason }}</p>

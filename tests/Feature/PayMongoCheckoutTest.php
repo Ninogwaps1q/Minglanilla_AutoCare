@@ -14,6 +14,7 @@ use Illuminate\Testing\TestResponse;
 uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
+    $this->withSession(['auth.password_confirmed_at' => now()->timestamp]);
     config()->set('services.paymongo.secret_key', 'sk_test_example');
     config()->set('services.paymongo.webhook_secret', 'whsec_example');
     config()->set('services.paymongo.payment_methods', ['card', 'gcash', 'shopee_pay', 'qrph']);
@@ -185,14 +186,16 @@ it('lets only an admin record a completed shop settlement once', function () {
     $route = route('admin.paymongo-settlements.update', $payment);
     $this->actingAs($shop->owner)->patch($route, ['settlement_amount' => 480, 'settlement_reference' => 'TRANSFER-1'])->assertForbidden();
     $this->actingAs(User::factory()->create(['role' => 'admin']))->get(route('admin.paymongo-settlements.index'))->assertOk()->assertSee('pay_invoice_2');
-    $this->actingAs(User::factory()->create(['role' => 'admin']))->patch($route, ['settlement_amount' => 501, 'platform_fee' => 20, 'settlement_reference' => 'TRANSFER-1', 'proof' => UploadedFile::fake()->create('proof.pdf', 10, 'application/pdf')])->assertSessionHasErrors('settlement_amount');
-    $this->patch($route, ['settlement_amount' => 480, 'platform_fee' => 20, 'settlement_reference' => 'TRANSFER-1', 'proof' => UploadedFile::fake()->create('proof.pdf', 10, 'application/pdf')])->assertRedirect();
+    $reserve = route('admin.paymongo-settlements.reserve', $payment);
+    $this->actingAs(User::factory()->create(['role' => 'admin']))->post($reserve, ['settlement_amount' => 501, 'platform_fee' => 20])->assertSessionHasErrors('settlement_amount');
+    $this->post($reserve, ['settlement_amount' => 480, 'platform_fee' => 20])->assertRedirect();
+    $this->patch($route, ['settlement_reference' => 'TRANSFER-1', 'proof' => UploadedFile::fake()->create('proof.pdf', 10, 'application/pdf')])->assertRedirect();
     expect($payment->fresh()->settlement_status)->toBe('settled');
     expect($payment->fresh()->settlement_amount)->toBe('480.00');
     expect($payment->fresh()->platform_fee)->toBe('20.00');
     $this->actingAs($shop->owner)->get(route('admin.paymongo-settlements.proof', $payment))->assertOk();
     $this->actingAs(User::factory()->create(['role' => 'shop_owner']))->get(route('admin.paymongo-settlements.proof', $payment))->assertNotFound();
-    $this->actingAs(User::factory()->create(['role' => 'admin']))->patch($route, ['settlement_amount' => 480, 'platform_fee' => 20, 'settlement_reference' => 'TRANSFER-1', 'proof' => UploadedFile::fake()->create('proof.pdf', 10, 'application/pdf')])->assertSessionHasErrors('settlement_amount');
+    $this->actingAs(User::factory()->create(['role' => 'admin']))->patch($route, ['settlement_reference' => 'TRANSFER-1', 'proof' => UploadedFile::fake()->create('proof.pdf', 10, 'application/pdf')])->assertSessionHasErrors('payment');
 });
 
 it('rechecks a paid checkout and confirms only its customer invoice', function () {
@@ -214,9 +217,9 @@ it('holds settlement during a refund and lets the customer pay the refunded bala
     $payment = $invoice->payments()->create(['customer_id' => $customer->id, 'shop_id' => $shop->id, 'amount' => 500, 'payment_method' => 'paymongo', 'payment_date' => now(), 'status' => 'confirmed', 'paymongo_payment_id' => 'pay_refund_1', 'paymongo_fee' => 0, 'paymongo_net_amount' => 500, 'settlement_status' => 'pending']);
     $invoice->update(['status' => 'paid']);
     $this->actingAs($customer)->post(route('customer.payments.refund.request', $payment), ['amount' => 100, 'reason' => 'Duplicate charge'])->assertRedirect();
-    $this->actingAs(User::factory()->create(['role' => 'admin']))->patch(route('admin.paymongo-settlements.update', $payment), ['settlement_amount' => 400, 'platform_fee' => 0, 'settlement_reference' => 'TRANSFER', 'proof' => UploadedFile::fake()->create('proof.pdf', 10, 'application/pdf')])->assertSessionHasErrors('settlement_amount');
-    Http::fake(['api.paymongo.com/*' => Http::response(['data' => ['id' => 'ref_example', 'attributes' => ['payment_id' => 'pay_refund_1', 'status' => 'succeeded']]])]);
-    $this->patch(route('admin.paymongo-refunds.update', $payment), ['decision' => 'approved'])->assertRedirect();
+    $this->actingAs(User::factory()->create(['role' => 'admin']))->post(route('admin.paymongo-settlements.reserve', $payment), ['settlement_amount' => 400, 'platform_fee' => 0])->assertSessionHasErrors('settlement_amount');
+    Http::fake(['api.paymongo.com/*' => Http::response(['data' => ['id' => 'ref_example', 'attributes' => ['payment_id' => 'pay_refund_1', 'amount' => 10000, 'currency' => 'PHP', 'status' => 'succeeded']]])]);
+    $this->patch(route('admin.paymongo-refunds.update', $payment), ['decision' => 'approved', 'refund_resolution' => 'replacement'])->assertRedirect();
     expect($payment->fresh()->refund_status)->toBe('succeeded');
     expect($invoice->fresh()->status)->toBe('unpaid');
     expect($invoice->fresh()->remainingBalance())->toBe(100.0);
@@ -255,10 +258,11 @@ it('tracks a dispute and holds shop settlement until it is won', function () {
     $disputeRoute = route('admin.paymongo-settlements.dispute', $payment);
     $this->patch($disputeRoute, ['dispute_id' => 'dsp_example', 'dispute_status' => 'open', 'dispute_amount' => 500, 'dispute_reason' => 'Fraudulent'])->assertRedirect();
     $settlement = ['settlement_amount' => 500, 'platform_fee' => 0, 'settlement_reference' => 'TRANSFER', 'proof' => UploadedFile::fake()->create('proof.pdf', 10, 'application/pdf')];
-    $this->patch(route('admin.paymongo-settlements.update', $payment), $settlement)->assertSessionHasErrors('settlement_amount');
+    $this->post(route('admin.paymongo-settlements.reserve', $payment), $settlement)->assertSessionHasErrors('settlement_amount');
     $resolved = ['data' => ['id' => 'evt_dispute_resolved', 'attributes' => ['type' => 'dispute.resolved', 'livemode' => false, 'data' => ['id' => 'dsp_example', 'type' => 'dispute', 'attributes' => ['amount' => 50000, 'status' => 'won', 'reason' => 'Fraudulent']]]]];
     payMongoWebhook($this, $resolved)->assertOk();
     expect($payment->fresh()->dispute_status)->toBe('won');
+    $this->post(route('admin.paymongo-settlements.reserve', $payment), $settlement)->assertRedirect();
     $this->patch(route('admin.paymongo-settlements.update', $payment), $settlement)->assertRedirect();
     expect($payment->fresh()->settlement_status)->toBe('settled');
 });
@@ -267,7 +271,7 @@ it('recovers missing PayMongo fee details before allowing settlement', function 
     Storage::fake();
     [$invoice, $customer, $shop] = payMongoInvoiceFixture();
     $payment = $invoice->payments()->create(['customer_id' => $customer->id, 'shop_id' => $shop->id, 'amount' => 500, 'payment_method' => 'paymongo', 'payment_date' => now(), 'status' => 'confirmed', 'paymongo_payment_id' => 'pay_fee_refresh', 'paymongo_session_id' => 'cs_fee_refresh', 'settlement_status' => 'pending']);
-    $this->actingAs(User::factory()->create(['role' => 'admin']))->patch(route('admin.paymongo-settlements.update', $payment), ['settlement_amount' => 500, 'platform_fee' => 0, 'settlement_reference' => 'TRANSFER', 'proof' => UploadedFile::fake()->create('proof.pdf', 10, 'application/pdf')])->assertSessionHasErrors('settlement_amount');
+    $this->actingAs(User::factory()->create(['role' => 'admin']))->post(route('admin.paymongo-settlements.reserve', $payment), ['settlement_amount' => 500, 'platform_fee' => 0])->assertSessionHasErrors('settlement_amount');
     $session = payMongoPaidEvent('invoice-'.$payment->id, 'cs_fee_refresh', 'pay_fee_refresh', 50000)['data']['attributes']['data'];
     $session['attributes']['payments'][0]['attributes']['fee'] = 1000;
     $session['attributes']['payments'][0]['attributes']['net_amount'] = 49000;
@@ -281,7 +285,7 @@ it('updates a processing refund from a signed PayMongo event', function () {
     [$invoice, $customer, $shop] = payMongoInvoiceFixture();
     $payment = $invoice->payments()->create(['customer_id' => $customer->id, 'shop_id' => $shop->id, 'amount' => 500, 'payment_method' => 'paymongo', 'payment_date' => now(), 'status' => 'confirmed', 'paymongo_payment_id' => 'pay_refund_event', 'refund_amount' => 100, 'refund_status' => 'processing', 'paymongo_refund_id' => 'ref_event', 'settlement_status' => 'pending']);
     $invoice->update(['status' => 'paid']);
-    $event = ['data' => ['id' => 'evt_refund', 'attributes' => ['type' => 'payment.refund.updated', 'livemode' => false, 'data' => ['id' => 'ref_event', 'type' => 'refund', 'attributes' => ['payment_id' => 'pay_refund_event', 'status' => 'succeeded']]]]];
+    $event = ['data' => ['id' => 'evt_refund', 'attributes' => ['type' => 'payment.refund.updated', 'livemode' => false, 'data' => ['id' => 'ref_event', 'type' => 'refund', 'attributes' => ['payment_id' => 'pay_refund_event', 'amount' => 10000, 'currency' => 'PHP', 'status' => 'succeeded']]]]];
 
     payMongoWebhook($this, $event)->assertOk();
     expect($payment->fresh()->refund_status)->toBe('succeeded');

@@ -1,7 +1,7 @@
 <x-layouts.app title="Roadside requests">
     <div class="page-heading">
         <h1>Roadside requests</h1>
-        <p>Review customers assigned to your shop and locate where they requested help.</p>
+        <p>Review customers assigned to {{ $shop->isIndependentMechanic() ? 'you' : 'your shop' }} and locate where they requested help.</p>
     </div>
     <x-form-errors />
     <section class="roadside-request-list" aria-label="Assigned roadside requests">
@@ -47,14 +47,14 @@
                         <h3 class="h6 mb-2">Customer pickup map</h3>
                         <div class="roadside-street-map" role="region" aria-label="Street map of {{ $emergencyRequest->customer->name }}'s pickup location" data-latitude="{{ $emergencyRequest->latitude }}" data-longitude="{{ $emergencyRequest->longitude }}" data-shop-latitude="{{ $shop->latitude }}" data-shop-longitude="{{ $shop->longitude }}">Loading street map…</div>
                         <div class="roadside-location-legend">
-                            @if ($shopHasLocation)<span><i class="roadside-location-key shop" aria-hidden="true"></i>Your shop</span>@endif
+                            @if ($shopHasLocation)<span><i class="roadside-location-key shop" aria-hidden="true"></i>{{ $shop->isIndependentMechanic() ? 'Your service area' : 'Your shop' }}</span>@endif
                             <span><i class="roadside-location-key customer" aria-hidden="true"></i>Customer pickup</span>
                         </div>
                         <p class="small text-secondary mb-0">
                             @if ($shopHasLocation)
-                                Orange: the customer's shared pickup point. Blue: your shop. This is not live tracking.
+                                Orange: the customer's shared pickup point. Blue: {{ $shop->isIndependentMechanic() ? 'your service-area center' : 'your shop' }}. This is not live tracking.
                             @else
-                                Orange marks the customer's shared pickup point. Add your shop's map coordinates to show your shop too.
+                                Orange marks the customer's shared pickup point. Add your map coordinates to show your service area too.
                             @endif
                         </p>
                     </div>
@@ -63,7 +63,7 @@
         @empty
             <div class="surface p-4">
                 <h2 class="h5">No assigned roadside requests</h2>
-                <p class="text-secondary mb-0">Requests sent to your shop will appear here with the customer's shared pickup location.</p>
+                <p class="text-secondary mb-0">Requests sent to {{ $shop->isIndependentMechanic() ? 'you' : 'your shop' }} will appear here with the customer's shared pickup location.</p>
             </div>
         @endforelse
     </section>
@@ -124,7 +124,7 @@
                         if (Number.isFinite(shop[0]) && Number.isFinite(shop[1])) {
                             leaflet.circleMarker(shop, {
                                 radius: 8, color: '#1e40af', fillColor: '#2563eb', fillOpacity: 1, weight: 2,
-                            }).addTo(map).bindPopup('Your shop');
+                            }).addTo(map).bindPopup(@json($shop->isIndependentMechanic() ? 'Your service area' : 'Your shop'));
                             map.fitBounds([customer, shop], { padding: [30, 30], maxZoom: 15 });
                         }
                         window.setTimeout(() => map.invalidateSize(), 100);

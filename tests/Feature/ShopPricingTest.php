@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Storage;
 uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
+    $this->withSession(['auth.password_confirmed_at' => now()->timestamp]);
     config()->set('services.paymongo.legacy_manual_payments', true);
     config()->set('services.paymongo.secret_key', null);
     config()->set('services.paymongo.webhook_secret', null);

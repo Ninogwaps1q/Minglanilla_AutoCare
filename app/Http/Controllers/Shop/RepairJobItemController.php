@@ -17,7 +17,7 @@ class RepairJobItemController extends Controller
 {
     public function store(StoreRepairJobItemRequest $request, RepairJob $repairJob, RepairInventoryService $inventory): RedirectResponse
     {
-        abort_unless($repairJob->shop->owner_id === $request->user()->id, 404);
+        abort_unless($request->user()->canAccessShop($repairJob->shop_id), 404);
         DB::transaction(function () use ($request, $repairJob, $inventory): void {
             $repairJob = RepairJob::query()->lockForUpdate()->findOrFail($repairJob->id);
             abort_if(in_array($repairJob->status, ['completed', 'released', 'cancelled'], true) || $repairJob->invoice()->exists(), 409, 'Completed or invoiced repair jobs cannot be changed.');
@@ -51,7 +51,7 @@ class RepairJobItemController extends Controller
 
     public function destroy(Request $request, RepairJobItem $repairJobItem): RedirectResponse
     {
-        abort_unless($repairJobItem->repairJob->shop->owner_id === $request->user()->id, 404);
+        abort_unless($request->user()->canAccessShop($repairJobItem->repairJob->shop_id), 404);
         DB::transaction(function () use ($repairJobItem): void {
             $repairJob = RepairJob::query()->lockForUpdate()->findOrFail($repairJobItem->repair_job_id);
             abort_if(in_array($repairJob->status, ['completed', 'released', 'cancelled'], true) || $repairJob->invoice()->exists(), 409, 'Completed or invoiced repair jobs cannot be changed.');

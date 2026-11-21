@@ -1,7 +1,7 @@
 <x-layouts.app title="User management">
     <div class="page-heading">
         <h1>User management</h1>
-        <p>Search accounts and control customer or shop-owner access.</p>
+        <p>Search accounts and manage customer, shop, and mechanic access.</p>
     </div>
     <x-form-errors />
     <div class="surface p-4 mb-4">
@@ -11,7 +11,7 @@
                     placeholder="Name or email"></div>
             <div class="col-md-3"><label class="form-label" for="filter-role">Role</label><select id="filter-role" class="form-select" name="role">
                     <option value="">All roles</option>
-                    @foreach(['customer' => 'Customer', 'shop_owner' => 'Shop owner', 'admin' => 'Administrator'] as $value => $label)
+                    @foreach(['customer' => 'Customer', 'shop_owner' => 'Shop owner', 'mechanic' => 'Independent mechanic', 'admin' => 'Administrator'] as $value => $label)
                         <option value="{{ $value }}" @selected(($filters['role'] ?? '') === $value)>{{ $label }}</option>
                     @endforeach
                 </select></div>

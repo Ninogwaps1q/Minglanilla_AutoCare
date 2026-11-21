@@ -44,7 +44,7 @@ class InvoiceController extends Controller
                 return $existing;
             }
             $reservedCents = (int) round(((float) $invoice->payments()->whereIn('status', ['pending', 'confirmed'])->sum('amount') - (float) $invoice->payments()->where('refund_status', 'succeeded')->sum('refund_amount')) * 100);
-            $amountCentavos = (int) round((float) $invoice->total * 100) - $reservedCents;
+            $amountCentavos = (int) round($invoice->payableTotal() * 100) - $reservedCents;
             if ($amountCentavos < 100) {
                 throw ValidationException::withMessages(['payment' => 'There is no available invoice balance to pay online.']);
             }
@@ -119,7 +119,7 @@ class InvoiceController extends Controller
             $refundedTotal = $invoice->payments()->where('refund_status', 'succeeded')->sum('refund_amount');
             $submittedCents = (int) round(((float) $submittedTotal - (float) $refundedTotal) * 100);
             $paymentCents = (int) round((float) $request->validated('amount') * 100);
-            $totalCents = (int) round((float) $invoice->total * 100);
+            $totalCents = (int) round($invoice->payableTotal() * 100);
             if ($submittedCents + $paymentCents > $totalCents) {
                 throw ValidationException::withMessages(['amount' => 'The payment exceeds the remaining invoice balance.']);
             }

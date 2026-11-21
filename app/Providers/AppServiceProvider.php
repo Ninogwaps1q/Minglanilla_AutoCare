@@ -37,7 +37,7 @@ class AppServiceProvider extends ServiceProvider
 
         ViewFacade::composer(['components.layouts.app', 'customer.notifications.index', 'shop.notifications.index', 'customer.messages.index', 'shop.messages.index'], function (View $view): void {
             $user = auth()->user();
-            $view->with('unreadNotificationCount', $user && in_array($user->role, ['customer', 'shop_owner'], true)
+            $view->with('unreadNotificationCount', $user && in_array($user->role, ['customer', 'shop_owner', 'mechanic'], true)
                 ? $user->notifications()->whereNull('read_at')->count()
                 : 0);
 
@@ -50,7 +50,7 @@ class AppServiceProvider extends ServiceProvider
                         ->where('sender_id', '!=', $user->id)
                         ->whereHas('thread', fn ($query) => $query->where('customer_id', $user->id))
                         ->count();
-                } elseif ($user?->role === 'shop_owner') {
+                } elseif ($user?->isProviderOwner()) {
                     $shopId = $user->shops()->value('id');
                     if ($shopId !== null) {
                         $unreadMessageCount = Message::query()

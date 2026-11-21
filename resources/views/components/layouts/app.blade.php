@@ -6,21 +6,31 @@
 @else
     @php
         $role = auth()->user()->role;
-        $ownerShop = $role === 'shop_owner' ? auth()->user()->shops()->first() : null;
+        $ownerShop = in_array($role, ['shop_owner', 'mechanic', 'shop_staff'], true) ? auth()->user()->managedShop() : null;
         $navigation = match ($role) {
             'customer' => [['Start here', [['dashboard', 'Home', 'house'], ['shops.index', 'Find a shop', 'geo-alt'], ['customer.emergency-requests.index', 'Roadside assistance', 'life-preserver'], ['customer.appointments.create', 'Book a service', 'calendar-plus']]], ['Track my service', [['customer.services.index', 'My services', 'clipboard2-pulse'], ['customer.appointments.index', 'Appointments', 'calendar-check'], ['customer.repairs.index', 'Repair progress', 'tools'], ['customer.quotations.index', 'Estimates', 'file-text'], ['customer.invoices.index', 'Payments', 'receipt'], ['customer.service-cases.index', 'Follow-ups & complaints', 'chat-left-text']]], ['My vehicle', [['customer.vehicles.index', 'My Vehicle', 'car-front'], ['customer.service-history.index', 'Service history', 'clock-history'], ['customer.reminders.index', 'Maintenance planner', 'calendar-event'], ['customer.inspections.index', 'Inspection reports', 'clipboard-check']]], ['Help & account', [['customer.favorites.index', 'Saved shops', 'heart'], ['customer.reviews.index', 'My reviews', 'star']]]],
             'shop_owner' => [['Today’s work', [['shop.dashboard', 'Home', 'house'], ['shop.today-work.index', 'Today’s work', 'list-task'], ['shop.appointments.index', 'Appointments', 'calendar-check'], ['shop.emergency-requests.index', 'Roadside requests', 'life-preserver'], ['shop.passports.scan', 'Scan passport', 'qr-code-scan'], ['shop.repair-jobs.index', 'Repair jobs', 'tools'], ['shop.quotations.index', 'Estimates', 'file-text'], ['shop.invoices.index', 'Bills & payments', 'receipt']]], ['Run the shop', [['shop.profile.edit', 'Shop profile', 'shop'], ['shop.services.index', 'Services & pricing', 'wrench'], ['shop.inventory.index', 'Parts inventory', 'box-seam'], ['shop.technicians.index', 'Team', 'people'], ['shop.reports.index', 'Business reports', 'bar-chart'], ['shop.pricing', 'Plans & pricing', 'tags']]], ['Customer care', [['shop.service-cases.index', 'Follow-ups & complaints', 'chat-left-text'], ['shop.reviews.index', 'Customer reviews', 'star']]]],
-            'admin' => [['Platform', [['admin.dashboard', 'Overview', 'house'], ['admin.shops.index', 'Review shops', 'shop'], ['admin.shop-plans.index', 'Shop plans', 'tags'], ['admin.users.index', 'Manage users', 'people'], ['admin.services.index', 'Service catalog', 'wrench'], ['barangays.index', 'Service areas', 'geo-alt']]], ['Monitor & report', [['admin.monitoring.index', 'Operations', 'activity'], ['admin.service-cases.index', 'Complaint resolution', 'chat-square-text'], ['admin.reviews.index', 'Moderate reviews', 'star'], ['admin.reports.index', 'Analytics', 'bar-chart'], ['admin.activity-logs.index', 'Audit trail', 'clock-history']]]],
+            'mechanic' => [['My work', [['shop.dashboard', 'Home', 'house'], ['shop.today-work.index', 'Today’s work', 'list-task'], ['shop.appointments.index', 'Bookings', 'calendar-check'], ['shop.emergency-requests.index', 'Roadside requests', 'life-preserver'], ['shop.repair-jobs.index', 'Repair jobs', 'tools'], ['shop.quotations.index', 'Estimates', 'file-text'], ['shop.invoices.index', 'Bills & payments', 'receipt']]], ['My services', [['shop.profile.edit', 'Mechanic profile', 'person-badge'], ['shop.services.index', 'Services & pricing', 'wrench'], ['shop.inventory.index', 'Parts inventory', 'box-seam'], ['shop.reports.index', 'Business reports', 'bar-chart'], ['shop.pricing', 'Plans & pricing', 'tags']]], ['Customer care', [['shop.messages.index', 'Messages', 'chat-dots'], ['shop.service-cases.index', 'Follow-ups & complaints', 'chat-left-text'], ['shop.reviews.index', 'Customer reviews', 'star']]]],
+            'shop_staff' => [['Shop workspace', match (auth()->user()->staff_role) {
+                'receptionist' => [['shop.dashboard', 'Home', 'house'], ['shop.today-work.index', 'Today’s work', 'list-task'], ['shop.appointments.index', 'Appointments', 'calendar-check'], ['shop.quotations.index', 'Estimates', 'file-text'], ['shop.service-cases.index', 'Customer care', 'chat-left-text'], ['shop.emergency-requests.index', 'Roadside requests', 'life-preserver']],
+                'technician' => [['shop.dashboard', 'Home', 'house'], ['shop.today-work.index', 'Today’s work', 'list-task'], ['shop.repair-jobs.index', 'Repair jobs', 'tools'], ['shop.inventory.index', 'Parts inventory', 'box-seam'], ['shop.passports.scan', 'Scan passport', 'qr-code-scan']],
+                'cashier' => [['shop.dashboard', 'Home', 'house'], ['shop.invoices.index', 'Bills & payments', 'receipt'], ['shop.reports.index', 'Business reports', 'bar-chart']],
+                default => [['shop.dashboard', 'Home', 'house']],
+            }]],
+            'admin' => [['Platform', [['admin.dashboard', 'Overview', 'house'], ['admin.shops.index', 'Review shops', 'shop'], ['admin.shop-plans.index', 'Shop plans', 'tags'], ['admin.subscription-billing.index', 'Subscription billing', 'receipt'], ['admin.users.index', 'Manage users', 'people'], ['admin.services.index', 'Service catalog', 'wrench'], ['barangays.index', 'Service areas', 'geo-alt']]], ['Monitor & report', [['admin.monitoring.index', 'Operations', 'activity'], ['admin.service-cases.index', 'Complaint resolution', 'chat-square-text'], ['admin.reviews.index', 'Moderate reviews', 'star'], ['admin.reports.index', 'Analytics', 'bar-chart'], ['admin.activity-logs.index', 'Audit trail', 'clock-history']]]],
             default => [],
         };
-        if ($role === 'shop_owner' && ! $ownerShop?->hasPlanAtLeast('premium')) {
+        if ($role === 'shop_owner') {
+            $navigation[1][1][] = ['shop.staff.index', 'Staff accounts', 'person-badge'];
+        }
+        if (in_array($role, ['shop_owner', 'mechanic', 'shop_staff'], true) && ! $ownerShop?->hasPlanAtLeast('premium')) {
             foreach ($navigation as &$group) {
                 $group[1] = array_values(array_filter($group[1], fn (array $link): bool => ! in_array($link[0], ['shop.inventory.index', 'shop.technicians.index', 'shop.reports.index'], true)));
             }
             unset($group);
         }
-        $roleLabel = match ($role) { 'shop_owner' => 'Shop owner', 'admin' => 'Administration', default => 'Customer'};
-        $dashboardRoute = match ($role) { 'shop_owner' => 'shop.dashboard', 'admin' => 'admin.dashboard', default => 'dashboard'};
+        $roleLabel = match ($role) { 'shop_owner' => 'Shop owner', 'mechanic' => 'Independent mechanic', 'shop_staff' => ucfirst(auth()->user()->staff_role ?? 'Shop staff'), 'admin' => 'Administration', default => 'Customer'};
+        $dashboardRoute = match ($role) { 'shop_owner', 'mechanic', 'shop_staff' => 'shop.dashboard', 'admin' => 'admin.dashboard', default => 'dashboard'};
         $navigationLinks = collect($navigation)->flatMap(fn(array $group): array => $group[1]);
         $currentNavigationItem = $navigationLinks->first(fn(array $link): bool => request()->routeIs($link[0]))
             ?? $navigationLinks->first(function (array $link): bool {
@@ -46,7 +56,7 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
 
-    <body class="portal-shell role-{{ $role }}" @if (in_array($role, ['customer', 'shop_owner'], true))
+    <body class="portal-shell role-{{ $role }}" @if (in_array($role, ['customer', 'shop_owner', 'mechanic'], true))
         data-activity-counts-url="{{ route($role === 'customer' ? 'customer.notifications.counts' : 'shop.notifications.counts') }}"
     @endif>
         <a class="skip-link" href="#main-content">Skip to content</a>
@@ -68,7 +78,7 @@
                         @php
                             $collapsible = match ($role) {
                                 'customer' => in_array($group, ['My vehicle', 'Help & account'], true),
-                                'shop_owner' => in_array($group, ['Run the shop', 'Customer care'], true),
+                                'shop_owner', 'mechanic' => in_array($group, ['Run the shop', 'My services', 'Customer care'], true),
                                 'admin' => $group === 'Monitor & report',
                                 default => false,
                             };
@@ -116,11 +126,11 @@
                     data-bs-target="#portalNavigation" aria-controls="portalNavigation" aria-label="Open navigation"><i
                         class="bi bi-list" aria-hidden="true"></i></button>
                 <div class="portal-context"><i
-                        class="bi bi-{{ $role === 'customer' ? 'car-front' : ($role === 'shop_owner' ? 'shop' : 'shield-check') }}"
+                        class="bi bi-{{ $role === 'customer' ? 'car-front' : ($role === 'shop_owner' ? 'shop' : ($role === 'mechanic' ? 'wrench-adjustable' : 'shield-check')) }}"
                         aria-hidden="true"></i><span><small>{{ $roleLabel }}
                             portal</small><strong>{{ $currentPageLabel }}</strong></span></div>
                 <div class="d-flex align-items-center gap-2 ms-auto">
-                    @if (in_array($role, ['customer', 'shop_owner']))
+                    @if (in_array($role, ['customer', 'shop_owner', 'mechanic']))
                         <a class="portal-notifications-link"
                             href="{{ route($role === 'customer' ? 'customer.notifications.index' : 'shop.notifications.index') }}"
                             aria-label="Notifications, {{ $unreadNotificationCount }} unread"><i class="bi bi-bell"
@@ -149,8 +159,8 @@
                         <ul class="dropdown-menu dropdown-menu-end">
                             @if ($role === 'customer')
                                 <li><a class="dropdown-item" href="{{ route('customer.profile.edit') }}">My profile</a></li>
-                            @elseif ($role === 'shop_owner')
-                                <li><a class="dropdown-item" href="{{ route('shop.profile.edit') }}">Shop profile</a></li>
+                            @elseif (in_array($role, ['shop_owner', 'mechanic'], true))
+                                <li><a class="dropdown-item" href="{{ route('shop.profile.edit') }}">{{ $role === 'mechanic' ? 'Mechanic profile' : 'Shop profile' }}</a></li>
                             @endif
                             <li><a class="dropdown-item" href="{{ route('home') }}">Public website</a></li>
                             <li><x-theme-toggle menu /></li>
@@ -221,8 +231,8 @@
             @unless (request()->routeIs('customer.ai-assistant.*') || request()->routeIs('customer.messages.show'))
                 <x-ai-chat-widget />
             @endunless
-        @elseif ($role === 'shop_owner')
-            <nav class="customer-mobile-nav shop-mobile-nav" aria-label="Shop quick navigation">
+        @elseif (in_array($role, ['shop_owner', 'mechanic'], true))
+            <nav class="customer-mobile-nav shop-mobile-nav" aria-label="{{ $roleLabel }} quick navigation">
                 <a href="{{ route('shop.dashboard') }}" class="{{ request()->routeIs('shop.dashboard') ? 'active' : '' }}"><i
                         class="bi bi-house" aria-hidden="true"></i><span>Home</span></a>
                 <a href="{{ route('shop.appointments.index') }}"

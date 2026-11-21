@@ -18,7 +18,7 @@ class ServiceCaseController extends Controller
 {
     public function index(Request $request): View
     {
-        $shop = $request->user()->shops()->firstOrFail();
+        $shop = $request->user()->managedShopOrFail();
 
         return view('shop.service-cases.index', [
             'cases' => ServiceCase::query()->where('shop_id', $shop->id)
@@ -29,7 +29,7 @@ class ServiceCaseController extends Controller
 
     public function update(Request $request, ServiceCase $serviceCase, AppointmentSchedule $schedule): RedirectResponse
     {
-        abort_unless($serviceCase->shop_id === $request->user()->shops()->firstOrFail()->id, 404);
+        abort_unless($serviceCase->shop_id === $request->user()->managedShopOrFail()->id, 404);
         $data = $request->validate([
             'shop_response' => ['required', 'string', 'min:5', 'max:3000'],
             'status' => ['nullable', Rule::in(['reviewing', 'scheduled', 'resolved', 'declined'])],
@@ -61,7 +61,7 @@ class ServiceCaseController extends Controller
                 $date = $scheduledAt->toDateString();
                 $time = $scheduledAt->format('H:i');
                 $intervals = $schedule->bookedIntervals($shop, $date, null, $case->id);
-                if (! $schedule->fitsHours($shop, $time, 60)
+                if (! $schedule->isAvailable($shop, $date, $time, 60)
                     || ! $schedule->hasCapacity($intervals, $time, 60, (int) $shop->booking_capacity)) {
                     throw ValidationException::withMessages(['scheduled_at' => 'This follow-up time is unavailable. Choose another one-hour slot within shop hours.']);
                 }

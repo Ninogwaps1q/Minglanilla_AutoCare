@@ -22,7 +22,12 @@ class NewPasswordController extends Controller
     {
         $request->validate(['token' => ['required'], 'email' => ['required', 'email'], 'password' => ['required', 'confirmed', Password::defaults()]]);
         $status = \Illuminate\Support\Facades\Password::reset($request->only('email', 'password', 'password_confirmation', 'token'), function (User $user, string $password): void {
-            $user->forceFill(['password' => $password, 'remember_token' => Str::random(60)])->save();
+            $updates = ['password' => $password, 'remember_token' => Str::random(60)];
+            if ($user->role === 'shop_staff' && $user->status === 'invited') {
+                $updates['status'] = 'active';
+                $updates['email_verified_at'] = now();
+            }
+            $user->forceFill($updates)->save();
             Auth::logoutOtherDevices($password);
         });
 

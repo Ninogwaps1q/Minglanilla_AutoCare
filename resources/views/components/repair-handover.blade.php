@@ -11,7 +11,7 @@
         <div><dt>Invoice</dt><dd>{{ $repairJob->invoice ? ucfirst($repairJob->invoice->status) : 'Not issued' }}</dd></div>
     </dl>
     <div class="d-flex flex-wrap gap-3 small">
-        @if ($repairJob->invoice)<a href="{{ route($isCustomer ? 'customer.invoices.show' : 'shop.invoices.show', $repairJob->invoice) }}">View itemized invoice</a>@endif
+        @if ($repairJob->invoice && ($isCustomer || auth()->user()?->isProviderOwner() || auth()->user()?->staff_role === 'cashier'))<a href="{{ route($isCustomer ? 'customer.invoices.show' : 'shop.invoices.show', $repairJob->invoice) }}">View itemized invoice</a>@endif
         @if ($isCustomer)
             <a href="{{ route('customer.service-history.index') }}">Service history</a>
             <a href="{{ route('customer.reminders.index') }}">Plan next maintenance</a>

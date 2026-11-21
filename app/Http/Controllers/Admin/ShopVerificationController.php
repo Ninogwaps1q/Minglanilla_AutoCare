@@ -18,12 +18,15 @@ class ShopVerificationController extends Controller
     {
         $status = $request->query('status');
         $status = in_array($status, ['pending', 'approved', 'rejected'], true) ? $status : null;
+        $provider = in_array($request->query('provider'), ['shop', 'independent_mechanic'], true) ? $request->query('provider') : null;
 
         return view('admin.shops.index', [
             'shops' => Shop::query()->with(['owner', 'barangay', 'documents'])
                 ->when($status, fn ($query) => $query->where('verification_status', $status))
+                ->when($provider, fn ($query) => $query->where('provider_type', $provider))
                 ->latest()->paginate(10)->withQueryString(),
             'selectedStatus' => $status,
+            'selectedProvider' => $provider,
         ]);
     }
 
@@ -70,7 +73,7 @@ class ShopVerificationController extends Controller
                 return;
             }
             if ($verification === 'approved' && ! $shop->hasCurrentVerifiedPermits()) {
-                throw ValidationException::withMessages(['shop' => 'Verify current business and mayor\'s permits before approving this shop.']);
+                throw ValidationException::withMessages(['shop' => 'Verify all required documents before approving this provider.']);
             }
             $shop->update(['verification_status' => $verification, 'shop_status' => $status]);
             $this->recordDecision($shop, $request, "Shop registration {$verification}.");

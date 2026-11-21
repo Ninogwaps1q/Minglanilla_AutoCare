@@ -34,6 +34,7 @@ class StoreAppointmentRequest extends FormRequest
             'appointment_date' => ['required', 'date', 'after_or_equal:today'],
             'appointment_time' => ['required', 'date_format:H:i'],
             'reason' => ['nullable', 'string', 'max:2000'],
+            'service_address' => ['nullable', 'string', 'max:500'],
         ];
     }
 
@@ -52,6 +53,9 @@ class StoreAppointmentRequest extends FormRequest
             if (! $shop || ! $offer?->service) {
                 return;
             }
+            if ($shop->isIndependentMechanic() && blank($this->input('service_address'))) {
+                $validator->errors()->add('service_address', 'Enter the address where the mechanic should meet you.');
+            }
             if ($this->input('appointment_date').' '.$preferredTime <= now()->format('Y-m-d H:i')) {
                 $validator->errors()->add('appointment_time', 'Choose a future appointment time.');
 
@@ -60,8 +64,8 @@ class StoreAppointmentRequest extends FormRequest
 
             $schedule = app(AppointmentSchedule::class);
             $duration = (int) ($offer->service->estimated_duration ?: 60);
-            if (! $schedule->fitsHours($shop, $preferredTime, $duration)) {
-                $validator->errors()->add('appointment_time', 'Choose a time that leaves enough time for this service before the shop closes.');
+            if (! $schedule->isAvailable($shop, $this->input('appointment_date'), $preferredTime, $duration)) {
+                $validator->errors()->add('appointment_time', 'The shop is closed or this time is blocked. Choose another slot.');
 
                 return;
             }

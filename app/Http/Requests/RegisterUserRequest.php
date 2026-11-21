@@ -27,7 +27,7 @@ class RegisterUserRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users'],
             'phone' => ['nullable', 'string', 'max:30'],
-            'role' => ['required', 'in:customer,shop_owner'],
+            'role' => ['required', 'in:customer,shop_owner,mechanic'],
             'password' => ['required', 'confirmed', Password::defaults()],
         ];
     }

@@ -128,14 +128,16 @@
 
     <section aria-labelledby="subscribers-title">
         <h2 id="subscribers-title" class="h4">Subscriptions and trial access</h2>
-        <p class="text-secondary">Use manual access changes for corrections. Review earlier pending payments above first.</p>
+        <p class="text-secondary">Manual corrections are available when there is no paid coverage. Paid plan changes use the next billing period. <a href="{{ route('admin.subscription-billing.index') }}">Review subscription refunds and billing</a>.</p>
         @forelse ($subscribers as $shop)
             <form class="surface p-3 mb-3 d-flex flex-wrap align-items-end gap-3" method="POST" action="{{ route('admin.shops.plan', $shop) }}">
                 @csrf @method('PATCH')
                 <div class="me-auto"><strong>{{ $shop->name }}</strong><div class="small text-secondary">{{ $shop->owner->name }} · Current: {{ ucfirst($shop->activePlanSlug()) }} @if ($shop->trial_started_at)· Trial ends {{ $shop->trialEndsAt()->format('M j, Y') }}@endif @if ($shop->plan_expires_at)· Paid through {{ $shop->plan_expires_at->format('M j, Y') }}@endif</div></div>
                 <div><label class="form-label" for="subscriber-plan-{{ $shop->id }}">Set plan</label><select class="form-select" id="subscriber-plan-{{ $shop->id }}" name="plan_slug"><option value="free" @selected($shop->plan_slug === 'free')>Free</option><option value="basic" @selected($shop->plan_slug === 'basic')>Basic</option><option value="premium" @selected($shop->plan_slug === 'premium')>Premium</option></select></div>
                 <div><label class="form-label" for="subscriber-expiry-{{ $shop->id }}">Access through (paid plans)</label><input class="form-control" id="subscriber-expiry-{{ $shop->id }}" name="plan_expires_at" type="date" min="{{ today()->addDay()->toDateString() }}" value="{{ $shop->plan_expires_at?->isFuture() ? $shop->plan_expires_at->toDateString() : '' }}"></div>
-                <button class="btn btn-outline-primary" type="submit">Save access</button>
+                @if ($shop->next_plan_starts_at)<p class="small mb-0">Next paid period starts {{ $shop->next_plan_starts_at->format('M j, Y g:i A') }}.</p>@endif
+                <button class="btn btn-outline-primary" type="submit" @disabled($shop->paid_coverage_count > 0)>Save access</button>
+                @if ($shop->paid_coverage_count > 0)<p class="small mb-0">Paid coverage is protected. Complete a full refund to remove its access.</p>@endif
             </form>
         @empty
             <div class="surface p-4"><p class="mb-0 text-secondary">No subscriptions or trials yet.</p></div>

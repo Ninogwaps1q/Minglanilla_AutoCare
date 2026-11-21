@@ -12,7 +12,7 @@ class ShopRegistrationRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->isShopOwner() === true;
+        return $this->user()?->isProviderOwner() === true;
     }
 
     /**
@@ -25,7 +25,9 @@ class ShopRegistrationRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
-            'business_permit_number' => ['nullable', 'string', 'max:100', 'unique:shops'],
+            'business_permit_number' => $this->user()?->role === 'mechanic'
+                ? ['prohibited']
+                : ['nullable', 'string', 'max:100', 'unique:shops'],
             'phone' => ['required', 'string', 'max:30'],
             'email' => ['required', 'email', 'max:255'],
             'address' => ['required', 'string', 'max:500'],

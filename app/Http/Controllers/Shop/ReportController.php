@@ -15,7 +15,7 @@ class ReportController extends Controller
     public function index(FilterReportRequest $request, ReportMetricsService $reportMetrics): View
     {
         [$from, $to] = $reportMetrics->period($request->validated());
-        $shop = $request->user()->shops()->first();
+        $shop = $request->user()->managedShop();
 
         return view('shop.reports.index', [
             'shop' => $shop,
@@ -29,7 +29,7 @@ class ReportController extends Controller
     public function download(FilterReportRequest $request, ReportMetricsService $reportMetrics): Response
     {
         [$from, $to] = $reportMetrics->period($request->validated());
-        $shop = $request->user()->shops()->firstOrFail();
+        $shop = $request->user()->managedShopOrFail();
         $reportData = $reportMetrics->shop($shop, $from, $to);
 
         Report::query()->create([

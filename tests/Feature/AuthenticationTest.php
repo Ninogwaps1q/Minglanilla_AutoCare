@@ -83,7 +83,7 @@ it('redirects each account role to its own workspace after login', function (str
         'password' => 'CorrectPassword123!',
     ]);
 
-    $response->assertRedirect(route($route));
+    $response->assertRedirect(route($role === 'admin' ? 'admin.two-factor.create' : $route));
     $this->assertAuthenticatedAs($user);
 })->with([
     'customer' => ['customer', 'dashboard'],

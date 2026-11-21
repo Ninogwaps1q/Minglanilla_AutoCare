@@ -11,10 +11,13 @@
     @foreach ($invoice->payments->whereNotNull('paymongo_payment_id') as $payment)
         <section class="surface p-4 mt-3 d-print-none" aria-label="Refund for PayMongo payment">
             <h2 class="h5">PayMongo payment PHP {{ number_format($payment->amount, 2) }}</h2>
-            @if ($payment->refund_status && $payment->refund_status !== 'rejected')
-                <p class="mb-0">Refund: <strong>{{ ucfirst($payment->refund_status) }}</strong>@if($payment->refund_amount) · PHP {{ number_format($payment->refund_amount, 2) }}@endif</p>
+            @if ($payment->refund_review_notes)<p class="small">Refund review: {{ $payment->refund_review_notes }}</p>@endif
+            @if ($payment->refund_status && ! in_array($payment->refund_status, ['rejected', 'failed'], true))
+                <p class="mb-0">Refund: <strong>{{ ucfirst(str_replace('_', ' ', $payment->refund_status)) }}</strong>@if($payment->refund_amount) · PHP {{ number_format($payment->refund_amount, 2) }}@endif@if($payment->refund_status === 'succeeded' && $payment->refund_resolution === 'credit') · Credit note applied to invoice@endif</p>
+                @if (in_array($payment->refund_status, ['submitting', 'needs_review'], true))<p class="small mt-2 mb-0">The administrator is checking this refund with PayMongo. Please wait for confirmation before making another request.</p>@endif
             @else
                 @if ($payment->refund_status === 'rejected')<p class="text-secondary">Your previous refund request was declined. You may submit another request.</p>@endif
+                @if ($payment->refund_status === 'failed')<p class="text-secondary">PayMongo could not complete the refund. You may request another admin review.</p>@endif
                 @if ($payment->settlement_status === 'settled')<p class="text-secondary">This payment has already been transferred to the shop. Contact support for a refund review.</p>@else
                 <form method="POST" action="{{ route('customer.payments.refund.request', $payment) }}" class="row g-2 align-items-end">@csrf
                     <div class="col-md-3"><label class="form-label" for="refund-amount-{{ $payment->id }}">Refund amount (PHP)</label><input class="form-control" id="refund-amount-{{ $payment->id }}" name="amount" type="number" min="0.01" max="{{ $payment->amount }}" step="0.01" required></div>

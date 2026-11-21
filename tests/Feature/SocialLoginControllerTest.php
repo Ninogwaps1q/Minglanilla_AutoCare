@@ -2,6 +2,7 @@
 
 use App\Models\SocialAccount;
 use App\Models\User;
+use App\Notifications\ImportantEventMail;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
@@ -224,6 +225,24 @@ it('signs in a returning linked account without creating another user', function
     $this->assertAuthenticatedAs($user);
     $this->assertDatabaseCount('users', 1);
     $this->assertDatabaseCount('social_accounts', 1);
+});
+
+it('requires email verification code after a linked admin signs in with Google', function () {
+    Notification::fake();
+    $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+    SocialAccount::create([
+        'user_id' => $admin->id,
+        'provider' => 'google',
+        'provider_user_id' => 'google-admin',
+    ]);
+    Socialite::fake('google', SocialiteUser::fake([
+        'id' => 'google-admin',
+        'email' => $admin->email,
+    ]));
+
+    $this->get(route('social.callback', 'google'))->assertRedirect(route('admin.two-factor.create'));
+    $this->get(route('admin.dashboard'))->assertRedirect(route('admin.two-factor.create'));
+    Notification::assertSentTo($admin, ImportantEventMail::class);
 });
 
 it('does not silently link a provider to an existing email account', function () {

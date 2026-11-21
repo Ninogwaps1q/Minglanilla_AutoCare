@@ -18,12 +18,17 @@ class EmergencyDispatchService
         $shop = Shop::query()
             ->where('verification_status', 'approved')
             ->where('shop_status', 'active')
+            ->whereHas('owner', fn ($query) => $query->where('status', 'active'))
+            ->where('roadside_available', true)
             ->withOnlineBookings()
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
             ->whereNotIn('id', $attemptedShopIds)
             ->with('owner')
             ->get()
+            ->filter(function (Shop $candidate) use ($emergencyRequest): bool {
+                return $candidate->roadside_radius_km === null || $this->distance((float) $emergencyRequest->latitude, (float) $emergencyRequest->longitude, (float) $candidate->latitude, (float) $candidate->longitude) <= $candidate->roadside_radius_km;
+            })
             ->sortBy(fn (Shop $candidate): float => $this->distance(
                 (float) $emergencyRequest->latitude,
                 (float) $emergencyRequest->longitude,
@@ -85,9 +90,9 @@ class EmergencyDispatchService
 
         $emergencyRequest->customer->notifications()->create([
             'type' => 'emergency_status',
-            'title' => $nextShop === null ? 'No shop available for roadside assistance' : 'Roadside request sent to another shop',
+            'title' => $nextShop === null ? 'No provider available for roadside assistance' : 'Roadside request sent to another provider',
             'message' => $nextShop === null
-                ? 'The assigned shop could not assist and no other eligible shop is currently available. Please seek immediate local emergency help if needed.'
+                ? 'The assigned provider could not assist and no other eligible provider is currently available. Please seek immediate local emergency help if needed.'
                 : "The previous shop could not assist. Your request has been sent to {$nextShop->name}.",
             'data' => ['emergency_request_id' => $emergencyRequest->id],
         ]);
