@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Customer;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateCustomerProfileRequest;
-use App\Models\Barangay;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
@@ -15,7 +14,6 @@ class ProfileController extends Controller
     {
         return view('customer.profile.edit', [
             'user' => request()->user(),
-            'barangays' => Barangay::query()->where('status', 'active')->orderBy('name')->get(['id', 'name']),
         ]);
     }
 

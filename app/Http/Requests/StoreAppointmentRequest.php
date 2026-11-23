@@ -30,11 +30,15 @@ class StoreAppointmentRequest extends FormRequest
         return [
             'shop_id' => ['required', 'integer', Rule::exists('shops', 'id')->where('verification_status', 'approved')->where('shop_status', 'active')],
             'vehicle_id' => ['required', 'integer', Rule::exists('vehicles', 'id')->where('customer_id', $this->user()?->id)],
-            'service_id' => ['required', 'integer', Rule::exists('shop_services', 'service_id')->where('shop_id', $this->integer('shop_id'))->where('availability', true)],
+            'service_id' => ['nullable', 'integer', Rule::exists('shop_services', 'service_id')->where('shop_id', $this->integer('shop_id'))->where('availability', true)],
+            'service_ids' => ['required_without:service_id', 'array', 'min:1', 'max:10'],
+            'service_ids.*' => ['required', 'integer', 'distinct', Rule::exists('shop_services', 'service_id')->where('shop_id', $this->integer('shop_id'))->where('availability', true)],
             'appointment_date' => ['required', 'date', 'after_or_equal:today'],
             'appointment_time' => ['required', 'date_format:H:i'],
             'reason' => ['nullable', 'string', 'max:2000'],
-            'service_address' => ['nullable', 'string', 'max:500'],
+            'service_barangay_id' => ['nullable', 'integer', Rule::exists('barangays', 'id')->where('status', 'active')],
+            'service_street' => ['nullable', 'string', 'max:255'],
+            'service_landmark' => ['nullable', 'string', 'max:255'],
         ];
     }
 
@@ -47,14 +51,19 @@ class StoreAppointmentRequest extends FormRequest
             }
 
             $shop = Shop::query()->find($this->integer('shop_id'));
-            $offer = ShopService::query()->where('shop_id', $this->integer('shop_id'))
-                ->where('service_id', $this->integer('service_id'))->with('service:id,estimated_duration')->first();
+            $serviceIds = $this->input('service_ids') ?: [$this->integer('service_id')];
+            $offers = ShopService::query()->where('shop_id', $this->integer('shop_id'))
+                ->whereIn('service_id', $serviceIds)->where('availability', true)
+                ->with('service:id,estimated_duration')->get();
             $preferredTime = $this->input('appointment_time');
-            if (! $shop || ! $offer?->service) {
+            if (! $shop || $offers->count() !== count($serviceIds) || $offers->contains(fn (ShopService $offer): bool => ! $offer->service)) {
                 return;
             }
-            if ($shop->isIndependentMechanic() && blank($this->input('service_address'))) {
-                $validator->errors()->add('service_address', 'Enter the address where the mechanic should meet you.');
+            if ($shop->isIndependentMechanic() && ! $this->filled('service_barangay_id')) {
+                $validator->errors()->add('service_barangay_id', 'Choose the barangay where the mechanic should meet you.');
+            }
+            if ($shop->isIndependentMechanic() && blank($this->input('service_street'))) {
+                $validator->errors()->add('service_street', 'Enter the street or house number where the mechanic should meet you.');
             }
             if ($this->input('appointment_date').' '.$preferredTime <= now()->format('Y-m-d H:i')) {
                 $validator->errors()->add('appointment_time', 'Choose a future appointment time.');
@@ -63,7 +72,7 @@ class StoreAppointmentRequest extends FormRequest
             }
 
             $schedule = app(AppointmentSchedule::class);
-            $duration = (int) ($offer->service->estimated_duration ?: 60);
+            $duration = $offers->sum(fn (ShopService $offer): int => (int) ($offer->service->estimated_duration ?: 60));
             if (! $schedule->isAvailable($shop, $this->input('appointment_date'), $preferredTime, $duration)) {
                 $validator->errors()->add('appointment_time', 'The shop is closed or this time is blocked. Choose another slot.');
 

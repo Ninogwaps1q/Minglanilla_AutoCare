@@ -52,6 +52,11 @@ class Appointment extends Model
         return $this->belongsTo(Service::class);
     }
 
+    public function bookedServices(): HasMany
+    {
+        return $this->hasMany(AppointmentService::class)->orderBy('position');
+    }
+
     public function statusHistories(): HasMany
     {
         return $this->hasMany(AppointmentStatusHistory::class)->latest('changed_at');
@@ -70,6 +75,11 @@ class Appointment extends Model
     public function repairJob(): HasOne
     {
         return $this->hasOne(RepairJob::class);
+    }
+
+    public function review(): HasOne
+    {
+        return $this->hasOne(Review::class);
     }
 
     public function serviceCase(): HasOne

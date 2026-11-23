@@ -27,8 +27,6 @@
                 <div class="col-12"><label class="form-label" for="description">Work description</label><textarea
                         id="description" class="form-control" name="description" rows="3"
                         required>{{ old('description') }}</textarea></div>
-                <div class="col-md-6"><label class="form-label" for="diagnosis">Diagnosis</label><textarea id="diagnosis"
-                        class="form-control" name="diagnosis" rows="3">{{ old('diagnosis') }}</textarea></div>
                 <div class="col-12">
                     <p class="text-secondary mb-0">A booked service and its price are added when available. Follow-up visits do not charge the original service again. Add any new parts or labor before sending an estimate for customer approval.</p>
                 </div>

@@ -20,7 +20,7 @@ class ReviewModerationController extends Controller
 
         return view('admin.reviews.index', [
             'reviews' => Review::query()
-                ->with(['customer:id,name', 'shop:id,name', 'repairJob:id,job_number'])
+                ->with(['customer:id,name', 'shop:id,name', 'repairJob:id,job_number', 'appointment:id,appointment_date'])
                 ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
                 ->latest()
                 ->paginate()

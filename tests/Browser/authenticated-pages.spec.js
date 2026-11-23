@@ -23,7 +23,7 @@ async function captureWorkspaceThemes(page, testInfo, name) {
 
 const pages = {
     customer: ['dashboard', 'customer/vehicles', 'customer/appointments', 'customer/appointments/create', 'customer/quotations', 'customer/repairs', 'customer/invoices', 'customer/reminders', 'customer/messages', 'customer/reviews', 'customer/notifications', 'customer/inspections', 'customer/emergency-requests', 'customer/ai-assistant', 'customer/profile', 'customer/favorites', 'customer/service-history', 'customer/services', 'customer/service-cases'],
-    shop_owner: ['shop/dashboard', 'shop/profile', 'shop/services', 'shop/appointments', 'shop/passports/scan', 'shop/repair-jobs', 'shop/quotations', 'shop/invoices', 'shop/inventory', 'shop/technicians', 'shop/messages', 'shop/reviews', 'shop/reports', 'shop/emergency-requests', 'shop/notifications', 'shop/today-work', 'shop/service-cases'],
+    shop_owner: ['shop/dashboard', 'shop/profile', 'shop/services', 'shop/appointments', 'shop/repair-jobs', 'shop/quotations', 'shop/invoices', 'shop/inventory', 'shop/technicians', 'shop/messages', 'shop/reviews', 'shop/reports', 'shop/emergency-requests', 'shop/notifications', 'shop/today-work', 'shop/service-cases'],
     admin: ['admin/dashboard', 'admin/shops', 'admin/users', 'admin/services', 'admin/service-categories', 'admin/barangays', 'admin/reviews', 'admin/reports', 'admin/activity-logs', 'admin/monitoring', 'admin/service-cases'],
 };
 
@@ -70,6 +70,36 @@ for (const [role, paths] of Object.entries(pages)) {
         await page.screenshot({ path: testInfo.outputPath(role + '.png'), fullPage: true });
     });
 }
+
+test('booking vehicle and address controls work with keyboard in both themes', async ({ page }, testInfo) => {
+    await signIn(page, 'customer');
+    for (const theme of ['light', 'dark']) {
+        await page.evaluate(value => localStorage.setItem('autocare-theme', value), theme);
+        await page.goto('/customer/appointments/create');
+        await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+        await page.getByText('Add a vehicle here').click();
+        const type = page.getByLabel('Vehicle type');
+        await type.selectOption('car');
+        await expect(page.getByLabel('Make', { exact: true }).locator('option').nth(1)).toBeAttached();
+        await type.focus();
+        await page.keyboard.press('Tab');
+        await expect(page.getByLabel('Make', { exact: true })).toBeFocused();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+        await page.screenshot({ path: testInfo.outputPath(`booking-${theme}.png`), fullPage: true });
+
+        await page.goto('/customer/profile');
+        await expect(page.locator('[data-address-picker]')).toBeVisible();
+        await expect(page.getByLabel('Region').locator('option').nth(1)).toBeAttached();
+        await page.getByLabel('Region').selectOption({ label: 'Central Visayas' });
+        await expect(page.getByLabel('Province').locator('option').nth(1)).toBeAttached();
+        await page.getByLabel('Province').selectOption({ index: 1 });
+        await expect(page.getByLabel('City / municipality').locator('option').nth(1)).toBeAttached();
+        await page.getByLabel('City / municipality').selectOption({ index: 1 });
+        await expect(page.getByLabel('Barangay').locator('option').nth(1)).toBeAttached();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+        await page.screenshot({ path: testInfo.outputPath(`profile-${theme}.png`), fullPage: true });
+    }
+});
 
 test('maintenance setup stays compact and restores the submitted schedule after validation', async ({ page }, testInfo) => {
     await signIn(page, 'customer');
@@ -293,7 +323,7 @@ for (const [role, notificationsPath] of [['customer', '/customer/notifications']
     });
 }
 
-test('customer creates a vehicle and opens its private passport', async ({ page }, testInfo) => {
+test('customer creates a vehicle and sees it in the garage', async ({ page }, testInfo) => {
     await signIn(page, 'customer');
     const plate = 'E2E-' + testInfo.project.name;
     await page.goto('/customer/vehicles/create');
@@ -314,68 +344,9 @@ test('customer creates a vehicle and opens its private passport', async ({ page 
     const vehicleCard = page.locator('article').filter({ hasText: plate });
     await expect(vehicleCard.getByText(plate, { exact: true })).toBeVisible();
     expect(await vehicleCard.locator('.vehicle-card-photo').evaluate(element => element.complete && element.naturalWidth > 0)).toBe(true);
-    const fixture = JSON.parse(process.env.BROWSER_FIXTURE);
-    await page.goto('/customer/vehicles/' + fixture.vehicle + '/passport');
-    await page.getByText('My private QR (owner login only)').click();
-    const qr = page.getByAltText('QR code linking to your private vehicle passport');
-    await expect(qr).toBeVisible();
-    expect(await qr.evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
+
 });
 
-test('customer shares and revokes a temporary service passport for a verified shop', async ({ page, browser }, testInfo) => {
-    test.setTimeout(90000);
-    const fixture = await signIn(page, 'customer');
-    await page.goto('/customer/vehicles/' + fixture.vehicle + '/passport');
-    const createShare = page.getByRole('button', { name: 'Create 24-hour shop link' });
-    if (await page.getByRole('button', { name: 'Revoke access' }).count()) {
-        page.once('dialog', dialog => dialog.accept());
-        await page.getByRole('button', { name: 'Revoke access' }).first().click();
-        await expect(createShare).toBeVisible();
-    }
-    await createShare.click();
-    const sharedUrl = await page.getByLabel('Shop sharing link').inputValue();
-    expect(sharedUrl).toContain('/shop/shared-passports/');
-    await page.screenshot({ path: testInfo.outputPath('customer-shared-passport.png'), fullPage: true, mask: [page.locator('#passport-share-url')] });
-
-    const shopContext = await browser.newContext();
-    try {
-        const shopPage = await shopContext.newPage();
-        await signIn(shopPage, 'shop_owner');
-        await shopPage.goto('/shop/passports/scan');
-        await expect(shopPage.getByRole('heading', { name: 'Scan a service passport' })).toBeVisible();
-        expect(await shopPage.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
-            await shopPage.evaluate(() => document.documentElement.clientWidth + 1)
-        );
-        await shopPage.screenshot({ path: testInfo.outputPath('shop-passport-scanner.png'), fullPage: true });
-        await shopPage.getByLabel("Customer's shop-sharing link").fill(sharedUrl);
-        await shopPage.getByRole('button', { name: 'Open service passport' }).click();
-        await expect(shopPage.getByRole('heading', { name: 'Shared service passport' })).toBeVisible();
-        await expect(shopPage.getByText('BROWSER-001')).toBeVisible();
-        await expect(shopPage.getByRole('link', { name: /Start repair job|Review shop appointments/ })).toBeVisible();
-        await shopPage.screenshot({ path: testInfo.outputPath('shop-shared-passport.png'), fullPage: true });
-
-        await shopPage.addInitScript((url) => {
-            window.BarcodeDetector = class {
-                static async getSupportedFormats() { return ['qr_code']; }
-                async detect() { return [{ rawValue: url }]; }
-            };
-            Object.defineProperty(navigator, 'mediaDevices', { value: { getUserMedia: async () => new MediaStream() } });
-            HTMLMediaElement.prototype.play = async function () {};
-            Object.defineProperty(HTMLMediaElement.prototype, 'readyState', { get: () => 2 });
-        }, sharedUrl);
-        await shopPage.getByRole('link', { name: 'Scan another passport' }).click();
-        await shopPage.getByRole('button', { name: 'Start camera' }).click();
-        await expect(shopPage.getByRole('heading', { name: 'Shared service passport' })).toBeVisible();
-
-        page.once('dialog', dialog => dialog.accept());
-        await page.getByRole('button', { name: 'Revoke access' }).click();
-        await expect(page.getByRole('button', { name: 'Create 24-hour shop link' })).toBeVisible();
-        const revokedResponse = await shopPage.goto(sharedUrl);
-        expect(revokedResponse.status()).toBe(404);
-    } finally {
-        await shopContext.close();
-    }
-});
 
 test('booking shows the service price and checks the selected shop schedule', async ({ page }) => {
     const fixture = await signIn(page, 'customer');

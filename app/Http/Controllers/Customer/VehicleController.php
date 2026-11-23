@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreVehicleRequest;
 use App\Http\Requests\UpdateVehicleRequest;
 use App\Models\Vehicle;
+use App\Models\VehicleMake;
+use App\Models\VehicleModel;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
@@ -36,11 +38,15 @@ class VehicleController extends Controller
     public function store(StoreVehicleRequest $request): RedirectResponse
     {
         $this->authorize('create', Vehicle::class);
-        $attributes = $request->safe()->except('photo');
+        $attributes = $this->vehicleAttributes($request);
         if ($request->hasFile('photo')) {
             $attributes['photo'] = $request->file('photo')->store('vehicles', 'public');
         }
-        $request->user()->vehicles()->create($attributes);
+        $vehicle = $request->user()->vehicles()->create($attributes);
+
+        if ($request->boolean('return_to_booking')) {
+            return redirect()->route('customer.appointments.create', ['vehicle_id' => $vehicle->id])->with('status', 'Vehicle added. Choose a provider and services to book.');
+        }
 
         return redirect()->route('customer.vehicles.index')->with('status', 'Vehicle added successfully.');
     }
@@ -71,7 +77,7 @@ class VehicleController extends Controller
     public function update(UpdateVehicleRequest $request, Vehicle $vehicle): RedirectResponse
     {
         $this->authorize('update', $vehicle);
-        $attributes = $request->safe()->except('photo');
+        $attributes = $this->vehicleAttributes($request);
         $previousPhoto = null;
         if ($request->hasFile('photo')) {
             $previousPhoto = $vehicle->photo;
@@ -97,5 +103,23 @@ class VehicleController extends Controller
         }
 
         return redirect()->route('customer.vehicles.index')->with('status', 'Vehicle removed successfully.');
+    }
+
+    /** @return array<string, mixed> */
+    private function vehicleAttributes(StoreVehicleRequest $request): array
+    {
+        $attributes = $request->safe()->except(['photo', 'variant_other']);
+        $attributes['make'] = $request->filled('vehicle_make_id')
+            ? VehicleMake::query()->findOrFail($request->integer('vehicle_make_id'))->name
+            : $request->validated('make');
+        $attributes['model'] = $request->filled('vehicle_model_id')
+            ? VehicleModel::query()->findOrFail($request->integer('vehicle_model_id'))->name
+            : $request->validated('model');
+        $attributes['variant'] = $request->input('variant') === '__other'
+            ? $request->validated('variant_other')
+            : $request->validated('variant');
+        $attributes['current_mileage'] ??= 0;
+
+        return $attributes;
     }
 }

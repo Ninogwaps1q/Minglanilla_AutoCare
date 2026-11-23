@@ -3,7 +3,7 @@
         <div class="container py-5 py-lg-6">
             <div class="row align-items-center g-5">
                 <div class="col-lg-7">
-                    <h1 id="landing-title">Find Trusted Auto Repair Services in Minglanilla.</h1>
+                    <h1 id="landing-title">Find trusted auto repair services across the Philippines.</h1>
                     <p class="hero-copy">Discover local automotive service providers, compare services, book
                         appointments, and manage your vehicle maintenance in one convenient platform.</p>
                     <div class="d-flex flex-wrap align-items-center gap-3">
@@ -36,9 +36,9 @@
                 </div>
                 <div class="col-lg-6 offset-lg-1">
                     <form action="{{ route('shops.index') }}" method="GET" class="landing-shop-search">
-                        <label for="home-search" class="form-label fw-semibold">Shop name</label>
+                        <label for="home-search" class="form-label fw-semibold">Shop or city</label>
                         <div class="input-group"><input id="home-search" class="form-control" name="search"
-                                type="search" maxlength="100" placeholder="Search by shop name"><button
+                                type="search" maxlength="100" placeholder="Search by shop or city"><button
                                 class="btn btn-primary" type="submit">Search shops</button></div>
                     </form>
                     <p class="landing-discover-links mb-0"><a href="#maps">Browse the map below</a> or <a href="{{ route('shops.index') }}">see all shops</a>.</p>
@@ -48,12 +48,12 @@
                 <div class="landing-map-heading">
                     <div>
                         <h3 id="landing-map-title" class="h4">Explore shops on the map</h3>
-                        <p class="text-secondary mb-0">See where approved service shops are in Minglanilla. Select a marker to view a shop.</p>
+                        <p class="text-secondary mb-0">See approved service shops across the Philippines. Select a marker to view a shop.</p>
                     </div>
                     <a class="btn btn-outline-primary" href="{{ route('shops.index') }}#shop-map">Open full shop map</a>
                 </div>
                 <div id="landing-shop-map" class="landing-shop-map" role="region" aria-label="Map of approved service shops"
-                    data-shops-url="{{ url('/api/shops') }}"
+                    data-shops-url="{{ url('/api/shops') }}" data-google-key="{{ config('services.google.maps_api_key') }}"
                     data-shop-url-template="{{ route('shops.show', ['shop' => '__SHOP_ID__']) }}">
                     <p class="landing-map-message">Map loads when you reach this section.</p>
                 </div>
@@ -67,7 +67,7 @@
             <div class="col-md-4">
                 <article class="feature-panel h-100"><i class="bi bi-geo-alt feature-icon" aria-hidden="true"></i>
                     <h2 class="h4">Local by design</h2>
-                    <p class="mb-0">Browse approved shops across Minglanilla with barangay and service filters.</p>
+                    <p class="mb-0">Browse approved shops across the Philippines by city, location, and service.</p>
                 </article>
             </div>
             <div class="col-md-4">

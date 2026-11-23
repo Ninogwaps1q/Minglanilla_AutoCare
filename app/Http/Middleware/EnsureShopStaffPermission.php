@@ -18,8 +18,8 @@ class EnsureShopStaffPermission
         $user = $request->user();
         if ($user?->role === 'shop_staff') {
             $permissions = [
-                'receptionist' => ['dashboard', 'today-work.', 'appointments.', 'service-cases.', 'messages.', 'emergency-requests.', 'quotations.', 'reviews.', 'passports.', 'repair-jobs.index', 'repair-jobs.create', 'repair-jobs.store'],
-                'technician' => ['dashboard', 'today-work.', 'repair-jobs.', 'repair-job-items.', 'repair-photos.', 'inspections.', 'inventory.', 'passports.', 'service-cases.index'],
+                'receptionist' => ['dashboard', 'today-work.', 'appointments.', 'service-cases.', 'messages.', 'emergency-requests.', 'quotations.', 'reviews.', 'repair-jobs.index', 'repair-jobs.create', 'repair-jobs.store'],
+                'technician' => ['dashboard', 'today-work.', 'repair-jobs.', 'repair-job-items.', 'repair-photos.', 'inspections.', 'inventory.', 'service-cases.index'],
                 'cashier' => ['dashboard', 'invoices.', 'payments.', 'reports.'],
             ];
             $route = str($request->route()?->getName() ?? '')->after('shop.')->toString();

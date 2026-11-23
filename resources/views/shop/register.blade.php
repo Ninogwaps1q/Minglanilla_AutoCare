@@ -16,16 +16,9 @@
                     name="phone" value="{{ old('phone') }}" required></div>
             <div class="col-md-6"><label class="form-label">Contact email</label><input class="form-control"
                     name="email" type="email" value="{{ old('email') }}" required></div>
-            <div class="col-12"><label class="form-label">{{ $isMechanic ? 'Base address (only administrators can see this)' : 'Street address' }}</label><input class="form-control"
-                    name="address" value="{{ old('address') }}" required></div>
-            <div class="col-md-6"><label class="form-label">Barangay</label><select class="form-select"
-                    name="barangay_id" required>
-                    <option value="">Select barangay</option>@foreach($barangays as $barangay)
-                        <option value="{{ $barangay->id }}" @selected(old('barangay_id') == $barangay->id)>
-                    {{ $barangay->name }}</option>@endforeach
-                </select></div>
+            <div class="col-12"><h2 class="h5 mb-2">{{ $isMechanic ? 'Private base address' : 'Shop address' }}</h2><x-address-picker prefix="shop-registration" :required="true" /></div>
             <div class="col-12"><label class="form-label">{{ $isMechanic ? 'Skills and mobile service description' : 'Business description' }}</label><textarea class="form-control"
-                    name="description" rows="4">{{ old('description') }}</textarea></div><x-location-picker :label="$isMechanic ? 'Service-area center' : 'Shop location'" :hint="$isMechanic ? 'Click the map to set the center of the area you can travel to. Avoid your exact home location.' : 'Click the map to place your shop pin in Minglanilla, Cebu.'" />
+                    name="description" rows="4">{{ old('description') }}</textarea></div><x-location-picker :label="$isMechanic ? 'Service-area center' : 'Shop location'" :hint="$isMechanic ? 'Click the map to set the center of the area you can travel to. Avoid your exact home location.' : 'Click the map to place your exact shop pin.'" />
             @if ($isMechanic)<p class="col-12 form-text mb-0">Choose the center of your service area on the map. Customers see this area, so avoid pinpointing your home. After registration, upload a government ID and proof of mechanic qualifications or work history.</p>@endif
             <div class="col-12"><div class="shop-profile-media"><div id="registration-cover-preview" class="shop-cover-preview uploaded-image-fallback" role="img" aria-label="Shop cover photo preview"><i class="bi bi-shop" aria-hidden="true"></i></div><div id="registration-logo-preview" class="shop-logo-preview uploaded-image-fallback" role="img" aria-label="Shop logo preview"><i class="bi bi-wrench-adjustable-circle" aria-hidden="true"></i></div></div><p class="small text-secondary mt-2 mb-0">Selected images preview here. Submit registration to save them.</p></div>
             <div class="col-md-6"><label for="logo" class="form-label">Shop logo</label><input id="logo" class="form-control @error('logo') is-invalid @enderror" type="file" name="logo" accept="image/png,image/jpeg,image/webp" aria-describedby="logo-help" data-image-preview-target="registration-logo-preview" data-image-max-size="2097152">@error('logo')<div class="invalid-feedback">{{ $message }}</div>@enderror<small id="logo-help" class="form-text">Square JPG, PNG, or WebP up to 2 MB.</small></div>

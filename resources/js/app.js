@@ -20,12 +20,15 @@ document.querySelectorAll('.public-navbar a[href^="#"]').forEach((link) => {
     });
 });
 
-if (document.querySelector('[data-passport-scanner]')) {
-    import('./passport-scanner.js');
-}
 
 if (document.querySelector('#landing-shop-map')) {
     import('./landing-map.js');
+}
+if (document.querySelector('#shop-map')) {
+    import('./shop-directory-map.js');
+}
+if (document.querySelector('#location-picker-map')) {
+    import('./location-picker.js');
 }
 
 const systemTheme = window.matchMedia('(prefers-color-scheme: dark)');
@@ -268,3 +271,9 @@ document.querySelectorAll('[data-copy-target]').forEach((button) => {
         }
     });
 });
+if (document.querySelector('[data-vehicle-picker]')) {
+    import('./vehicle-picker.js');
+}
+if (document.querySelector('[data-address-picker]')) {
+    import('./address-picker.js');
+}

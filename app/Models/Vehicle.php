@@ -13,16 +13,21 @@ class Vehicle extends Model
     /** @use HasFactory<VehicleFactory> */
     use HasFactory;
 
-    protected $fillable = ['plate_number', 'make', 'model', 'year', 'color', 'vehicle_type', 'engine_type', 'current_mileage', 'vin', 'photo'];
+    protected $fillable = ['plate_number', 'make', 'model', 'year', 'variant', 'vehicle_make_id', 'vehicle_model_id', 'color', 'vehicle_type', 'engine_type', 'current_mileage', 'vin', 'photo'];
+
+    public function catalogMake(): BelongsTo
+    {
+        return $this->belongsTo(VehicleMake::class, 'vehicle_make_id');
+    }
+
+    public function catalogModel(): BelongsTo
+    {
+        return $this->belongsTo(VehicleModel::class, 'vehicle_model_id');
+    }
 
     public function serviceRecords(): HasMany
     {
         return $this->hasMany(VehicleServiceRecord::class);
-    }
-
-    public function passportShares(): HasMany
-    {
-        return $this->hasMany(VehiclePassportShare::class);
     }
 
     public function customer(): BelongsTo

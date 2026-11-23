@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
 
-it('stores private before and after repair photos and refuses unrelated users', function () {
+it('stores private damage and repair photos and refuses unrelated users', function () {
     Storage::fake('local');
     [$customer, $owner, $shop, $job] = aftercareFixture();
     $otherCustomer = User::factory()->create(['role' => 'customer']);
@@ -23,7 +23,7 @@ it('stores private before and after repair photos and refuses unrelated users', 
     $this->assertDatabaseCount('repair_photos', 0);
 
     $this->post(route('shop.repair-photos.store', $job), [
-        'stage' => 'before', 'photo' => aftercareImage('before.png'), 'caption' => 'Damaged bumper',
+        'stage' => 'damage', 'photo' => aftercareImage('damage.png'), 'caption' => 'Damaged bumper',
     ])->assertRedirect();
     $photo = $job->photos()->sole();
     Storage::disk('local')->assertExists($photo->path);
@@ -35,10 +35,13 @@ it('stores private before and after repair photos and refuses unrelated users', 
         'stage' => 'before', 'photo' => aftercareImage('late-before.png'),
     ])->assertSessionHasErrors('stage');
     $this->actingAs($owner)->post(route('shop.repair-photos.store', $job), [
+        'stage' => 'damage', 'photo' => aftercareImage('late-damage.png'),
+    ])->assertSessionHasErrors('stage');
+    $this->actingAs($owner)->post(route('shop.repair-photos.store', $job), [
         'stage' => 'after', 'photo' => aftercareImage('after.png'),
     ])->assertRedirect();
     $this->assertDatabaseCount('repair_photos', 2);
-    $this->actingAs($customer)->get(route('customer.repairs.index'))->assertSee('Before & after photos', false);
+    $this->actingAs($customer)->get(route('customer.repairs.index'))->assertSee('Damage and repair photos', false);
 });
 
 it('issues an explicit warranty and tracks a customer follow-up through the shop', function () {

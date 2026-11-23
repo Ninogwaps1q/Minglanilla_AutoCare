@@ -152,7 +152,7 @@
         </details>
         @endunless
         <details class="repair-details mb-3">
-            <summary>Before & after photos · {{ $repairJob->photos->count() }}</summary>
+            <summary>Damage and repair photos · {{ $repairJob->photos->count() }}</summary>
             <p class="text-secondary small mt-3">Photos stay private to this customer, this shop, and admins.</p>
             @if($repairJob->photos->isNotEmpty())
                 <div class="repair-evidence-grid mb-3">
@@ -176,7 +176,7 @@
                             for="photo-stage-{{ $repairJob->id }}">Stage</label><select
                             id="photo-stage-{{ $repairJob->id }}" name="stage" class="form-select"
                             required>@if($repairJob->started_at || in_array($repairJob->status, ['repairing', 'in_progress', 'waiting_parts', 'completed', 'released'], true))
-                            <option value="after">After</option>@else<option value="before">Before</option>@endif
+                            <option value="after">After</option>@else<option value="damage">Damaged part</option><option value="before">Before</option>@endif
                         </select></div>
                     <div class="col-md-4"><label class="form-label"
                             for="repair-photo-{{ $repairJob->id }}">Photo</label><input
@@ -244,6 +244,11 @@
         @if (in_array($repairJob->status, ['completed', 'released'], true))<x-repair-handover :repair-job="$repairJob"
         context="shop" />@endif
         <x-service-journey :repair-job="$repairJob" />
+        @foreach ($repairJob->inspections as $inspection)
+            <details class="repair-details mb-3"><summary>Inspection checklist · {{ $inspection->inspection_date->format('M j, Y') }}</summary>
+                <ul class="mt-3 mb-0">@foreach ($inspection->items as $item)<li><strong>{{ $item->category }}: {{ $item->item_name }}</strong> — {{ $item->condition }}@if ($item->recommendation) · {{ $item->recommendation }}@endif</li>@endforeach</ul>
+            </details>
+        @endforeach
         <x-repair-timeline :repair-job="$repairJob" />
         @php($nextStages = collect($repairJob->availableStatuses())->except('cancelled'))
         @if ($nextStages->isNotEmpty() && auth()->user()->staff_role !== 'receptionist')
@@ -265,10 +270,6 @@
                         value="{{ number_format($repairJob->actual_cost ?? 0, 2) }}" readonly><small
                         class="form-text">{{ in_array($repairJob->quotation?->status, ['accepted', 'approved'], true) ? 'Locked to the customer-approved estimate.' : ($repairJob->quotation?->status === 'sent' ? 'Estimate sent; waiting for customer approval.' : ($repairJob->items->isNotEmpty() ? 'Calculated from work items above.' : 'Add work items to calculate this automatically.')) }}</small>
                 </div>
-                @if ($repairJob->status === 'pending')
-                    <div class="col-md-4"><label class="form-label" for="diagnosis-{{ $repairJob->id }}">Diagnosis for
-                            customer</label><textarea id="diagnosis-{{ $repairJob->id }}" class="form-control" name="diagnosis"
-                rows="2" maxlength="5000">{{ $repairJob->diagnosis }}</textarea></div>@endif
                 <div class="col-md-4"><label class="form-label" for="notes-{{ $repairJob->id }}">Technician
                         notes</label><textarea id="notes-{{ $repairJob->id }}" class="form-control" name="technician_notes"
                         rows="2" maxlength="5000">{{ $repairJob->technician_notes }}</textarea></div>
@@ -280,15 +281,11 @@
             <form method="POST" action="{{ route('shop.repair-jobs.update', $repairJob) }}" class="row g-3">
                 @csrf @method('PATCH')
                 <input type="hidden" name="status" value="{{ $repairJob->status }}">
-                @if ($repairJob->status === 'diagnosis')
-                    <div class="col-md-6"><label class="form-label" for="diagnosis-{{ $repairJob->id }}">Diagnosis for
-                            customer</label><textarea id="diagnosis-{{ $repairJob->id }}" class="form-control" name="diagnosis"
-                rows="2" maxlength="5000">{{ $repairJob->diagnosis }}</textarea></div>@endif
                 <div class="col-md-6"><label class="form-label" for="notes-{{ $repairJob->id }}">Technician
                         notes</label><textarea id="notes-{{ $repairJob->id }}" class="form-control" name="technician_notes"
                         rows="2" maxlength="5000">{{ $repairJob->technician_notes }}</textarea></div>
                 <div class="col-12"><button class="btn btn-outline-primary">Save
-                        {{ $repairJob->status === 'diagnosis' ? 'diagnosis and notes' : 'technician notes' }}</button></div>
+                        technician notes</button></div>
             </form>
         @endif
         @if (auth()->user()->staff_role !== 'receptionist' && array_key_exists('cancelled', $repairJob->availableStatuses()))

@@ -17,7 +17,7 @@ class ReviewController extends Controller
         return view('shop.reviews.index', [
             'reviews' => $this->shop($request)->reviews()
                 ->when($request->integer('focus') > 0, fn ($query) => $query->whereKey($request->integer('focus')))
-                ->with(['customer', 'repairJob'])->latest()->get(),
+                ->with(['customer', 'repairJob', 'appointment'])->latest()->get(),
         ]);
     }
 

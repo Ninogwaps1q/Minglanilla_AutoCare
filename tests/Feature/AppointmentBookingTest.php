@@ -33,6 +33,31 @@ it('creates a pending appointment for an available public shop', function () {
     ]);
 });
 
+it('books multiple services at their saved prices and creates separate repair lines', function () {
+    $fixture = appointmentFixture();
+    $second = Service::query()->create(['category_id' => $fixture['service']->category_id, 'name' => 'Brake Inspection', 'estimated_duration' => 45]);
+    $fixture['shop']->services()->create(['service_id' => $second->id, 'price' => 350, 'availability' => true]);
+
+    $this->actingAs($fixture['customer'])->post(route('customer.appointments.store'), appointmentPayload($fixture, [
+        'service_id' => null,
+        'service_ids' => [$fixture['service']->id, $second->id],
+        'reason' => null,
+    ]))->assertRedirect(route('customer.appointments.index'))->assertSessionHasNoErrors();
+
+    $appointment = Appointment::query()->sole();
+    expect($appointment->service_price)->toBe('1250.00');
+    expect($appointment->duration_minutes)->toBe(105);
+    expect($appointment->bookedServices()->count())->toBe(2);
+    ShopService::query()->where('shop_id', $fixture['shop']->id)->update(['price' => 9999]);
+
+    $this->actingAs($fixture['owner'])->patch(route('shop.appointments.update', $appointment), ['status' => 'confirmed'])->assertRedirect();
+    $this->post(route('shop.repair-jobs.store'), ['appointment_id' => $appointment->id, 'description' => 'Combined service'])
+        ->assertRedirect(route('shop.repair-jobs.index'))->assertSessionHasNoErrors();
+    $job = RepairJob::query()->where('appointment_id', $appointment->id)->sole();
+    expect($job->items()->orderBy('id')->pluck('unit_price')->all())->toBe(['900.00', '350.00']);
+    expect($job->estimated_cost)->toBe('1250.00');
+});
+
 it('includes the booked service price once in the approved estimate and final bill', function () {
     $fixture = appointmentFixture();
     $this->actingAs($fixture['customer'])->post(route('customer.appointments.store'), appointmentPayload($fixture))

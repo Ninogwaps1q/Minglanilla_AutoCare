@@ -6,9 +6,8 @@
 
     <div class="surface p-4 mb-4">
         <form id="shop-filters" class="row g-3 align-items-end" method="GET" action="{{ route('shops.index') }}">
-            <div class="col-md-6 col-xl-3"><label class="form-label" for="shop-search">Name</label><input id="shop-search" type="search" maxlength="100" class="form-control" name="search" placeholder="Search by provider name" value="{{ $filters['search'] ?? '' }}"></div>
+            <div class="col-md-6 col-xl-3"><label class="form-label" for="shop-search">Provider or city</label><input id="shop-search" type="search" maxlength="100" class="form-control" name="search" placeholder="Search by shop, city, or province" value="{{ $filters['search'] ?? '' }}"></div>
             <div class="col-md-6 col-xl-3"><label class="form-label" for="provider-filter">Provider type</label><select id="provider-filter" class="form-select" name="provider"><option value="">Shops and mechanics</option><option value="shop" @selected(($filters['provider'] ?? '') === 'shop')>Service shops</option><option value="independent_mechanic" @selected(($filters['provider'] ?? '') === 'independent_mechanic')>Mobile mechanics</option></select></div>
-            <div class="col-md-6 col-xl-3"><label class="form-label" for="shop-barangay">Barangay</label><select id="shop-barangay" class="form-select" name="barangay"><option value="">All barangays</option>@foreach ($barangays as $barangay)<option value="{{ $barangay->id }}" @selected(($filters['barangay'] ?? null) == $barangay->id)>{{ $barangay->name }}</option>@endforeach</select></div>
             <div class="col-md-6 col-xl-3"><label class="form-label" for="shop-service">Service</label><select id="shop-service" class="form-select" name="service"><option value="">All services</option>@foreach ($services as $service)<option value="{{ $service->id }}" @selected(($filters['service'] ?? null) == $service->id)>{{ $service->name }}</option>@endforeach</select></div>
             <div class="col-md-6 col-xl-3"><label class="form-label" for="shop-sort">Sort by</label><select id="shop-sort" class="form-select" name="sort"><option value="name" @selected($filters['sort'] === 'name')>Name: A to Z</option><option value="rating" @selected($filters['sort'] === 'rating')>Highest rating</option><option value="distance" @selected($filters['sort'] === 'distance') @disabled(! isset($filters['latitude'], $filters['longitude']))>Nearest to me</option></select></div>
             <input id="latitude" type="hidden" name="latitude" value="{{ $filters['latitude'] ?? '' }}"><input id="longitude" type="hidden" name="longitude" value="{{ $filters['longitude'] ?? '' }}">
@@ -20,7 +19,7 @@
 
     <section class="mb-4" aria-labelledby="shop-map-heading">
         <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-2"><h2 id="shop-map-heading" class="h4 mb-0">Matching providers on the map</h2><span class="small text-secondary">{{ $mapShops->count() }} {{ $mapShops->count() === 1 ? 'provider has' : 'providers have' }} a map location</span></div>
-        <div id="shop-map" class="surface shop-directory-map overflow-hidden d-flex align-items-center justify-content-center p-4 text-secondary" role="region" aria-label="Map of matching shops and mechanic service areas">Loading map…</div>
+        <div id="shop-map" data-google-key="{{ config('services.google.maps_api_key') }}" data-shops="{{ $mapShops->toJson() }}" data-selected-shop-id="{{ $filters['selected'] ?? '' }}" class="surface shop-directory-map overflow-hidden d-flex align-items-center justify-content-center p-4 text-secondary" role="region" aria-label="Map of matching shops and mechanic service areas">Loading map…</div>
         <p class="small text-secondary mt-2 mb-0">Mechanic pins show the center of a service area. Their private base address is hidden.</p>
     </section>
 
@@ -51,9 +50,9 @@
                             <p class="small mb-2">
                                 <i class="bi bi-geo-alt me-1 text-secondary" aria-hidden="true"></i>
                                 @if ($shop->latitude !== null && $shop->longitude !== null)
-                                    <a class="shop-directory-location-link" href="{{ route('shops.index', ['search' => $shop->name, 'selected' => $shop->id]) }}#shop-map" aria-label="Show {{ $shop->name }} on map">{{ $shop->barangay->name }} &middot; Show on map</a>
+                                    <a class="shop-directory-location-link" href="{{ route('shops.index', ['search' => $shop->name, 'selected' => $shop->id]) }}#shop-map" aria-label="Show {{ $shop->name }} on map">{{ $shop->barangay->name }}, {{ $shop->barangay->municipality?->name }} &middot; Show on map</a>
                                 @else
-                                    <span class="text-secondary">{{ $shop->barangay->name }}</span>
+                                    <span class="text-secondary">{{ $shop->barangay->name }}, {{ $shop->barangay->municipality?->name }}</span>
                                 @endif
                                 @if ($distances->has($shop->id))<span class="text-secondary"> &middot; {{ number_format($distances->get($shop->id), 1) }} km away</span>@endif
                             </p>
@@ -63,123 +62,10 @@
                     </article>
                 </div>
             @empty
-                <div class="shop-directory-empty"><div class="surface p-5 text-center"><i class="bi bi-search fs-2 text-secondary" aria-hidden="true"></i><h3 class="h4 mt-3">No providers match these filters</h3><p class="text-secondary">Try another service or barangay, or clear your search to see all approved providers.</p><a class="btn btn-primary" href="{{ route('shops.index') }}">Show all providers</a></div></div>
+                <div class="shop-directory-empty"><div class="surface p-5 text-center"><i class="bi bi-search fs-2 text-secondary" aria-hidden="true"></i><h3 class="h4 mt-3">No providers match these filters</h3><p class="text-secondary">Try another city or service, or clear your search to see all approved providers.</p><a class="btn btn-primary" href="{{ route('shops.index') }}">Show all providers</a></div></div>
             @endforelse
         </div>
     </section>
 
-    @push('scripts')
-        <script>
-            const mapShops = {{ Illuminate\Support\Js::from($mapShops) }};
-            const selectedShopId = {{ Illuminate\Support\Js::from($filters['selected'] ?? null) }};
-            const mapElement = document.querySelector('#shop-map');
-            const latitudeInput = document.querySelector('#latitude');
-            const longitudeInput = document.querySelector('#longitude');
-            const savedLocation = latitudeInput.value !== '' && longitudeInput.value !== ''
-                ? [Number(latitudeInput.value), Number(longitudeInput.value)] : null;
 
-            const showMapMessage = message => { mapElement.textContent = message; };
-            const renderMap = () => {
-                mapElement.textContent = '';
-                mapElement.classList.remove('d-flex', 'align-items-center', 'justify-content-center', 'p-4', 'text-secondary');
-                const map = L.map(mapElement).setView([10.2443, 123.7898], 13);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
-                const bounds = [];
-                let selectedMarker = null;
-                mapShops.forEach(shop => {
-                    const point = [shop.latitude, shop.longitude];
-                    bounds.push(point);
-                    const popup = document.createElement('div');
-                    popup.className = 'shop-map-popup';
-                    const avatar = document.createElement('div');
-                    avatar.className = 'shop-map-popup-logo';
-                    avatar.setAttribute('role', 'img');
-                    avatar.setAttribute('aria-label', `${shop.name} logo`);
-                    const fallbackIcon = document.createElement('i');
-                    fallbackIcon.className = 'bi bi-wrench-adjustable-circle';
-                    fallbackIcon.setAttribute('aria-hidden', 'true');
-                    avatar.append(fallbackIcon);
-                    if (shop.logo_url) {
-                        const logo = document.createElement('img');
-                        logo.src = shop.logo_url;
-                        logo.alt = '';
-                        logo.addEventListener('error', () => logo.remove(), { once: true });
-                        avatar.append(logo);
-                    }
-                    const details = document.createElement('div');
-                    details.className = 'shop-map-popup-details';
-                    const name = document.createElement('strong');
-                    name.textContent = shop.name;
-                    const link = document.createElement('a');
-                    link.href = shop.url;
-                    link.textContent = shop.provider_type === 'independent_mechanic' ? 'View mechanic' : 'View shop';
-                    details.append(name, link);
-                    popup.append(avatar, details);
-                    const marker = L.marker(point).addTo(map).bindPopup(popup);
-                    if (Number(shop.id) === Number(selectedShopId)) {
-                        selectedMarker = marker;
-                    }
-                });
-                if (savedLocation) {
-                    bounds.push(savedLocation);
-                    L.circleMarker(savedLocation, { radius: 7, color: '#f97316', fillOpacity: 1 }).addTo(map).bindPopup('Your approximate location');
-                }
-                map.fitBounds(bounds, { padding: [30, 30], maxZoom: 15 });
-                selectedMarker?.openPopup();
-            };
-
-            if (!mapShops.length) {
-                showMapMessage('No matching providers have a map location yet. Browse the results below.');
-            } else {
-                const loadMap = () => {
-                    let stylesheetReady = false;
-                    let scriptReady = false;
-                    const timeout = window.setTimeout(() => showMapMessage('The map could not load. You can still choose a provider below.'), 8000);
-                    const maybeRenderMap = () => {
-                        if (stylesheetReady && scriptReady) {
-                            window.clearTimeout(timeout);
-                            renderMap();
-                        }
-                    };
-                    const stylesheet = document.createElement('link');
-                    stylesheet.rel = 'stylesheet';
-                    stylesheet.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-                    stylesheet.integrity = 'sha512-Zcn6bjR/8RZbLEpLIeOwNtzREBAJnUKESxces60Mpoj+2okopSAcSUIUOseddDm0cxnGQzxIR7vJgsLZbdLE3w==';
-                    stylesheet.crossOrigin = 'anonymous';
-                    stylesheet.onload = () => { stylesheetReady = true; maybeRenderMap(); };
-                    stylesheet.onerror = () => { window.clearTimeout(timeout); showMapMessage('The map could not load. You can still choose a provider below.'); };
-                    document.head.append(stylesheet);
-                    const script = document.createElement('script');
-                    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-                    script.integrity = 'sha512-BwHfrr4c9kmRkLw6iXFdzcdWV/PGkVgiIyIWLLlTSXzWQzxuSg4DiQUCpauz/EWjgk5TYQqX/kvn9pG1NpYfqg==';
-                    script.crossOrigin = 'anonymous';
-                    script.onload = () => { scriptReady = true; maybeRenderMap(); };
-                    script.onerror = () => { window.clearTimeout(timeout); showMapMessage('The map could not load. You can still choose a provider below.'); };
-                    document.body.append(script);
-                };
-                loadMap();
-            }
-
-            const nearbyButton = document.querySelector('#nearby-button');
-            const locationStatus = document.querySelector('#location-status');
-            nearbyButton.addEventListener('click', () => {
-                if (!navigator.geolocation) {
-                    locationStatus.textContent = 'Location is not supported by this browser. You can still browse all providers.';
-                    return;
-                }
-                nearbyButton.disabled = true;
-                locationStatus.textContent = 'Finding your location…';
-                navigator.geolocation.getCurrentPosition(position => {
-                    latitudeInput.value = position.coords.latitude;
-                    longitudeInput.value = position.coords.longitude;
-                    document.querySelector('#shop-sort').querySelector('[value="distance"]').disabled = false;
-                    document.querySelector('#shop-sort').value = 'distance';
-                    document.querySelector('#shop-filters').requestSubmit();
-                }, () => {
-                    nearbyButton.disabled = false;
-                    locationStatus.textContent = 'We could not access your location. You can still browse all providers.';
-                }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 });
-            });
-        </script>
-    @endpush
 </x-layouts.app>

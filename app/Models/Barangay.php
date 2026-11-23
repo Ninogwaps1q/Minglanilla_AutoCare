@@ -13,7 +13,7 @@ class Barangay extends Model
     /** @use HasFactory<BarangayFactory> */
     use HasFactory;
 
-    protected $fillable = ['municipality_id', 'name', 'status'];
+    protected $fillable = ['municipality_id', 'name', 'status', 'psgc_code'];
 
     public function municipality(): BelongsTo
     {

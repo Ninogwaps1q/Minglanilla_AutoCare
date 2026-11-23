@@ -32,16 +32,8 @@
                 value="{{ old('phone', $shop->phone) }}" required></div>
         <div class="col-md-6"><label class="form-label">Email</label><input class="form-control" name="email"
                 value="{{ old('email', $shop->email) }}" required></div>
-        <div class="col-md-6"><label class="form-label">Barangay</label><select class="form-select" name="barangay_id"
-                required>@foreach($barangays as $barangay)
-                    <option value="{{ $barangay->id }}" @selected($shop->barangay_id === $barangay->id)>{{ $barangay->name }}
-                </option>@endforeach
-            </select></div>
-        <div class="col-12"><label class="form-label">{{ $shop->isIndependentMechanic() ? 'Base address (private)' : 'Address' }}</label><input class="form-control" name="address"
-                value="{{ old('address', $shop->address) }}" required></div>
-        @if ($shop->isIndependentMechanic())
-            <x-location-picker :latitude="$shop->latitude" :longitude="$shop->longitude" label="Service-area center" hint="This approximate area appears on the public map. Avoid pinpointing your home." />
-        @endif
+        <div class="col-12"><h2 class="h5">{{ $shop->isIndependentMechanic() ? 'Private base address and public service area' : 'Shop address' }}</h2><x-address-picker prefix="shop-profile" :selected-barangay="$shop->barangay_id" :street="$shop->address" :landmark="$shop->landmark" required /></div>
+        <x-location-picker :latitude="$shop->latitude" :longitude="$shop->longitude" :label="$shop->isIndependentMechanic() ? 'Service-area center' : 'Exact shop pin'" :hint="$shop->isIndependentMechanic() ? 'This approximate area appears on the public map. Avoid pinpointing your home.' : 'Move the pin if the shop location changes.'" />
         <div class="col-md-6"><label class="form-label">Opening time</label><input class="form-control" type="time"
                 name="opening_time"
                 value="{{ old('opening_time', $shop->opening_time ? substr($shop->opening_time, 0, 5) : '') }}"></div>

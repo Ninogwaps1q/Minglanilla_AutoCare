@@ -34,12 +34,16 @@
     </div>
 
     <table class="columns"><tr>
-        <td><strong>FROM</strong><p>{{ $invoice->shop->name }}</p><p>{{ $invoice->shop->isIndependentMechanic() ? 'Independent mobile mechanic · '.$invoice->shop->barangay?->name.', Minglanilla' : $invoice->shop->address }}</p><p>{{ $invoice->shop->phone }}</p></td>
+        <td><strong>FROM</strong><p>{{ $invoice->shop->name }}</p><p>{{ $invoice->shop->isIndependentMechanic() ? 'Independent mobile mechanic · '.$invoice->shop->barangay?->name : $invoice->shop->address }}</p><p>{{ $invoice->shop->phone }}</p></td>
         <td><strong>BILL TO</strong><p>{{ $invoice->customer->name }}</p><p>{{ $invoice->customer->email }}</p><p>Repair: {{ $invoice->repairJob?->job_number ?? 'Service invoice' }}</p></td>
     </tr></table>
 
     <h2>Services and parts</h2>
-    @if ($invoice->repairJob?->appointment?->service_price !== null)
+    @if ($invoice->repairJob?->appointment?->bookedServices?->isNotEmpty())
+        @foreach ($invoice->repairJob->appointment->bookedServices as $bookedService)
+            <p class="muted">Booking terms for {{ $bookedService->service?->name ?? 'service' }} (PHP {{ number_format($bookedService->price, 2) }}): labor {{ $bookedService->labor_included === null ? 'not specified' : ($bookedService->labor_included ? 'included' : 'quoted separately') }}; parts {{ $bookedService->parts_included === null ? 'not specified' : ($bookedService->parts_included ? 'included' : 'quoted separately') }}. {{ $bookedService->scope }}</p>
+        @endforeach
+    @elseif ($invoice->repairJob?->appointment?->service_price !== null)
         <p class="muted">Booking terms for {{ $invoice->repairJob->appointment->service?->name ?? 'service' }}: labor {{ $invoice->repairJob->appointment->service_labor_included === null ? 'not specified' : ($invoice->repairJob->appointment->service_labor_included ? 'included' : 'quoted separately') }}; parts {{ $invoice->repairJob->appointment->service_parts_included === null ? 'not specified' : ($invoice->repairJob->appointment->service_parts_included ? 'included' : 'quoted separately') }}.</p>
         @if ($invoice->repairJob->appointment->service_scope)<p class="muted">{{ $invoice->repairJob->appointment->service_scope }}</p>@endif
     @endif

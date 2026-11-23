@@ -6,7 +6,7 @@
                 <article class="surface p-4">
                     <div class="d-flex justify-content-between gap-3">
                         <div>
-                            <h2 class="h5 mb-1">{{ $review->customer->name }} · {{ $review->repairJob->job_number }}</h2>
+                            <h2 class="h5 mb-1">{{ $review->customer->name }} · {{ $review->repairJob?->job_number ?? $review->appointment?->appointment_date?->format('M j, Y') ?? 'Completed booking' }}</h2>
                             <p class="mb-2"><x-star-rating :rating="$review->rating" /></p>
                             <p>{{ $review->comment }}</p>
                         </div>

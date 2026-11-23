@@ -5,6 +5,7 @@ use App\Models\Barangay;
 use App\Models\Invoice;
 use App\Models\MessageThread;
 use App\Models\RepairJob;
+use App\Models\Region;
 use App\Models\Service;
 use App\Models\ServiceCase;
 use App\Models\ServiceCategory;
@@ -35,6 +36,11 @@ DB::purge('sqlite');
 if (Artisan::call('migrate', ['--force' => true, '--no-interaction' => true]) !== 0) {
     throw new RuntimeException('Could not migrate the isolated browser database.');
 }
+foreach (['VehicleMakeSeeder', 'VehicleModelSeeder'] as $seeder) {
+    if (Artisan::call('db:seed', ['--class' => $seeder, '--force' => true, '--no-interaction' => true]) !== 0) {
+        throw new RuntimeException("Could not seed {$seeder} in the isolated browser database.");
+    }
+}
 
 $password = bin2hex(random_bytes(16));
 foreach (['customer', 'shop_owner', 'admin'] as $role) {
@@ -50,6 +56,8 @@ foreach (['customer', 'shop_owner'] as $role) {
     ]);
 }
 $barangay = Barangay::factory()->create();
+$region = Region::factory()->create(['name' => 'Central Visayas', 'psgc_code' => '070000000']);
+$barangay->municipality->province->update(['region_id' => $region->id]);
 $logoPath = 'shop-logos/browser-map-'.bin2hex(random_bytes(8)).'.png';
 $logoContents = file_get_contents(public_path('images/Minglanilla AutoCare Hub Logo.png'));
 if ($logoContents === false || ! Storage::disk('public')->put($logoPath, $logoContents)) {

@@ -52,7 +52,8 @@ class RepairJob extends Model
             return [];
         }
 
-        $diagnosed = filled($this->diagnosis) || ! in_array($this->status, ['pending', 'diagnosis'], true);
+        $hasInspection = $this->relationLoaded('inspections') ? $this->inspections->isNotEmpty() : $this->inspections()->exists();
+        $diagnosed = $hasInspection || filled($this->diagnosis) || ! in_array($this->status, ['pending', 'diagnosis'], true);
         $estimateApproved = in_array($this->quotation?->status, ['accepted', 'approved'], true);
         $repairStarted = $this->started_at !== null || in_array($this->status, ['repairing', 'in_progress', 'waiting_parts', 'completed', 'released'], true);
         $repairFinished = in_array($this->status, ['completed', 'released'], true);
@@ -60,7 +61,7 @@ class RepairJob extends Model
 
         return [
             ['label' => $this->appointment_id ? 'Booking' : 'Repair opened', 'state' => 'complete'],
-            ['label' => 'Diagnosis', 'state' => $diagnosed ? 'complete' : 'current'],
+            ['label' => 'Inspection', 'state' => $diagnosed ? 'complete' : 'current'],
             ['label' => 'Estimate approval', 'state' => $estimateApproved ? 'complete' : ($diagnosed ? 'current' : 'upcoming')],
             ['label' => 'Repair', 'state' => $repairFinished ? 'complete' : ($estimateApproved || $repairStarted ? 'current' : 'upcoming')],
             ['label' => 'Payment', 'state' => $paymentConfirmed ? 'complete' : ($repairFinished ? 'current' : 'upcoming')],
@@ -123,7 +124,7 @@ class RepairJob extends Model
             return ['actor' => 'Shop', 'action' => 'Review and add the booked service before sending the estimate.'];
         }
 
-        return ['actor' => 'Shop', 'action' => 'Record the diagnosis and work items, then send an estimate.'];
+        return ['actor' => 'Shop', 'action' => 'Record the inspection checklist and work items, then send an estimate.'];
     }
 
     public function quotation(): BelongsTo
@@ -190,19 +191,29 @@ class RepairJob extends Model
 
     public function hasUnbilledBookedService(): bool
     {
-        $serviceId = $this->appointment?->service_id;
-        if ($serviceId === null) {
+        $appointment = $this->appointment;
+        if ($appointment === null || $appointment->service_id === null) {
             return false;
         }
+        $bookedIds = $appointment->bookedServices()->pluck('service_id')->all();
+        if ($bookedIds === []) {
+            $bookedIds = [$appointment->service_id];
+        }
+        $itemIds = $this->relationLoaded('items')
+            ? $this->items->pluck('service_id')->all()
+            : $this->items()->pluck('service_id')->all();
 
-        return $this->relationLoaded('items')
-            ? ! $this->items->contains('service_id', $serviceId)
-            : ! $this->items()->where('service_id', $serviceId)->exists();
+        return array_diff($bookedIds, $itemIds) !== [];
     }
 
     public function photos(): HasMany
     {
         return $this->hasMany(RepairPhoto::class)->oldest();
+    }
+
+    public function inspections(): HasMany
+    {
+        return $this->hasMany(VehicleInspection::class);
     }
 
     public function warranty(): HasOne

@@ -23,7 +23,9 @@ class DatabaseSeeder extends Seeder
         foreach (['Cadulawan', 'Calajo-an', 'Camp 7', 'Camp 8', 'Cuanos', 'Guindaruhan', 'Linao', 'Manduang', 'Pakigne', 'Poblacion Ward I', 'Poblacion Ward II', 'Poblacion Ward III', 'Poblacion Ward IV', 'Tubod', 'Tulay', 'Tunghaan', 'Tungkil', 'Tungkop', 'Vito'] as $name) {
             Barangay::query()->firstOrCreate(['municipality_id' => $minglanilla->id, 'name' => $name], ['status' => 'active']);
         }
+        $this->call(RegionSeeder::class);
         $this->call(ServiceCatalogSeeder::class);
+        $this->call([VehicleMakeSeeder::class, VehicleModelSeeder::class]);
 
         if (! app()->environment(['local', 'testing'])) {
             return;

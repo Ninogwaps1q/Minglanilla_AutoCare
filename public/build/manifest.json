@@ -1,4 +1,8 @@
 {
+  "_google-maps-po1urNhW.js": {
+    "file": "assets/google-maps-po1urNhW.js",
+    "name": "google-maps"
+  },
   "node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff": {
     "file": "assets/bootstrap-icons-BeopsB42.woff",
     "src": "node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff"
@@ -8,7 +12,7 @@
     "src": "node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff2"
   },
   "resources/css/app.css": {
-    "file": "assets/app-0H5I6tc5.css",
+    "file": "assets/app-ChxHyvIo.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "app",
@@ -25,32 +29,62 @@
       "style.css"
     ]
   },
+  "resources/js/address-picker.js": {
+    "file": "assets/address-picker-CdYot20F.js",
+    "name": "address-picker",
+    "src": "resources/js/address-picker.js",
+    "isDynamicEntry": true
+  },
   "resources/js/app.js": {
-    "file": "assets/app-BOgFOkHP.js",
+    "file": "assets/app-DEKQnPjT.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "dynamicImports": [
-      "resources/js/passport-scanner.js",
-      "resources/js/landing-map.js"
+      "resources/js/landing-map.js",
+      "resources/js/shop-directory-map.js",
+      "resources/js/location-picker.js",
+      "resources/js/vehicle-picker.js",
+      "resources/js/address-picker.js"
     ]
   },
   "resources/js/landing-map.js": {
-    "file": "assets/landing-map-BuK5HsD8.js",
+    "file": "assets/landing-map-BCKV6skm.js",
     "name": "landing-map",
     "src": "resources/js/landing-map.js",
-    "isDynamicEntry": true
+    "isDynamicEntry": true,
+    "imports": [
+      "_google-maps-po1urNhW.js"
+    ]
   },
-  "resources/js/passport-scanner.js": {
-    "file": "assets/passport-scanner-M6CIEUYf.js",
-    "name": "passport-scanner",
-    "src": "resources/js/passport-scanner.js",
-    "isDynamicEntry": true
+  "resources/js/location-picker.js": {
+    "file": "assets/location-picker-DUBMHLoo.js",
+    "name": "location-picker",
+    "src": "resources/js/location-picker.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_google-maps-po1urNhW.js"
+    ]
   },
   "resources/js/reports.js": {
     "file": "assets/reports-CEIvvpTP.js",
     "name": "reports",
     "src": "resources/js/reports.js",
     "isEntry": true
+  },
+  "resources/js/shop-directory-map.js": {
+    "file": "assets/shop-directory-map-Ch8E1kjk.js",
+    "name": "shop-directory-map",
+    "src": "resources/js/shop-directory-map.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_google-maps-po1urNhW.js"
+    ]
+  },
+  "resources/js/vehicle-picker.js": {
+    "file": "assets/vehicle-picker-DXm4SWxQ.js",
+    "name": "vehicle-picker",
+    "src": "resources/js/vehicle-picker.js",
+    "isDynamicEntry": true
   }
 }

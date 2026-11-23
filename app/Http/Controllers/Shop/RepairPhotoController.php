@@ -16,7 +16,7 @@ class RepairPhotoController extends Controller
     {
         abort_unless($repairJob->shop_id === $request->user()->managedShopOrFail()->id, 404);
         $data = $request->validate([
-            'stage' => ['required', Rule::in(['before', 'after'])],
+            'stage' => ['required', Rule::in(['damage', 'before', 'after'])],
             'photo' => ['required', 'image', 'mimes:jpeg,png,webp', 'max:5120'],
             'caption' => ['nullable', 'string', 'max:255'],
         ]);
@@ -24,8 +24,8 @@ class RepairPhotoController extends Controller
             || in_array($repairJob->status, ['repairing', 'in_progress', 'waiting_parts', 'completed', 'released'], true);
         if ($repairJob->status === 'cancelled'
             || ($data['stage'] === 'after' && ! $workHasStarted)
-            || ($data['stage'] === 'before' && $workHasStarted)) {
-            throw ValidationException::withMessages(['stage' => 'Before photos must be taken before work starts; after photos require a started repair. Cancelled repairs cannot receive photos.']);
+            || (in_array($data['stage'], ['damage', 'before'], true) && $workHasStarted)) {
+            throw ValidationException::withMessages(['stage' => 'Damage and before photos must be taken before work starts; after photos require a started repair. Cancelled repairs cannot receive photos.']);
         }
         if ($repairJob->photos()->where('stage', $data['stage'])->count() >= 6) {
             throw ValidationException::withMessages(['photo' => 'This repair already has six photos for this stage.']);

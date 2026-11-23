@@ -13,7 +13,7 @@ class Municipality extends Model
     /** @use HasFactory<MunicipalityFactory> */
     use HasFactory;
 
-    protected $fillable = ['province_id', 'name', 'code'];
+    protected $fillable = ['province_id', 'name', 'code', 'psgc_code'];
 
     public function province(): BelongsTo
     {

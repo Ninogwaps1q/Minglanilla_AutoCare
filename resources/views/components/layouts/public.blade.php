@@ -67,7 +67,7 @@
                 @endauth
             </div>
         </div>
-        <div class="container public-footer-bottom"><span>&copy; {{ now()->year }} Minglanilla AutoCare Hub</span><span>Serving drivers and service shops in Minglanilla, Cebu.</span></div>
+            <div class="container public-footer-bottom"><span>&copy; {{ now()->year }} Minglanilla AutoCare Hub</span><span>Serving drivers and service shops across the Philippines.</span></div>
     </footer>
     @stack('scripts')
 </body>

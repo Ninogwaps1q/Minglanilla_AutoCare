@@ -27,10 +27,11 @@ class StoreInspectionRequest extends FormRequest
             'overall_condition' => ['required', 'in:Good,Needs Attention,Critical'],
             'notes' => ['nullable', 'string', 'max:5000'],
             'items' => ['required', 'array', 'min:1', 'max:50'],
-            'items.*' => ['array:category,item_name,condition,recommendation'],
+            'items.*' => ['array:category,item_name,condition,recommendation,has_problem'],
             'items.*.category' => ['required', 'string', 'max:255'],
             'items.*.item_name' => ['required', 'string', 'max:255'],
-            'items.*.condition' => ['required', 'in:Good,Needs Attention,Critical'],
+            'items.*.condition' => ['nullable', 'in:Good,Needs Attention,Critical'],
+            'items.*.has_problem' => ['nullable', 'boolean'],
             'items.*.recommendation' => ['nullable', 'string', 'max:5000'],
         ];
     }

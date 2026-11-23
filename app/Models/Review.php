@@ -23,4 +23,9 @@ class Review extends Model
     {
         return $this->belongsTo(RepairJob::class);
     }
+
+    public function appointment(): BelongsTo
+    {
+        return $this->belongsTo(Appointment::class);
+    }
 }

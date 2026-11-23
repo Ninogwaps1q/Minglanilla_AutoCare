@@ -21,7 +21,7 @@
                   <a class="btn btn-primary btn-sm mb-3" href="{{ route('customer.quotations.index', ['focus' => $repairJob->pendingSupplementalQuotation->id]) }}">Review revised estimate</a>
               @endif
             @if ($repairJob->appointment)
-                <p class="small text-secondary mb-3"><strong>Booked service:</strong> {{ $repairJob->appointment->service?->name ?? 'Service' }} · {{ $repairJob->appointment->appointment_date->format('M j, Y') }} at {{ $repairJob->appointment->appointment_time->format('g:i A') }}</p>
+                <p class="small text-secondary mb-3"><strong>Booked services:</strong> {{ $repairJob->appointment->bookedServices->isNotEmpty() ? $repairJob->appointment->bookedServices->pluck('service.name')->filter()->implode(', ') : ($repairJob->appointment->service?->name ?? 'Service') }} · {{ $repairJob->appointment->appointment_date->format('M j, Y') }} at {{ $repairJob->appointment->appointment_time->format('g:i A') }}</p>
                 @if ($repairJob->appointment->service_price !== null)
                     <p class="small mb-2"><strong>Booked price: PHP {{ number_format($repairJob->appointment->service_price, 2) }}</strong> · Labor: {{ $repairJob->appointment->service_labor_included === null ? 'ask shop' : ($repairJob->appointment->service_labor_included ? 'included' : 'quoted separately') }} · Parts: {{ $repairJob->appointment->service_parts_included === null ? 'ask shop' : ($repairJob->appointment->service_parts_included ? 'included' : 'quoted separately') }}</p>
                     @if ($repairJob->appointment->service_scope)<p class="small text-secondary mb-3">{{ $repairJob->appointment->service_scope }}</p>@endif
@@ -46,6 +46,11 @@
             @if ($repairJob->diagnosis)
                 <p><strong>Diagnosis:</strong> {{ $repairJob->diagnosis }}</p>
             @endif
+            @foreach ($repairJob->inspections as $inspection)
+                <details class="repair-details mb-3"><summary>Inspection checklist · {{ $inspection->inspection_date->format('M j, Y') }}</summary>
+                    <ul class="mt-3 mb-0">@foreach ($inspection->items as $item)<li><strong>{{ $item->category }}: {{ $item->item_name }}</strong> — {{ $item->condition }}@if ($item->recommendation) · {{ $item->recommendation }}@endif</li>@endforeach</ul>
+                </details>
+            @endforeach
             @if ($repairJob->items->isNotEmpty())
                 <div class="table-responsive mb-2">
                     <table class="table table-sm align-middle">
@@ -88,7 +93,7 @@
                 </details>
             @endif
             @if($repairJob->photos->isNotEmpty())
-                <details class="repair-details mb-3"><summary>Before & after photos · {{ $repairJob->photos->count() }}</summary><div class="repair-evidence-grid mt-3">@foreach($repairJob->photos as $photo)<figure class="mb-0"><a href="{{ route('repair-photos.show', $photo) }}" target="_blank" rel="noopener"><img class="repair-evidence-image" src="{{ route('repair-photos.show', $photo) }}" alt="{{ ucfirst($photo->stage) }} repair photo: {{ $photo->caption ?: $repairJob->vehicle->plate_number }}" loading="lazy"></a><figcaption class="small mt-1"><strong>{{ ucfirst($photo->stage) }}</strong>@if($photo->caption) · {{ $photo->caption }}@endif</figcaption></figure>@endforeach</div></details>
+                <details class="repair-details mb-3"><summary>Damage and repair photos · {{ $repairJob->photos->count() }}</summary><div class="repair-evidence-grid mt-3">@foreach($repairJob->photos as $photo)<figure class="mb-0"><a href="{{ route('repair-photos.show', $photo) }}" target="_blank" rel="noopener"><img class="repair-evidence-image" src="{{ route('repair-photos.show', $photo) }}" alt="{{ ucfirst($photo->stage) }} repair photo: {{ $photo->caption ?: $repairJob->vehicle->plate_number }}" loading="lazy"></a><figcaption class="small mt-1"><strong>{{ ucfirst($photo->stage) }}</strong>@if($photo->caption) · {{ $photo->caption }}@endif</figcaption></figure>@endforeach</div></details>
             @endif
             @if(in_array($repairJob->status, ['completed', 'released'], true))
                 <section class="border rounded p-3 mb-3" aria-label="Warranty and aftercare">

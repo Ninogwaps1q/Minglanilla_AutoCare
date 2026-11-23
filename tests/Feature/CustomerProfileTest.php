@@ -14,6 +14,7 @@ it('updates the authenticated customer profile', function () {
         'name' => 'Jamie Cruz',
         'phone' => '09171234567',
         'address' => 'Poblacion, Minglanilla',
+        'landmark' => 'Near the public market',
         'barangay_id' => $barangay->id,
     ]);
 
@@ -23,6 +24,7 @@ it('updates the authenticated customer profile', function () {
         'name' => 'Jamie Cruz',
         'phone' => '09171234567',
         'barangay_id' => $barangay->id,
+        'landmark' => 'Near the public market',
     ]);
 });
 

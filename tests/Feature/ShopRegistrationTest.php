@@ -50,3 +50,16 @@ it('rejects service ids that are not in the catalog', function () {
     $response->assertRedirect(route('shop.register'));
     $response->assertSessionHasErrors('service_ids.0');
 });
+
+it('accepts a shop pin elsewhere in the Philippines', function () {
+    $owner = User::factory()->create(['role' => 'shop_owner']);
+    $barangay = Barangay::factory()->create(['status' => 'active']);
+
+    $this->actingAs($owner)->post(route('shop.register.store'), [
+        'name' => 'Davao Service Shop', 'phone' => '09170000000', 'email' => 'davao@example.test',
+        'address' => 'Sample Street', 'barangay_id' => $barangay->id, 'landmark' => 'Near the plaza',
+        'latitude' => 7.0731, 'longitude' => 125.6128,
+    ])->assertRedirect(route('dashboard'));
+
+    $this->assertDatabaseHas('shops', ['name' => 'Davao Service Shop', 'latitude' => 7.0731, 'longitude' => 125.6128, 'landmark' => 'Near the plaza']);
+});

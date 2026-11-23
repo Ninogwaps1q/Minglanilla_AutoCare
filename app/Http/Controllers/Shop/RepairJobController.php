@@ -62,7 +62,7 @@ class RepairJobController extends Controller
 
         return view('shop.repair-jobs.index', [
             'repairJobs' => $this->shop($request)->repairJobs()
-                ->with(['customer', 'vehicle', 'appointment', 'photos', 'warranty', 'serviceCases', 'invoice.issuedBy', 'invoice.payments.customer', 'invoice.payments.reviewedBy', 'items.sparePart', 'items.inventoryTransactions', 'items.reservation', 'quotation.approvalRecords.customer', 'pendingSupplementalQuotation', 'supplementalQuotations', 'statusHistories.changedBy', 'technicianAssignments.technician'])
+                ->with(['customer', 'vehicle', 'appointment', 'inspections.items', 'photos', 'warranty', 'serviceCases', 'invoice.issuedBy', 'invoice.payments.customer', 'invoice.payments.reviewedBy', 'items.sparePart', 'items.inventoryTransactions', 'items.reservation', 'quotation.approvalRecords.customer', 'pendingSupplementalQuotation', 'supplementalQuotations', 'statusHistories.changedBy', 'technicianAssignments.technician'])
                 ->when($status, fn ($query) => $query->where('status', $status))
                 ->when($request->integer('appointment_id') > 0, fn ($query) => $query->where('appointment_id', $request->integer('appointment_id')))
                 ->when($request->integer('repair_job_id') > 0, fn ($query) => $query->whereKey($request->integer('repair_job_id')))
@@ -104,7 +104,8 @@ class RepairJobController extends Controller
             if ($appointment->rescheduleRequests()->where('status', 'pending')->exists()) {
                 throw ValidationException::withMessages(['appointment_id' => 'Approve or decline the pending time change before starting this repair.']);
             }
-            $servicePrice = $this->bookedServicePrice($appointment, $shop);
+            $bookedLines = $this->bookedServiceLines($appointment, $shop);
+            $servicePrice = $bookedLines === [] ? null : number_format(array_sum(array_column($bookedLines, 'price_cents')) / 100, 2, '.', '');
             $repairJob = $shop->repairJobs()->create([
                 ...$request->validated(),
                 'customer_id' => $appointment->customer_id,
@@ -114,14 +115,16 @@ class RepairJobController extends Controller
                 'estimated_cost' => $servicePrice ?? $request->validated('estimated_cost'),
             ]);
             if ($servicePrice !== null) {
-                $repairJob->items()->create([
-                    'service_id' => $appointment->service_id,
-                    'type' => 'service',
-                    'description' => $appointment->service->name,
-                    'quantity' => 1,
-                    'unit_price' => $servicePrice,
-                    'subtotal' => $servicePrice,
-                ]);
+                foreach ($bookedLines as $line) {
+                    $repairJob->items()->create([
+                        'service_id' => $line['service_id'],
+                        'type' => 'service',
+                        'description' => $line['name'],
+                        'quantity' => 1,
+                        'unit_price' => $line['price'],
+                        'subtotal' => $line['price'],
+                    ]);
+                }
                 $repairJob->update(['actual_cost' => $servicePrice]);
             }
             $repairJob->statusHistories()->create(['to_status' => 'pending', 'changed_by' => $request->user()->id, 'changed_at' => now()]);
@@ -154,27 +157,27 @@ class RepairJobController extends Controller
             if ($appointment === null || $appointment->service_id === null) {
                 throw ValidationException::withMessages(['service' => 'This repair has no booked service to add.']);
             }
-            if ($job->items()->where('service_id', $appointment->service_id)->exists()) {
-                return;
+            foreach ($this->bookedServiceLines($appointment, $shop) as $line) {
+                if ($job->items()->where('service_id', $line['service_id'])->exists()) {
+                    continue;
+                }
+                if ($job->items()->where('type', 'service')->get()->contains(
+                    fn ($item): bool => strcasecmp(trim($item->description), trim($line['name'])) === 0
+                )) {
+                    throw ValidationException::withMessages(['service' => 'A service line with this name already exists. Review or remove it first to avoid charging twice.']);
+                }
+                if ((float) $job->items()->sum('subtotal') + (float) $line['price'] > 9999999999.99) {
+                    throw ValidationException::withMessages(['service' => 'The repair total is too large to add this service.']);
+                }
+                $job->items()->create([
+                    'service_id' => $line['service_id'],
+                    'type' => 'service',
+                    'description' => $line['name'],
+                    'quantity' => 1,
+                    'unit_price' => $line['price'],
+                    'subtotal' => $line['price'],
+                ]);
             }
-            $servicePrice = $this->bookedServicePrice($appointment, $shop);
-            $serviceName = $appointment->service->name;
-            if ($job->items()->where('type', 'service')->get()->contains(
-                fn ($item): bool => strcasecmp(trim($item->description), trim($serviceName)) === 0
-            )) {
-                throw ValidationException::withMessages(['service' => 'A service line with this name already exists. Review or remove it first to avoid charging twice.']);
-            }
-            if ((float) $job->items()->sum('subtotal') + (float) $servicePrice > 9999999999.99) {
-                throw ValidationException::withMessages(['service' => 'The repair total is too large to add this service.']);
-            }
-            $job->items()->create([
-                'service_id' => $appointment->service_id,
-                'type' => 'service',
-                'description' => $serviceName,
-                'quantity' => 1,
-                'unit_price' => $servicePrice,
-                'subtotal' => $servicePrice,
-            ]);
             $job->update(['actual_cost' => $job->items()->sum('subtotal')]);
         });
 
@@ -319,5 +322,27 @@ class RepairJobController extends Controller
         }
 
         return (string) $price;
+    }
+
+    /** @return array<int, array{service_id: int, name: string, price: string, price_cents: int}> */
+    private function bookedServiceLines(Appointment $appointment, Shop $shop): array
+    {
+        $booked = $appointment->bookedServices()->with('service:id,name')->get();
+        if ($booked->isNotEmpty()) {
+            return $booked->map(fn ($line): array => [
+                'service_id' => $line->service_id,
+                'name' => $line->service->name,
+                'price' => (string) $line->price,
+                'price_cents' => (int) round((float) $line->price * 100),
+            ])->all();
+        }
+        $price = $this->bookedServicePrice($appointment, $shop);
+
+        return $price === null ? [] : [[
+            'service_id' => $appointment->service_id,
+            'name' => $appointment->service->name,
+            'price' => $price,
+            'price_cents' => (int) round((float) $price * 100),
+        ]];
     }
 }

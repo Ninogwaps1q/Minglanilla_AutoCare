@@ -24,7 +24,7 @@ it('filters repair jobs by stage while keeping the next action visible', functio
     ]);
 
     $this->actingAs($fixture['owner'])->get(route('shop.repair-jobs.index', ['status' => 'waiting_approval']))
-        ->assertOk()->assertSee('Record the diagnosis and work items, then send an estimate.')
+        ->assertOk()->assertSee('Record the inspection checklist and work items, then send an estimate.')
         ->assertSee('RJ-TEST-001')->assertDontSee('RJ-TEST-002')
         ->assertViewHas('repairJobs', fn ($jobs) => $jobs->total() === 1);
 });
@@ -149,23 +149,22 @@ it('blocks repair work and manual cost changes until the customer approves an es
         ->assertOk()->assertSee('Workflow history')->assertSee('Diagnosis')->assertSee($fixture['owner']->name);
 });
 
-it('lets the shop update diagnosis notes without changing the stage or sending a status notification', function () {
+it('lets the shop update technician notes without changing the stage or sending a status notification', function () {
     $fixture = repairFixture();
     $job = $fixture['repairJob'];
     $job->update(['status' => 'diagnosis']);
 
     $this->actingAs($fixture['owner'])->patch(route('shop.repair-jobs.update', $job), [
         'status' => 'diagnosis',
-        'diagnosis' => 'Brake pads are worn.',
         'technician_notes' => 'Replace both front pads.',
     ])->assertRedirect()->assertSessionHasNoErrors();
 
     $this->assertDatabaseHas('repair_jobs', [
         'id' => $job->id, 'status' => 'diagnosis',
-        'diagnosis' => 'Brake pads are worn.', 'technician_notes' => 'Replace both front pads.',
+        'diagnosis' => null, 'technician_notes' => 'Replace both front pads.',
     ]);
     $this->assertDatabaseMissing('notifications', ['user_id' => $fixture['customer']->id, 'type' => 'repair_status']);
-    $this->actingAs($fixture['customer'])->get(route('customer.repairs.index'))->assertOk()->assertSee('Brake pads are worn.');
+    $this->actingAs($fixture['customer'])->get(route('customer.repairs.index'))->assertOk()->assertSee($job->job_number);
 });
 
 it('lets a customer approve their sent quotation', function () {
@@ -259,7 +258,7 @@ it('guides an itemized diagnosis through estimate approval, repair start, comple
     $this->post(route('shop.repair-job-items.store', $job), ['type' => 'part', 'description' => 'Brake pads', 'quantity' => 1, 'unit_price' => 750])->assertRedirect();
 
     $this->get(route('shop.repair-jobs.index'))
-        ->assertOk()->assertSee('Send estimate for approval')->assertSee('Record the diagnosis and work items, then send an estimate.');
+        ->assertOk()->assertSee('Send estimate for approval')->assertSee('Record the inspection checklist and work items, then send an estimate.');
     $this->get(route('shop.quotations.create', $job))
         ->assertOk()->assertSee('Brake labor')->assertSee('Brake pads')->assertSee('PHP 1,250.00');
     $this->post(route('shop.quotations.store', $job), ['valid_until' => today()->addDays(7)->toDateString(), 'notes' => 'Parts and labor'])

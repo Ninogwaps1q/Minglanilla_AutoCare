@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AddressCatalogController;
 use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\BarangayController;
 use App\Http\Controllers\Admin\MonitoringController;
@@ -16,6 +17,7 @@ use App\Http\Controllers\Admin\ShopPlanPaymentController as AdminShopPlanPayment
 use App\Http\Controllers\Admin\ShopVerificationController;
 use App\Http\Controllers\Admin\SubscriptionBillingController as AdminSubscriptionBillingController;
 use App\Http\Controllers\Admin\UserManagementController;
+use App\Http\Controllers\Admin\VehicleCatalogController as AdminVehicleCatalogController;
 use App\Http\Controllers\Auth\AdminTwoFactorController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\ConfirmAdminPasswordController;
@@ -46,8 +48,6 @@ use App\Http\Controllers\Customer\ServiceCaseController as CustomerServiceCaseCo
 use App\Http\Controllers\Customer\ServiceHistoryController;
 use App\Http\Controllers\Customer\ServiceOverviewController;
 use App\Http\Controllers\Customer\VehicleController;
-use App\Http\Controllers\Customer\VehiclePassportController;
-use App\Http\Controllers\Customer\VehiclePassportShareController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PublicImageController;
 use App\Http\Controllers\PublicShopController;
@@ -67,7 +67,6 @@ use App\Http\Controllers\Shop\RepairWarrantyController;
 use App\Http\Controllers\Shop\ReportController as ShopReportController;
 use App\Http\Controllers\Shop\ReviewController as ShopReviewController;
 use App\Http\Controllers\Shop\ServiceCaseController as ShopServiceCaseController;
-use App\Http\Controllers\Shop\SharedVehiclePassportController;
 use App\Http\Controllers\Shop\ShopDashboardController;
 use App\Http\Controllers\Shop\ShopDocumentController;
 use App\Http\Controllers\Shop\ShopManagementController;
@@ -76,15 +75,22 @@ use App\Http\Controllers\Shop\StaffAccountController;
 use App\Http\Controllers\Shop\SubscriptionBillingController;
 use App\Http\Controllers\Shop\TechnicianController;
 use App\Http\Controllers\Shop\TodayWorkController;
-use App\Http\Controllers\Shop\VehiclePassportScannerController;
 use App\Http\Controllers\ShopMapController;
 use App\Http\Controllers\ShopPricingController;
 use App\Http\Controllers\ShopRegistrationController;
+use App\Http\Controllers\VehicleCatalogController;
 use App\Http\Middleware\EnsureRecentAdminPassword;
 use App\Http\Middleware\EnsureShopStaffPermission;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'index')->name('home');
+Route::get('/catalog/regions', [AddressCatalogController::class, 'regions'])->name('catalog.regions');
+Route::get('/catalog/provinces', [AddressCatalogController::class, 'provinces'])->name('catalog.provinces');
+Route::get('/catalog/municipalities', [AddressCatalogController::class, 'municipalities'])->name('catalog.municipalities');
+Route::get('/catalog/barangays', [AddressCatalogController::class, 'barangays'])->name('catalog.barangays');
+Route::get('/catalog/address-path', [AddressCatalogController::class, 'path'])->name('catalog.address-path');
+Route::get('/catalog/vehicle-makes', [VehicleCatalogController::class, 'makes'])->name('catalog.vehicle-makes');
+Route::get('/catalog/vehicle-models', [VehicleCatalogController::class, 'models'])->name('catalog.vehicle-models');
 Route::get('/shop/pricing', [ShopPricingController::class, 'index'])->name('shop.pricing');
 Route::get('/media/{directory}/{filename}', PublicImageController::class)
     ->whereIn('directory', ['profile-photos', 'shop-logos', 'shop-covers', 'vehicles', 'technicians'])
@@ -141,9 +147,6 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         Route::get('today-work', TodayWorkController::class)->name('today-work.index');
         Route::get('service-cases', [ShopServiceCaseController::class, 'index'])->name('service-cases.index');
         Route::patch('service-cases/{serviceCase}', [ShopServiceCaseController::class, 'update'])->name('service-cases.update');
-        Route::get('passports/scan', [VehiclePassportScannerController::class, 'index'])->name('passports.scan');
-        Route::post('passports/open', [VehiclePassportScannerController::class, 'open'])->middleware('throttle:30,1')->name('passports.open');
-        Route::get('shared-passports/{passportShare}', SharedVehiclePassportController::class)->middleware(['signed', 'throttle:30,1'])->name('passports.shared');
         Route::get('quotations', [ShopQuotationController::class, 'index'])->name('quotations.index');
         Route::get('quotations/{quotation}/edit', [ShopQuotationController::class, 'edit'])->name('quotations.edit');
         Route::put('quotations/{quotation}', [ShopQuotationController::class, 'update'])->name('quotations.update');
@@ -246,6 +249,11 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::get('/admin/reports', [ReportController::class, 'index'])->middleware(['auth', 'role:admin'])->name('admin.reports.index');
     Route::get('/admin/reports/download', [ReportController::class, 'download'])->middleware(['auth', 'role:admin'])->name('admin.reports.download');
     Route::get('/admin/users', [UserManagementController::class, 'index'])->middleware(['auth', 'role:admin'])->name('admin.users.index');
+    Route::get('/admin/vehicle-catalog', [AdminVehicleCatalogController::class, 'index'])->middleware(['auth', 'role:admin'])->name('admin.vehicle-catalog.index');
+    Route::post('/admin/vehicle-makes', [AdminVehicleCatalogController::class, 'storeMake'])->middleware(['auth', 'role:admin'])->name('admin.vehicle-makes.store');
+    Route::put('/admin/vehicle-makes/{vehicleMake}', [AdminVehicleCatalogController::class, 'updateMake'])->middleware(['auth', 'role:admin'])->name('admin.vehicle-makes.update');
+    Route::post('/admin/vehicle-models', [AdminVehicleCatalogController::class, 'storeModel'])->middleware(['auth', 'role:admin'])->name('admin.vehicle-models.store');
+    Route::put('/admin/vehicle-models/{vehicleModel}', [AdminVehicleCatalogController::class, 'updateModel'])->middleware(['auth', 'role:admin'])->name('admin.vehicle-models.update');
     Route::patch('/admin/users/{user}', [UserManagementController::class, 'update'])->middleware(['auth', 'role:admin'])->name('admin.users.update');
     Route::get('/admin/reviews', [ReviewModerationController::class, 'index'])->middleware(['auth', 'role:admin'])->name('admin.reviews.index');
     Route::patch('/admin/reviews/{review}', [ReviewModerationController::class, 'update'])->middleware(['auth', 'role:admin'])->name('admin.reviews.update');
@@ -267,11 +275,6 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         Route::get('profile', [ProfileController::class, 'edit'])->name('profile.edit');
         Route::put('profile', [ProfileController::class, 'update'])->name('profile.update');
         Route::resource('vehicles', VehicleController::class);
-        Route::get('vehicles/{vehicle}/passport', [VehiclePassportController::class, 'show'])->name('vehicles.passport');
-        Route::get('vehicles/{vehicle}/passport/qr', [VehiclePassportController::class, 'qr'])->name('vehicles.passport.qr');
-        Route::post('vehicles/{vehicle}/passport/shares', [VehiclePassportShareController::class, 'store'])->middleware('throttle:5,1')->name('vehicles.passport.shares.store');
-        Route::delete('vehicles/{vehicle}/passport/shares/{passportShare}', [VehiclePassportShareController::class, 'destroy'])->name('vehicles.passport.shares.destroy');
-        Route::get('vehicles/{vehicle}/passport/shares/{passportShare}/qr', [VehiclePassportShareController::class, 'qr'])->name('vehicles.passport.shares.qr');
         Route::get('service-history', [ServiceHistoryController::class, 'index'])->name('service-history.index');
         Route::get('favorites', [FavoriteController::class, 'index'])->name('favorites.index');
         Route::post('favorites/{shop}', [FavoriteController::class, 'store'])->name('favorites.store');

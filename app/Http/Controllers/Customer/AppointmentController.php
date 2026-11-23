@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Customer;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreAppointmentRequest;
 use App\Models\Appointment;
+use App\Models\Barangay;
 use App\Models\Shop;
 use App\Models\ShopService;
+use App\Models\Vehicle;
 use App\Services\AppointmentSchedule;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -25,7 +27,7 @@ class AppointmentController extends Controller
 
         return view('customer.appointments.index', [
             'appointments' => $request->user()->appointments()
-                ->with(['shop', 'vehicle', 'service', 'serviceCase', 'repairJob', 'latestRescheduleRequest'])
+                ->with(['shop', 'vehicle', 'service', 'bookedServices.service', 'serviceCase', 'repairJob', 'latestRescheduleRequest'])
                 ->when($request->integer('focus') > 0, fn ($query) => $query->whereKey($request->integer('focus')))
                 ->when($status, fn ($query) => $query->where('status', $status))
                 ->orderBy('appointment_date')
@@ -40,17 +42,19 @@ class AppointmentController extends Controller
         $attributes = $request->validate([
             'shop_id' => ['required', 'integer'],
             'date' => ['required', 'date', 'after_or_equal:today'],
+            'service_ids' => ['nullable', 'array', 'max:10'],
+            'service_ids.*' => ['integer', 'distinct'],
         ]);
         $shop = Shop::query()->where('verification_status', 'approved')->where('shop_status', 'active')
             ->whereHas('owner', fn ($query) => $query->where('status', 'active'))
             ->withOnlineBookings()
             ->findOrFail($attributes['shop_id']);
-        $serviceId = $request->integer('service_id');
-        $offer = $serviceId > 0 ? ShopService::query()->where('shop_id', $shop->id)
-            ->where('service_id', $serviceId)->where('availability', true)
-            ->with('service:id,estimated_duration')->first() : null;
-        if ($serviceId > 0 && ! $offer?->service) {
-            throw ValidationException::withMessages(['service_id' => 'Choose a service offered by this shop.']);
+        $serviceIds = $attributes['service_ids'] ?? array_filter([$request->integer('service_id')]);
+        $offers = ShopService::query()->where('shop_id', $shop->id)
+            ->whereIn('service_id', $serviceIds)->where('availability', true)
+            ->with('service:id,estimated_duration')->get();
+        if ($offers->count() !== count($serviceIds)) {
+            throw ValidationException::withMessages(['service_ids' => 'Choose services offered by this provider.']);
         }
         $intervals = $schedule->bookedIntervals($shop, $attributes['date']);
 
@@ -61,7 +65,7 @@ class AppointmentController extends Controller
             'schedule_blocks' => collect($shop->schedule_blocks ?? [])->where('date', $attributes['date'])->values(),
             'taken_times' => collect($intervals)->map(fn (array $interval): string => sprintf('%02d:%02d', intdiv($interval['start'], 60), $interval['start'] % 60))->values(),
             'booked_intervals' => $intervals,
-            'duration_minutes' => (int) ($offer?->service?->estimated_duration ?: 60),
+            'duration_minutes' => $offers->isEmpty() ? 60 : $offers->sum(fn (ShopService $offer): int => (int) ($offer->service?->estimated_duration ?: 60)),
             'capacity' => (int) $shop->booking_capacity,
         ]);
     }
@@ -83,6 +87,7 @@ class AppointmentController extends Controller
                 ->orderBy('name')
                 ->get(),
             'vehicles' => $vehicles,
+            'newVehicle' => new Vehicle,
             'selectedShopId' => $request->integer('shop_id'),
             'selectedVehicleId' => $selectedVehicleId,
         ]);
@@ -91,7 +96,9 @@ class AppointmentController extends Controller
     public function store(StoreAppointmentRequest $request, AppointmentSchedule $schedule): RedirectResponse
     {
         $attributes = $request->validated();
-        $appointment = DB::transaction(function () use ($request, $attributes, $schedule): Appointment {
+        $serviceIds = $attributes['service_ids'] ?? [$attributes['service_id']];
+        unset($attributes['service_ids']);
+        $appointment = DB::transaction(function () use ($request, $attributes, $serviceIds, $schedule): Appointment {
             $shop = Shop::query()->lockForUpdate()->findOrFail($attributes['shop_id']);
             if ($shop->verification_status !== 'approved' || $shop->shop_status !== 'active' || $shop->owner->status !== 'active') {
                 throw ValidationException::withMessages(['shop_id' => 'This shop is no longer accepting appointments.']);
@@ -99,19 +106,27 @@ class AppointmentController extends Controller
             if (! $shop->hasPlanAtLeast('basic')) {
                 throw ValidationException::withMessages(['shop_id' => 'This shop is listed for discovery but is not accepting online bookings right now.']);
             }
-            if ($shop->isIndependentMechanic() && blank($attributes['service_address'] ?? null)) {
-                throw ValidationException::withMessages(['service_address' => 'Enter the address where the mechanic should meet you.']);
+            if ($shop->isIndependentMechanic() && (blank($attributes['service_street'] ?? null) || empty($attributes['service_barangay_id']))) {
+                throw ValidationException::withMessages(['service_street' => 'Enter the full visit address for this mobile service.']);
             }
-            if (! $shop->isIndependentMechanic()) {
-                unset($attributes['service_address']);
+            if ($shop->isIndependentMechanic()) {
+                $barangay = Barangay::query()->with('municipality.province')->findOrFail($attributes['service_barangay_id']);
+                $attributes['service_address'] = implode(', ', array_filter([
+                    $attributes['service_street'],
+                    $barangay->name,
+                    $barangay->municipality->name,
+                    $barangay->municipality->province->name,
+                ]));
+            } else {
+                unset($attributes['service_barangay_id'], $attributes['service_street'], $attributes['service_landmark']);
             }
-            $offer = ShopService::query()->where('shop_id', $shop->id)
-                ->where('service_id', $attributes['service_id'])->where('availability', true)
-                ->with('service:id,estimated_duration')->first();
-            if (! $offer?->service) {
-                throw ValidationException::withMessages(['service_id' => 'This service is no longer available at the shop.']);
+            $offers = ShopService::query()->where('shop_id', $shop->id)
+                ->whereIn('service_id', $serviceIds)->where('availability', true)
+                ->with('service:id,estimated_duration')->get()->keyBy('service_id');
+            if ($offers->count() !== count($serviceIds) || $offers->contains(fn (ShopService $offer): bool => ! $offer->service)) {
+                throw ValidationException::withMessages(['service_ids' => 'A selected service is no longer available at this provider.']);
             }
-            $duration = (int) ($offer->service->estimated_duration ?: 60);
+            $duration = collect($serviceIds)->sum(fn (int $id): int => (int) ($offers[$id]->service->estimated_duration ?: 60));
             if (now()->format('Y-m-d H:i') >= $attributes['appointment_date'].' '.$attributes['appointment_time']) {
                 throw ValidationException::withMessages(['appointment_time' => 'Choose a future appointment time.']);
             }
@@ -124,12 +139,26 @@ class AppointmentController extends Controller
                 ]);
             }
 
+            $primary = $offers[$serviceIds[0]];
+            $attributes['service_id'] = $primary->service_id;
             $attributes['duration_minutes'] = $duration;
-            $attributes['service_price'] = $offer->price;
-            $attributes['service_labor_included'] = $offer->labor_included;
-            $attributes['service_parts_included'] = $offer->parts_included;
-            $attributes['service_scope'] = $offer->description;
+            $attributes['service_price'] = number_format(collect($serviceIds)->sum(fn (int $id): int => (int) round((float) $offers[$id]->price * 100)) / 100, 2, '.', '');
+            $attributes['service_labor_included'] = $primary->labor_included;
+            $attributes['service_parts_included'] = $primary->parts_included;
+            $attributes['service_scope'] = $primary->description;
             $appointment = $request->user()->appointments()->create($attributes);
+            foreach ($serviceIds as $index => $serviceId) {
+                $offer = $offers[$serviceId];
+                $appointment->bookedServices()->create([
+                    'service_id' => $serviceId,
+                    'position' => $index + 1,
+                    'price' => $offer->price,
+                    'duration_minutes' => $offer->service->estimated_duration ?: 60,
+                    'labor_included' => $offer->labor_included,
+                    'parts_included' => $offer->parts_included,
+                    'scope' => $offer->description,
+                ]);
+            }
             $shop->owner->notifications()->create([
                 'type' => 'appointment_requested',
                 'title' => 'New appointment request',

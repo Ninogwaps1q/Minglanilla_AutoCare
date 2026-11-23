@@ -64,7 +64,7 @@ it('completes the customer request estimate acceptance repair and release workfl
     expect($job->fresh()->completed_at)->not->toBeNull();
     $this->assertDatabaseCount('vehicle_service_records', 1);
     $this->actingAs($fixture['customer'])->get(route('customer.repairs.index'))->assertOk()->assertSee('released');
-    $this->post(route('customer.reviews.store'), ['repair_job_id' => $job->id, 'rating' => 5])->assertRedirect()->assertSessionHasNoErrors();
+    $this->post(route('customer.reviews.store'), ['repair_job_id' => $job->id, 'rating' => 5])->assertNotFound();
 });
 
 it('prevents quotation requests for another customers vehicle or an unapproved shop', function () {

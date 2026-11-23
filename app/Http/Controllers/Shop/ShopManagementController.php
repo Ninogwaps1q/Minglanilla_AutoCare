@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Shop;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreShopServiceRequest;
 use App\Http\Requests\UpdateShopProfileRequest;
-use App\Models\Barangay;
 use App\Models\Service;
 use App\Models\Shop;
 use App\Models\ShopService;
@@ -21,7 +20,7 @@ class ShopManagementController extends Controller
 {
     public function editProfile(Request $request): View
     {
-        return view('shop.profile.edit', ['shop' => $this->shop($request)->load('documents'), 'barangays' => Barangay::query()->where('status', 'active')->orderBy('name')->get()]);
+        return view('shop.profile.edit', ['shop' => $this->shop($request)->load('documents')]);
     }
 
     public function updateProfile(UpdateShopProfileRequest $request): RedirectResponse

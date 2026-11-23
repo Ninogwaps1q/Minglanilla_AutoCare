@@ -38,6 +38,7 @@ function vehicleUploadPayload(array $overrides = []): array
 {
     return array_merge([
         'plate_number' => 'UPLOAD-001',
+        'vehicle_type' => 'car',
         'make' => 'Toyota',
         'model' => 'Vios',
         'year' => 2022,

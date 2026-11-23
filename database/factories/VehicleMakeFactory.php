@@ -2,14 +2,13 @@
 
 namespace Database\Factories;
 
-use App\Models\Vehicle;
-use App\Models\VehiclePassportShare;
+use App\Models\VehicleMake;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<VehiclePassportShare>
+ * @extends Factory<VehicleMake>
  */
-class VehiclePassportShareFactory extends Factory
+class VehicleMakeFactory extends Factory
 {
     /**
      * Define the model's default state.
@@ -19,8 +18,9 @@ class VehiclePassportShareFactory extends Factory
     public function definition(): array
     {
         return [
-            'vehicle_id' => Vehicle::factory(),
-            'expires_at' => now()->addDay(),
+            'name' => fake()->unique()->company(),
+            'vehicle_type' => 'car',
+            'source' => 'local',
         ];
     }
 }

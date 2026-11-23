@@ -17,7 +17,8 @@ class StoreReviewRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'repair_job_id' => ['required', 'integer', 'exists:repair_jobs,id'],
+            'repair_job_id' => ['required_without:appointment_id', 'integer', 'exists:repair_jobs,id'],
+            'appointment_id' => ['required_without:repair_job_id', 'integer', 'exists:appointments,id'],
             'rating' => ['required', 'integer', 'between:1,5'],
             'comment' => ['nullable', 'string', 'max:2000'],
         ];

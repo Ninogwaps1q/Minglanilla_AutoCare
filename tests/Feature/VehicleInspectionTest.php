@@ -19,7 +19,7 @@ it('requires authentication and the correct role for inspection pages', function
 
 it('records an inspection with checklist items for the repair vehicle', function () {
     $fixture = inspectionFixture();
-    $this->actingAs($fixture['owner'])->get(route('shop.inspections.create', $fixture['job']))->assertOk();
+    $this->actingAs($fixture['owner'])->get(route('shop.inspections.create', $fixture['job']))->assertOk()->assertSee('Visible leaks or damage');
     $payload = inspectionPayload();
     $payload['items'][] = ['category' => 'Tires', 'item_name' => 'Tread', 'condition' => 'Good', 'recommendation' => null];
     $payload['vehicle_id'] = 999999;
@@ -30,6 +30,7 @@ it('records an inspection with checklist items for the repair vehicle', function
     $this->assertDatabaseHas('vehicle_inspections', ['vehicle_id' => $fixture['vehicle']->id, 'shop_id' => $fixture['shop']->id, 'overall_condition' => 'Needs Attention']);
     $this->assertDatabaseHas('inspection_items', ['item_name' => 'Brake pads', 'condition' => 'Needs Attention']);
     $this->assertDatabaseCount('inspection_items', 2);
+    $this->assertDatabaseHas('vehicle_inspections', ['repair_job_id' => $fixture['job']->id]);
 });
 
 it('prevents another shop owner from inspecting a private repair job', function () {

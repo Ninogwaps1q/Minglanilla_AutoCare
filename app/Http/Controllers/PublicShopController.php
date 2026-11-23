@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Barangay;
 use App\Models\Service;
 use App\Models\Shop;
 use App\Models\ShopService;
@@ -33,7 +32,12 @@ class PublicShopController extends Controller
             $filters['sort'] = 'name';
         }
 
-        $shops = $this->publicShops()->when($filters['search'] ?? null, fn ($query, $search) => $query->where('name', 'like', '%'.$search.'%'))
+        $shops = $this->publicShops()->when($filters['search'] ?? null, fn ($query, $search) => $query->where(function (Builder $query) use ($search): void {
+            $query->where('name', 'like', '%'.$search.'%')
+                ->orWhereHas('barangay', fn (Builder $barangays) => $barangays->where('name', 'like', '%'.$search.'%')
+                    ->orWhereHas('municipality', fn (Builder $cities) => $cities->where('name', 'like', '%'.$search.'%')
+                        ->orWhereHas('province', fn (Builder $provinces) => $provinces->where('name', 'like', '%'.$search.'%'))));
+        }))
             ->when($filters['provider'] ?? null, fn ($query, $provider) => $query->where('provider_type', $provider))
             ->when($filters['barangay'] ?? null, fn ($query, $barangay) => $query->where('barangay_id', $barangay))
             ->when($filters['service'] ?? null, fn ($query, $service) => $query->whereHas('services', fn ($query) => $query->where('service_id', $service)->where('availability', true)))
@@ -73,7 +77,6 @@ class PublicShopController extends Controller
             'shops' => $shops,
             'mapShops' => $mapShops,
             'distances' => $distances,
-            'barangays' => Barangay::query()->where('status', 'active')->orderBy('name')->get(['id', 'name']),
             'services' => Service::query()->orderBy('name')->get(['id', 'name']),
             'filters' => $filters,
         ]);
@@ -83,7 +86,7 @@ class PublicShopController extends Controller
     {
         abort_unless($shop->verification_status === 'approved' && $shop->shop_status === 'active' && $shop->owner->status === 'active', 404);
 
-        return view('shops.show', ['shop' => $shop->load(['barangay', 'services.service.category', 'reviews' => fn ($query) => $query->where('status', 'published')->with('customer:id,name')->latest()->limit(5)])]);
+        return view('shops.show', ['shop' => $shop->load(['barangay.municipality.province', 'services.service.category', 'reviews' => fn ($query) => $query->where('status', 'published')->with('customer:id,name')->latest()->limit(5)])]);
     }
 
     public function compare(Service $service): View
@@ -97,7 +100,7 @@ class PublicShopController extends Controller
     {
         return Shop::query()->where('verification_status', 'approved')->where('shop_status', 'active')
             ->whereHas('owner', fn (Builder $query): Builder => $query->where('status', 'active'))
-            ->with(['barangay:id,name', 'services.service:id,name']);
+            ->with(['barangay.municipality.province', 'services.service:id,name']);
     }
 
     private function distance(float $fromLatitude, float $fromLongitude, float $toLatitude, float $toLongitude): float

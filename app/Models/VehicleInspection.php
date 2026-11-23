@@ -29,4 +29,9 @@ class VehicleInspection extends Model
     {
         return $this->hasMany(InspectionItem::class);
     }
+
+    public function repairJob(): BelongsTo
+    {
+        return $this->belongsTo(RepairJob::class);
+    }
 }

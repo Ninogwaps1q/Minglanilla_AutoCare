@@ -6,10 +6,23 @@
         </div>
 
         @if ($vehicles->isEmpty())
-            <div class="alert alert-info" role="status">Add a vehicle before booking. <a href="{{ route('customer.vehicles.create') }}" class="alert-link">Add my vehicle</a></div>
+            <div class="alert alert-info" role="status">Add a vehicle before booking. Open “Add a vehicle here” below to continue.</div>
         @elseif ($shops->isEmpty())
             <div class="alert alert-info" role="status">No verified providers are available right now. <a href="{{ route('shops.index') }}" class="alert-link">Browse the directory</a></div>
         @endif
+
+        <details class="surface p-4 mb-4">
+            <summary class="fw-semibold">Add a vehicle here</summary>
+            <form method="POST" action="{{ route('customer.vehicles.store') }}" class="row g-3 mt-2">
+                @csrf
+                <input type="hidden" name="return_to_booking" value="1">
+                <div class="col-md-4"><label for="booking-plate" class="form-label">Plate number</label><input id="booking-plate" class="form-control" name="plate_number" maxlength="30" required></div>
+                <div class="col-md-4"><label for="booking-color" class="form-label">Color (optional)</label><input id="booking-color" class="form-control" name="color" maxlength="50"></div>
+                <div class="col-md-4"><label for="booking-mileage" class="form-label">Mileage (optional)</label><input id="booking-mileage" class="form-control" type="number" min="0" name="current_mileage"></div>
+                <div class="col-12"><x-vehicle-picker :vehicle="$newVehicle" /></div>
+                <div class="col-12"><button class="btn btn-outline-primary">Save vehicle and continue booking</button></div>
+            </form>
+        </details>
 
         <form method="POST" action="{{ route('customer.appointments.store') }}" class="surface booking-form p-4 p-lg-5 row g-3">
             @csrf
@@ -28,18 +41,24 @@
                 @error('shop_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 <div class="form-text">Need to compare providers? <a href="{{ route('shops.index') }}">Browse the directory</a>.</div>
             </div>
-            <div class="col-md-6">
-                <label for="service_id" class="form-label">Service</label>
-                <select id="service_id" class="form-select @error('service_id') is-invalid @enderror" name="service_id" required>
-                    <option value="">Choose a service</option>
+            <fieldset class="col-12" aria-describedby="service-help">
+                <legend class="h5">Services</legend>
+                <p id="service-help" class="form-text">Choose one or more services. Prices and time are combined below.</p>
+                <div class="row g-2" id="booking-services">
                     @foreach ($shops as $shop)
                         @foreach ($shop->services->where('availability', true) as $offer)
-                            <option value="{{ $offer->service_id }}" data-shop-id="{{ $shop->id }}" data-price="{{ $offer->price }}" data-service-name="{{ $offer->service->name }}" data-duration="{{ $offer->service->estimated_duration ?: 60 }}" data-labor-included="{{ $offer->labor_included === null ? '' : (int) $offer->labor_included }}" data-parts-included="{{ $offer->parts_included === null ? '' : (int) $offer->parts_included }}" data-scope="{{ $offer->description }}" @selected(old('service_id') == $offer->service_id && old('shop_id') == $shop->id)>{{ $offer->service->name }} — PHP {{ number_format($offer->price, 2) }}</option>
+                            <div class="col-sm-6" data-service-shop="{{ $shop->id }}" @if(old('shop_id', $selectedShopId) != $shop->id) hidden @endif>
+                                <label class="form-check surface p-3 h-100 d-flex gap-2">
+                                    <input class="form-check-input mt-1" type="checkbox" name="service_ids[]" value="{{ $offer->service_id }}" data-shop-id="{{ $shop->id }}" data-price="{{ $offer->price }}" data-service-name="{{ $offer->service->name }}" data-labor-included="{{ $offer->labor_included === null ? '' : (int) $offer->labor_included }}" data-parts-included="{{ $offer->parts_included === null ? '' : (int) $offer->parts_included }}" data-scope="{{ $offer->description }}" @checked(in_array($offer->service_id, old('service_ids', [])))>
+                                    <span>{{ $offer->service->name }} <span class="text-secondary">· PHP {{ number_format($offer->price, 2) }}</span></span>
+                                </label>
+                            </div>
                         @endforeach
                     @endforeach
-                </select>
-                @error('service_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
-            </div>
+                </div>
+                @error('service_ids')<div class="text-danger small mt-2">{{ $message }}</div>@enderror
+                @error('service_ids.*')<div class="text-danger small mt-2">{{ $message }}</div>@enderror
+            </fieldset>
             <div class="col-md-6">
                 <label for="vehicle_id" class="form-label">Vehicle</label>
                 <select id="vehicle_id" class="form-select @error('vehicle_id') is-invalid @enderror" name="vehicle_id" required>
@@ -52,10 +71,8 @@
             </div>
             @php($selectedProvider = $shops->firstWhere('id', old('shop_id', $selectedShopId)))
             <div class="col-12" id="service-address-field" @if(! $selectedProvider?->isIndependentMechanic()) hidden @endif>
-                <label for="service_address" class="form-label">Where should the mechanic meet you?</label>
-                <input id="service_address" class="form-control @error('service_address') is-invalid @enderror" name="service_address" value="{{ old('service_address') }}" maxlength="500" autocomplete="street-address" @if($selectedProvider?->isIndependentMechanic()) required @endif>
-                @error('service_address')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                <div class="form-text">Enter the vehicle's service address. The mechanic will travel here after confirming the booking.</div>
+                <h2 class="h5">Where should the mechanic meet you?</h2>
+                <x-address-picker prefix="service" barangay-name="service_barangay_id" street-name="service_street" landmark-name="service_landmark" :selected-barangay="auth()->user()->barangay_id" :street="auth()->user()->address" :landmark="auth()->user()->landmark" :required="$selectedProvider?->isIndependentMechanic()" />
             </div>
             <div class="col-12 booking-form-section-head">
                 <h2>Choose a visit time</h2>
@@ -78,7 +95,7 @@
                 <p>Add a short note if needed, then check the listed price before sending.</p>
             </div>
             <div class="col-12">
-                <label for="reason" class="form-label">What does your vehicle need?</label>
+                <label for="reason" class="form-label">Message to the provider (optional)</label>
                 <textarea id="reason" class="form-control @error('reason') is-invalid @enderror" name="reason" rows="3" placeholder="For example, a noise when braking (optional).">{{ old('reason') }}</textarea>
                 @error('reason')<div class="invalid-feedback">{{ $message }}</div>@enderror
             </div>
@@ -100,8 +117,9 @@
     <script>
         const shopSelect = document.querySelector('#shop_id');
         const serviceAddressField = document.querySelector('#service-address-field');
-        const serviceAddressInput = document.querySelector('#service_address');
-        const serviceSelect = document.querySelector('#service_id');
+        const serviceAddressInputs = serviceAddressField.querySelectorAll('[data-address-choice], [data-address-street]');
+        const serviceChecks = [...document.querySelectorAll('#booking-services input[type="checkbox"]')];
+        const selectedServices = () => serviceChecks.filter(input => input.checked && !input.disabled);
         const dateInput = document.querySelector('#appointment_date');
         const timeInput = document.querySelector('#appointment_time');
         const slotFeedback = document.querySelector('#slot-feedback');
@@ -113,24 +131,15 @@
         let availabilityRequest = 0;
 
         const updateSummary = () => {
-            const selected = serviceSelect.selectedOptions[0];
-            serviceSummary.textContent = selected?.dataset.price
-                ? `${selected.dataset.serviceName} at ${priceFormatter.format(Number(selected.dataset.price))}.`
-                : 'Choose a shop and service to see the listed price.';
-            if (!selected?.dataset.price) {
-                bookingInclusions.textContent = 'Ask the shop what labor and parts are included if they have not specified them.';
-                return;
-            }
-            const inclusion = (value, label) => value === '1'
-                ? `${label} included`
-                : (value === '0' ? `${label} quoted separately` : `ask shop about ${label.toLowerCase()}`);
-            bookingInclusions.textContent = [
-                inclusion(selected.dataset.laborIncluded, 'Labor'),
-                inclusion(selected.dataset.partsIncluded, 'Parts'),
-                selected.dataset.scope || null,
-            ].filter(Boolean).join(' · ') + '.';
+            const selected = selectedServices();
+            const total = selected.reduce((sum, input) => sum + Number(input.dataset.price), 0);
+            serviceSummary.textContent = selected.length
+                ? `${selected.length} service${selected.length === 1 ? '' : 's'}: ${selected.map(input => input.dataset.serviceName).join(', ')}. Listed total ${priceFormatter.format(total)}.`
+                : 'Choose a provider and at least one service to see the listed total.';
+            bookingInclusions.textContent = selected.length
+                ? selected.map(input => `${input.dataset.serviceName}: labor ${input.dataset.laborIncluded === '1' ? 'included' : 'quoted separately'}, parts ${input.dataset.partsIncluded === '1' ? 'included' : 'quoted separately'}`).join(' | ')
+                : 'Ask the shop what labor and parts are included if they have not specified them.';
         };
-
         const asMinutes = (time) => {
             const [hour, minute] = time.split(':').map(Number);
             return hour * 60 + minute;
@@ -164,7 +173,7 @@
         const checkTime = () => {
             const time = timeInput.value;
             slotFeedback.classList.remove('text-danger', 'text-success');
-            if (!shopSelect.value || !serviceSelect.value || !dateInput.value) {
+            if (!shopSelect.value || !selectedServices().length || !dateInput.value) {
                 slotFeedback.textContent = 'Choose a shop, service, and date to check available times.';
             } else if (!availability) {
                 slotFeedback.textContent = 'Checking the shop schedule…';
@@ -219,12 +228,12 @@
             availability = null;
             timeSuggestions.replaceChildren();
             checkTime();
-            if (!shopSelect.value || !serviceSelect.value || !dateInput.value) return;
+            if (!shopSelect.value || !selectedServices().length || !dateInput.value) return;
 
             const url = new URL(@json(route('customer.appointments.availability')));
             url.searchParams.set('shop_id', shopSelect.value);
             url.searchParams.set('date', dateInput.value);
-            url.searchParams.set('service_id', serviceSelect.value);
+            selectedServices().forEach(input => url.searchParams.append('service_ids[]', input.value));
             try {
                 const response = await fetch(url, { headers: { Accept: 'application/json' } });
                 if (!response.ok) throw new Error('Availability unavailable');
@@ -241,19 +250,18 @@
         const syncServices = () => {
             const isMechanic = shopSelect.selectedOptions[0]?.dataset.providerType === 'independent_mechanic';
             serviceAddressField.hidden = !isMechanic;
-            serviceAddressInput.required = isMechanic;
-            if (!isMechanic) serviceAddressInput.value = '';
-            [...serviceSelect.options].forEach(option => {
-                if (!option.dataset.shopId) return;
-                option.hidden = option.dataset.shopId !== shopSelect.value;
-                option.disabled = option.hidden;
+            serviceAddressInputs.forEach(input => { input.required = isMechanic; });
+            serviceChecks.forEach(input => {
+                const unavailable = input.dataset.shopId !== shopSelect.value;
+                input.closest('[data-service-shop]').hidden = unavailable;
+                input.disabled = unavailable;
+                if (unavailable) input.checked = false;
             });
-            if (serviceSelect.selectedOptions[0]?.disabled) serviceSelect.value = '';
             updateSummary();
             refreshAvailability();
         };
         shopSelect.addEventListener('change', syncServices);
-        serviceSelect.addEventListener('change', () => { updateSummary(); refreshAvailability(); });
+        serviceChecks.forEach(input => input.addEventListener('change', () => { updateSummary(); refreshAvailability(); }));
         dateInput.addEventListener('change', refreshAvailability);
         timeInput.addEventListener('change', checkTime);
         syncServices();

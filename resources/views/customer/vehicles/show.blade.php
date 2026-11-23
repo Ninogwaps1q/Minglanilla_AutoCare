@@ -5,8 +5,7 @@
             <h1>{{ $vehicle->year }} {{ $vehicle->make }} {{ $vehicle->model }}</h1>
             <p class="mb-0">{{ number_format($vehicle->current_mileage) }} km</p>
         </div>
-        <div><a class="btn btn-primary" href="{{ route('customer.vehicles.passport', $vehicle) }}">Service passport</a>
-            <a class="btn btn-outline-primary" href="{{ route('customer.vehicles.edit', $vehicle) }}">Edit</a>
+        <div><a class="btn btn-primary" href="{{ route('customer.vehicles.edit', $vehicle) }}">Edit vehicle</a>
             <form class="d-inline" method="POST" action="{{ route('customer.vehicles.destroy', $vehicle) }}">@csrf @method('DELETE')<button class="btn btn-outline-danger">Remove</button></form>
         </div>
     </div>

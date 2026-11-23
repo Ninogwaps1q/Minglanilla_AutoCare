@@ -4708,40 +4708,6 @@ html[data-theme=dark] .ai-widget-composer > .ai-suggestions {
     border: 0;
 }
 
-.passport-scanner-preview {
-    display: grid;
-    place-items: center;
-    min-height: 18rem;
-    overflow: hidden;
-    border-radius: .875rem;
-    background: #101e32;
-    color: #e4ebf5;
-}
-
-.passport-scanner-preview video {
-    display: block;
-    width: 100%;
-    max-height: 27rem;
-    object-fit: contain;
-}
-
-.passport-scanner-preview [hidden] {
-    display: none;
-}
-
-.passport-scanner-placeholder {
-    display: grid;
-    justify-items: center;
-    gap: .75rem;
-    padding: 2rem;
-    text-align: center;
-}
-
-.passport-scanner-placeholder i {
-    font-size: 3rem;
-    line-height: 1;
-}
-
 @media (prefers-reduced-motion: reduce) {
 
     body,

@@ -24,7 +24,6 @@ class StoreRepairJobRequest extends FormRequest
     {
         return [
             'appointment_id' => ['required', 'integer', 'exists:appointments,id'],
-            'diagnosis' => ['nullable', 'string', 'max:5000'],
             'description' => ['required', 'string', 'max:5000'],
             'estimated_cost' => ['nullable', 'numeric', 'min:0'],
             'customer_notes' => ['nullable', 'string', 'max:5000'],

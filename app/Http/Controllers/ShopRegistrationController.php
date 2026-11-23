@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ShopRegistrationRequest;
-use App\Models\Barangay;
 use App\Models\Service;
 use App\Models\Shop;
 use Illuminate\Http\RedirectResponse;
@@ -17,7 +16,6 @@ class ShopRegistrationController extends Controller
     public function create(): View
     {
         return view('shop.register', [
-            'barangays' => Barangay::query()->where('status', 'active')->orderBy('name')->get(),
             'services' => Service::query()->with('category')->orderBy('name')->get(),
         ]);
     }

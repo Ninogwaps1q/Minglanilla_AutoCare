@@ -17,7 +17,7 @@ it('renders the branded public footer with useful navigation', function () {
     $this->get(route('home'))
         ->assertOk()
         ->assertSee('Trusted local vehicle care, made easier.')
-        ->assertSee('Shop directory')
+        ->assertSee('Provider directory &amp; map', false)
         ->assertSee('Create an account');
 });
 
@@ -28,6 +28,16 @@ it('shows only approved active shops in the directory', function () {
     Shop::query()->create(['owner_id' => $owner->id, 'name' => 'Hidden Shop', 'phone' => '09170000001', 'email' => 'hidden@example.test', 'address' => 'Demo Street', 'barangay_id' => $barangay->id, 'verification_status' => 'pending', 'shop_status' => 'inactive']);
 
     $this->get(route('shops.index'))->assertSee('Directory Shop')->assertDontSee('Hidden Shop');
+});
+
+it('finds shops by Philippine city and exposes only configured Google Maps settings', function () {
+    config()->set('services.google.maps_api_key', 'test-maps-key');
+    $barangay = Barangay::factory()->create();
+    $barangay->municipality->update(['name' => 'Digos City']);
+    $shop = Shop::factory()->create(['name' => 'South Garage', 'barangay_id' => $barangay->id, 'latitude' => 6.75, 'longitude' => 125.36, 'verification_status' => 'approved', 'shop_status' => 'active']);
+
+    $this->get(route('shops.index', ['search' => 'Digos']))->assertOk()->assertSee('South Garage')->assertSee('data-google-key="test-maps-key"', false);
+    $this->get(route('shops.show', $shop))->assertOk()->assertSee('Get directions')->assertSee('destination=', false);
 });
 
 it('includes the selected public shop logo and location in the map', function () {
@@ -152,7 +162,7 @@ it('does not expose non-public shop profiles', function () {
 it('connects the public shop profile to customer booking, messaging, and published reviews', function () {
     $customer = User::factory()->create(['role' => 'customer']);
     $owner = User::factory()->create(['role' => 'shop_owner']);
-    $shop = Shop::factory()->create(['owner_id' => $owner->id, 'verification_status' => 'approved', 'shop_status' => 'active']);
+    $shop = Shop::factory()->create(['owner_id' => $owner->id, 'verification_status' => 'approved', 'shop_status' => 'active', 'plan_slug' => 'basic', 'plan_expires_at' => now()->addMonth()]);
     $category = ServiceCategory::query()->create(['name' => 'Maintenance']);
     $service = Service::query()->create(['category_id' => $category->id, 'name' => 'Brake check']);
     ShopService::query()->create(['shop_id' => $shop->id, 'service_id' => $service->id, 'price' => 500, 'availability' => true]);
@@ -167,7 +177,7 @@ it('connects the public shop profile to customer booking, messaging, and publish
         ->assertSee(route('customer.appointments.create', ['shop_id' => $shop->id]), false)
         ->assertSee(route('customer.messages.show', $shop), false);
     $this->get(route('customer.appointments.create', ['shop_id' => $shop->id]))
-        ->assertOk()->assertSee('value="'.$shop->id.'" selected', false);
+        ->assertOk()->assertViewHas('selectedShopId', $shop->id)->assertSee($shop->name);
 });
 
 it('compares offers from approved active shops only', function () {

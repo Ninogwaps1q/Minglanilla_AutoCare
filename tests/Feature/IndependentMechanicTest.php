@@ -6,6 +6,7 @@ use App\Models\Service;
 use App\Models\ServiceCategory;
 use App\Models\Shop;
 use App\Models\User;
+use App\Models\Vehicle;
 use App\Services\EmergencyDispatchService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -78,7 +79,9 @@ it('lists approved mechanics without exposing their private base address', funct
         ->assertOk()->assertSee('Independent mechanic')->assertDontSee('Private home address 123');
     $mechanic->update(['status' => 'suspended']);
     $this->get(route('shops.show', $profile))->assertNotFound();
-    $this->actingAs($mechanic)->get(route('shop.dashboard'))->assertForbidden();
+    $this->actingAs($mechanic)->get(route('shop.dashboard'))
+        ->assertRedirect(route('login'))
+        ->assertSessionHasErrors('email');
 });
 
 it('requires a visit address for mechanic bookings and shows it only to the parties', function () {
@@ -89,14 +92,14 @@ it('requires a visit address for mechanic bookings and shows it only to the part
         'appointment_date' => today()->addDay()->toDateString(), 'appointment_time' => '10:00',
     ];
     $this->actingAs($fixture['customer'])->post(route('customer.appointments.store'), $payload)
-        ->assertSessionHasErrors('service_address');
-    $this->post(route('customer.appointments.store'), [...$payload, 'service_address' => 'Customer garage, Poblacion'])
+        ->assertSessionHasErrors(['service_barangay_id', 'service_street']);
+    $this->post(route('customer.appointments.store'), [...$payload, 'service_barangay_id' => $fixture['profile']->barangay_id, 'service_street' => 'Customer garage', 'service_landmark' => 'Near Poblacion'])
         ->assertRedirect(route('customer.appointments.index'));
     $appointment = Appointment::query()->sole();
-    expect($appointment->service_address)->toBe('Customer garage, Poblacion');
-    $this->get(route('customer.appointments.index'))->assertSee('Customer garage, Poblacion');
+    expect($appointment->service_address)->toContain('Customer garage');
+    $this->get(route('customer.appointments.index'))->assertSee('Customer garage');
     $this->actingAs($fixture['mechanic'])->get(route('shop.appointments.index'))
-        ->assertOk()->assertSee('Customer garage, Poblacion');
+        ->assertOk()->assertSee('Customer garage');
     $this->get(route('shop.staff.index'))->assertForbidden();
 });
 
@@ -130,7 +133,7 @@ it('starts the same PayMongo subscription checkout for a verified mechanic', fun
     Http::assertSentCount(1);
 });
 
-/** @return array{mechanic: User, customer: User, profile: Shop, vehicle: \App\Models\Vehicle, service: Service} */
+/** @return array{mechanic: User, customer: User, profile: Shop, vehicle: Vehicle, service: Service} */
 function independentMechanicFixture(): array
 {
     $mechanic = User::factory()->create(['role' => 'mechanic']);

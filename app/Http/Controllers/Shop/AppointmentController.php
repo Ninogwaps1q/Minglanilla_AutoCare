@@ -23,7 +23,7 @@ class AppointmentController extends Controller
 
         return view('shop.appointments.index', [
             'appointments' => $shop->appointments()
-                ->with(['customer', 'vehicle', 'service', 'serviceCase', 'repairJob', 'latestRescheduleRequest'])
+                ->with(['customer', 'vehicle', 'service', 'bookedServices.service', 'serviceCase', 'repairJob', 'latestRescheduleRequest'])
                 ->when($request->integer('focus') > 0, fn ($query) => $query->whereKey($request->integer('focus')))
                 ->when($status, fn ($query) => $query->where('status', $status))
                 ->orderBy('appointment_date')
