@@ -73,15 +73,15 @@
                     @else
                         <a class="btn btn-primary" href="{{ route('login') }}">{{ $shop->hasPlanAtLeast('basic') ? 'Sign in to book or message' : 'Sign in to message this provider' }}</a>
                     @endauth
-                    @if ($shop->latitude !== null && $shop->longitude !== null)
-                        <a class="btn btn-outline-secondary" href="{{ route('shops.index', ['search' => $shop->name, 'selected' => $shop->id]) }}#shop-map">View on map</a>
-                        <a class="btn btn-outline-primary" href="https://www.google.com/maps/dir/?api=1&destination={{ $shop->latitude }},{{ $shop->longitude }}&travelmode=driving" target="_blank" rel="noopener">Get directions</a>
-                    @else
+                    @if (! $shop->isIndependentMechanic() && ($shop->latitude === null || $shop->longitude === null))
                         <span class="text-secondary small">Map location is not available for this provider yet.</span>
                     @endif
                 </div>
                 <h3 class="h6">Contact</h3>
                 <p class="mb-0">{{ $shop->phone }}<br>{{ $shop->email }}</p>
+                @if (! $shop->isIndependentMechanic() && $shop->latitude !== null && $shop->longitude !== null)
+                    <x-driving-directions class="mt-4 pt-4 border-top" :latitude="$shop->latitude" :longitude="$shop->longitude" :destination-label="$shop->name" title="Route to this shop" />
+                @endif
             </div>
         </aside>
     </div>

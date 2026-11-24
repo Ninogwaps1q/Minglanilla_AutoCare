@@ -14,7 +14,7 @@
                         <a class="small" href="{{ route('customer.appointments.index', ['focus' => $appointment->id]) }}">View booking and next step</a>
                     </article>
                 @empty
-                    <p class="text-secondary mb-0">No upcoming appointments. Find a shop and book when you are ready.</p>
+                    <p class="text-secondary mb-0">No upcoming appointments. Find a shop or mechanic and book when you are ready.</p>
                 @endforelse
             </section>
         </div>

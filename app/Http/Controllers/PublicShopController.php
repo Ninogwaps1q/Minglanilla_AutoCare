@@ -53,20 +53,23 @@ class PublicShopController extends Controller
 
         $distances = collect();
         if ($location !== null) {
-            $distances = $shops->filter(fn (Shop $shop): bool => $shop->latitude !== null && $shop->longitude !== null)
-                ->mapWithKeys(fn (Shop $shop): array => [$shop->id => round($this->distance($location['latitude'], $location['longitude'], (float) $shop->latitude, (float) $shop->longitude), 1)]);
+            $distances = $shops->filter(fn (Shop $shop): bool => $shop->publicMapPosition() !== null)
+                ->mapWithKeys(function (Shop $shop) use ($location): array {
+                    $position = $shop->publicMapPosition();
+
+                    return [$shop->id => round($this->distance($location['latitude'], $location['longitude'], $position['latitude'], $position['longitude']), 1)];
+                });
             if ($filters['sort'] === 'distance') {
                 $shops = $shops->sortBy(fn (Shop $shop): float => $distances->get($shop->id, PHP_FLOAT_MAX))->values();
             }
         }
 
-        $mapShops = $shops->filter(fn (Shop $shop): bool => $shop->latitude !== null && $shop->longitude !== null)
+        $mapShops = $shops->filter(fn (Shop $shop): bool => $shop->publicMapPosition() !== null)
             ->map(fn (Shop $shop): array => [
                 'id' => $shop->id,
                 'name' => $shop->name,
                 'provider_type' => $shop->provider_type,
-                'latitude' => (float) $shop->latitude,
-                'longitude' => (float) $shop->longitude,
+                ...$shop->publicMapPosition(),
                 'logo_url' => $shop->logo && Storage::disk('public')->exists($shop->logo)
                     ? route('media.image', ['directory' => 'shop-logos', 'filename' => basename($shop->logo)])
                     : null,

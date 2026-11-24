@@ -30,6 +30,63 @@ it('shows only approved active shops in the directory', function () {
     $this->get(route('shops.index'))->assertSee('Directory Shop')->assertDontSee('Hidden Shop');
 });
 
+it('shows shops and independent mechanics together in one provider directory', function () {
+    Shop::factory()->create(['name' => 'Shared Directory Garage', 'provider_type' => 'shop', 'verification_status' => 'approved', 'shop_status' => 'active']);
+    Shop::factory()->create(['name' => 'Shared Directory Mechanic', 'provider_type' => 'independent_mechanic', 'verification_status' => 'approved', 'shop_status' => 'active']);
+
+    $this->get(route('shops.index'))
+        ->assertOk()
+        ->assertSee('Shared Directory Garage')
+        ->assertSee('Shared Directory Mechanic')
+        ->assertSee('Shop and mechanic results')
+        ->assertSee('Swipe or scroll sideways to compare shops and mechanics.');
+});
+
+it('keeps an independent mechanic private base out of public maps and directions', function () {
+    Storage::fake('public');
+    Storage::disk('public')->put('shop-logos/mobile-mechanic.png', base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9JQqkAAAAASUVORK5CYII='));
+    $shop = Shop::factory()->create([
+        'name' => 'Public Workshop',
+        'provider_type' => 'shop',
+        'latitude' => 10.2443,
+        'longitude' => 123.7898,
+        'verification_status' => 'approved',
+        'shop_status' => 'active',
+    ]);
+    $mechanic = Shop::factory()->create([
+        'name' => 'Mobile Mechanic',
+        'provider_type' => 'independent_mechanic',
+        'latitude' => 11.1234567,
+        'longitude' => 124.7654321,
+        'logo' => 'shop-logos/mobile-mechanic.png',
+        'verification_status' => 'approved',
+        'shop_status' => 'active',
+    ]);
+
+    $this->get(route('shops.index'))
+        ->assertOk()
+        ->assertSee('Mobile Mechanic')
+        ->assertDontSee('11.1234567')
+        ->assertViewHas('mapShops', fn ($mapShops): bool => $mapShops->count() === 2
+            && $mapShops->firstWhere('id', $shop->id)['latitude'] === 10.2443
+            && $mapShops->firstWhere('id', $mechanic->id)['latitude'] === 11.12
+            && $mapShops->firstWhere('id', $mechanic->id)['longitude'] === 124.77
+            && $mapShops->firstWhere('id', $mechanic->id)['logo_url'] === route('media.image', ['directory' => 'shop-logos', 'filename' => 'mobile-mechanic.png']));
+    $this->get(route('shops.show', $mechanic))
+        ->assertOk()
+        ->assertDontSee('Get directions')
+        ->assertDontSee('11.1234567');
+    $this->getJson('/api/shops')
+        ->assertOk()
+        ->assertJsonCount(2, 'data')
+        ->assertJsonFragment(['id' => $mechanic->id, 'provider_type' => 'independent_mechanic', 'latitude' => 11.12, 'longitude' => 124.77])
+        ->assertDontSee('11.1234567');
+    $this->getJson('/api/shops/nearby?latitude=10.2443&longitude=123.7898')
+        ->assertOk()
+        ->assertJsonCount(2, 'data')
+        ->assertDontSee('11.1234567');
+});
+
 it('finds shops by Philippine city and exposes only configured Google Maps settings', function () {
     config()->set('services.google.maps_api_key', 'test-maps-key');
     $barangay = Barangay::factory()->create();
@@ -37,7 +94,12 @@ it('finds shops by Philippine city and exposes only configured Google Maps setti
     $shop = Shop::factory()->create(['name' => 'South Garage', 'barangay_id' => $barangay->id, 'latitude' => 6.75, 'longitude' => 125.36, 'verification_status' => 'approved', 'shop_status' => 'active']);
 
     $this->get(route('shops.index', ['search' => 'Digos']))->assertOk()->assertSee('South Garage')->assertSee('data-google-key="test-maps-key"', false);
-    $this->get(route('shops.show', $shop))->assertOk()->assertSee('Get directions')->assertSee('destination=', false);
+    $this->get(route('shops.show', $shop))
+        ->assertOk()
+        ->assertSee('Get directions')
+        ->assertSee('data-latitude="6.75"', false)
+        ->assertSee('data-longitude="125.36"', false)
+        ->assertDontSee('google.com/maps/dir');
 });
 
 it('includes the selected public shop logo and location in the map', function () {

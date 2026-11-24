@@ -23,7 +23,7 @@ class ShopLocationController extends Controller
         $location = $request->validate(['latitude' => ['required', 'numeric', 'between:-90,90'], 'longitude' => ['required', 'numeric', 'between:-180,180']]);
         $shops = $this->shops()->map(function (Shop $shop) use ($location): array {
             $data = $this->data($shop);
-            $data['distance_km'] = round($this->distance($location['latitude'], $location['longitude'], (float) $shop->latitude, (float) $shop->longitude), 2);
+            $data['distance_km'] = round($this->distance($location['latitude'], $location['longitude'], $data['latitude'], $data['longitude']), 2);
 
             return $data;
         })->sortBy('distance_km')->values();
@@ -44,8 +44,8 @@ class ShopLocationController extends Controller
         return [
             'id' => $shop->id,
             'name' => $shop->name,
-            'latitude' => (float) $shop->latitude,
-            'longitude' => (float) $shop->longitude,
+            ...$shop->publicMapPosition(),
+            'provider_type' => $shop->provider_type,
             'barangay' => $shop->barangay->name,
             'rating' => (float) $shop->average_rating,
             'services' => $shop->services->where('availability', true)->pluck('service.name')->values(),

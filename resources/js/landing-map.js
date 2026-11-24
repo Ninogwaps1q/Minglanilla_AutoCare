@@ -1,11 +1,12 @@
 import { loadGoogleMaps } from './google-maps';
+import { createShopMapPopup } from './shop-map-popup';
 
 const mapElement = document.querySelector('#landing-shop-map');
 const status = document.querySelector('#landing-map-status');
 
 if (mapElement && status) {
     const loadMap = async () => {
-        status.textContent = 'Loading approved shop locations?';
+        status.textContent = 'Loading approved provider locations…';
         try {
             const response = await fetch(mapElement.dataset.shopsUrl, { headers: { Accept: 'application/json' } });
             if (!response.ok) throw new Error('Shop locations unavailable');
@@ -19,26 +20,24 @@ if (mapElement && status) {
             shops.forEach(shop => {
                 const position = { lat: Number(shop.latitude), lng: Number(shop.longitude) };
                 bounds.extend(position);
-                const marker = new googleMaps.Marker({ map, position, title: shop.name });
-                const content = document.createElement('div');
-                const name = document.createElement('strong');
-                name.textContent = shop.name;
-                const link = document.createElement('a');
-                link.href = mapElement.dataset.shopUrlTemplate.replace('__SHOP_ID__', encodeURIComponent(shop.id));
-                link.textContent = 'View shop';
-                link.className = 'd-block';
-                content.append(name, link);
+                const marker = new googleMaps.Marker({
+                    map,
+                    position,
+                    title: shop.provider_type === 'independent_mechanic' ? `${shop.name} approximate service area` : shop.name,
+                    icon: shop.provider_type === 'independent_mechanic' ? 'https://maps.google.com/mapfiles/ms/icons/orange-dot.png' : undefined,
+                });
+                const content = createShopMapPopup(shop, mapElement.dataset.shopUrlTemplate.replace('__SHOP_ID__', encodeURIComponent(shop.id)), shop.provider_type === 'independent_mechanic' ? 'View mechanic' : 'View shop');
                 marker.addListener('click', () => { infoWindow.setContent(content); infoWindow.open({ anchor: marker, map }); });
             });
             if (shops.length) {
-                map.fitBounds(bounds, 30);
+                map.fitBounds(bounds, { top: Math.min(150, Math.round(mapElement.clientHeight * .38)), right: 30, bottom: 30, left: 30 });
                 googleMaps.event.addListenerOnce(map, 'bounds_changed', () => { if (map.getZoom() > 14) map.setZoom(14); });
-                status.textContent = `${shops.length} ${shops.length === 1 ? 'approved shop' : 'approved shops'} on the map.`;
+                status.textContent = `${shops.length} ${shops.length === 1 ? 'approved provider' : 'approved providers'} on the map.`;
             } else {
-                status.textContent = 'No approved shops have a saved map location yet. Browse the directory.';
+                status.textContent = 'No approved providers have a saved map location yet. Browse the directory.';
             }
         } catch {
-            mapElement.innerHTML = '<p class="landing-map-message">Map unavailable. Browse approved shops in the directory.</p>';
+            mapElement.innerHTML = '<p class="landing-map-message">Map unavailable. Browse approved providers in the directory.</p>';
             status.textContent = 'Map unavailable. Browse the directory instead.';
         }
     };

@@ -65,20 +65,24 @@ it('requires mechanic identity and qualifications before public approval', funct
 });
 
 it('lists approved mechanics without exposing their private base address', function () {
+    Storage::fake('public');
+    Storage::disk('public')->put('shop-logos/mechanic.png', base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9JQqkAAAAASUVORK5CYII='));
     $mechanic = User::factory()->create(['role' => 'mechanic']);
     $profile = Shop::factory()->create([
         'owner_id' => $mechanic->id, 'provider_type' => 'independent_mechanic',
         'verification_status' => 'approved', 'shop_status' => 'active',
         'address' => 'Private home address 123',
+        'logo' => 'shop-logos/mechanic.png',
     ]);
     Shop::factory()->create(['name' => 'Garage Shop', 'verification_status' => 'approved', 'shop_status' => 'active']);
 
     $this->get(route('shops.index', ['provider' => 'independent_mechanic']))
-        ->assertOk()->assertSee($profile->name)->assertDontSee('Garage Shop');
+        ->assertOk()->assertSee($profile->name)->assertSee('media/shop-logos/mechanic.png')->assertDontSee('Garage Shop');
     $this->get(route('shops.show', $profile))
-        ->assertOk()->assertSee('Independent mechanic')->assertDontSee('Private home address 123');
+        ->assertOk()->assertSee('Independent mechanic')->assertSee('media/shop-logos/mechanic.png')->assertDontSee('Private home address 123');
+    $this->actingAs($mechanic)->get(route('shop.profile.edit'))->assertOk()->assertSee('Mechanic logo or profile photo');
     $mechanic->update(['status' => 'suspended']);
-    $this->get(route('shops.show', $profile))->assertNotFound();
+    $this->actingAs(User::factory()->create(['role' => 'customer']))->get(route('shops.show', $profile))->assertNotFound();
     $this->actingAs($mechanic)->get(route('shop.dashboard'))
         ->assertRedirect(route('login'))
         ->assertSessionHasErrors('email');

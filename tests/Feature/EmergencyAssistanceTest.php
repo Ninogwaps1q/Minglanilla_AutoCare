@@ -32,6 +32,55 @@ it('assigns a customer emergency request to the nearest eligible shop', function
     $this->get(route('customer.emergency-requests.index'))->assertOk()->assertSee('Assigned shop:')->assertSee($nearbyShop->name)->assertSee($nearbyShop->phone);
 });
 
+it('shows in-page pickup directions only to the assigned responder', function () {
+    config()->set('services.google.maps_api_key', 'roadside-test-key');
+    $fixture = emergencyFixture();
+    $shop = createEmergencyShop($fixture['barangay'], 10.24, 123.78);
+    $otherShop = createEmergencyShop($fixture['barangay'], 10.26, 123.8);
+    $fixture['customer']->emergencyRequests()->create([
+        'assigned_shop_id' => $shop->id, 'emergency_type' => 'breakdown',
+        'latitude' => 10.241, 'longitude' => 123.781, 'status' => 'accepted', 'requested_at' => now(),
+    ]);
+
+    $this->actingAs($shop->owner)->get(route('shop.emergency-requests.index'))
+        ->assertOk()
+        ->assertSee('Show route to pickup')
+        ->assertSee('data-latitude="10.2410000"', false)
+        ->assertSee('data-longitude="123.7810000"', false)
+        ->assertSee('data-google-key="roadside-test-key"', false)
+        ->assertDontSee('google.com/maps/dir')
+        ->assertDontSee('data-latitude="10.24"', false);
+    $this->actingAs($otherShop->owner)->get(route('shop.emergency-requests.index'))
+        ->assertOk()
+        ->assertDontSee('10.241')
+        ->assertDontSee('123.781')
+        ->assertDontSee('Show route to pickup');
+    $this->actingAs($fixture['customer'])->get(route('customer.emergency-requests.index'))
+        ->assertOk()
+        ->assertDontSee('View pickup in Google Maps')
+        ->assertDontSee('View route from shop to pickup')
+        ->assertDontSee('origin=10.24,123.78');
+});
+
+it('does not expose an independent mechanic service-area origin in customer directions', function () {
+    $fixture = emergencyFixture();
+    $mechanic = User::factory()->create(['role' => 'mechanic']);
+    $profile = Shop::factory()->create([
+        'owner_id' => $mechanic->id, 'provider_type' => 'independent_mechanic',
+        'latitude' => 10.24, 'longitude' => 123.78,
+    ]);
+    $fixture['customer']->emergencyRequests()->create([
+        'assigned_shop_id' => $profile->id, 'emergency_type' => 'flat_tire',
+        'latitude' => 10.241, 'longitude' => 123.781, 'status' => 'accepted', 'requested_at' => now(),
+    ]);
+
+    $this->actingAs($fixture['customer'])->get(route('customer.emergency-requests.index'))
+        ->assertOk()
+        ->assertDontSee('View pickup in Google Maps')
+        ->assertDontSee('View route from shop to pickup')
+        ->assertDontSee('origin=10.24,123.78');
+});
+
 it('prevents duplicate active roadside requests and closes the assigned dispatch on customer cancellation', function () {
     $fixture = emergencyFixture();
     $shop = createEmergencyShop($fixture['barangay'], 10.2400, 123.7800);
@@ -190,7 +239,8 @@ it('renders only the next valid roadside actions and hides controls on closed re
     $request->update(['status' => 'completed']);
     $this->get(route('shop.emergency-requests.index'))
         ->assertSee('Request closed')
-        ->assertDontSee('name="status"', false);
+        ->assertDontSee('name="status"', false)
+        ->assertDontSee('Show route to pickup');
 });
 
 /** @return array{barangay: Barangay, customer: User, vehicle: Vehicle} */

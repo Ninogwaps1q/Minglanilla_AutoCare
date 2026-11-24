@@ -7,7 +7,7 @@
                     <p class="hero-copy">Discover local automotive service providers, compare services, book
                         appointments, and manage your vehicle maintenance in one convenient platform.</p>
                     <div class="d-flex flex-wrap align-items-center gap-3">
-                        <a class="btn btn-accent btn-lg" href="#find-shops">Find a shop <i
+                        <a class="btn btn-accent btn-lg" href="#find-shops">Find shops &amp; mechanics <i
                                 class="bi bi-arrow-down ms-2" aria-hidden="true"></i></a>
                         <a class="link-light fw-semibold" href="#about">How it works</a>
                     </div>
@@ -16,9 +16,9 @@
                     <div class="hero-route-card">
                         <div class="hero-route-icon"><i class="bi bi-car-front-fill" aria-hidden="true"></i></div>
                         <h2 class="h3">From booking to service history</h2>
-                        <p>One clear path for customers and local automotive service shops.</p>
+                        <p>One clear path for customers, service shops, and independent mechanics.</p>
                         <ol class="hero-steps mb-0">
-                            <li>Choose a verified shop and service.</li>
+                            <li>Choose a verified provider and service.</li>
                             <li>Track appointments, quotations, and repairs.</li>
                             <li>Keep maintenance records ready for the next visit.</li>
                         </ol>
@@ -31,33 +31,33 @@
         <div class="container">
             <div class="row g-4 g-lg-5 align-items-center">
                 <div class="col-lg-5">
-                    <h2 id="find-shops-title">Find a shop that fits your needs</h2>
-                    <p class="text-secondary landing-section-intro mb-0">Search approved local shops by name, or explore the directory to compare services and locations.</p>
+                    <h2 id="find-shops-title">Find a shop or mechanic that fits your needs</h2>
+                    <p class="text-secondary landing-section-intro mb-0">Search approved shops and independent mechanics, or compare their services and locations in one directory.</p>
                 </div>
                 <div class="col-lg-6 offset-lg-1">
                     <form action="{{ route('shops.index') }}" method="GET" class="landing-shop-search">
-                        <label for="home-search" class="form-label fw-semibold">Shop or city</label>
+                        <label for="home-search" class="form-label fw-semibold">Shop, mechanic, or city</label>
                         <div class="input-group"><input id="home-search" class="form-control" name="search"
-                                type="search" maxlength="100" placeholder="Search by shop or city"><button
-                                class="btn btn-primary" type="submit">Search shops</button></div>
+                                type="search" maxlength="100" placeholder="Search by provider or city"><button
+                                class="btn btn-primary" type="submit">Find providers</button></div>
                     </form>
-                    <p class="landing-discover-links mb-0"><a href="#maps">Browse the map below</a> or <a href="{{ route('shops.index') }}">see all shops</a>.</p>
+                    <p class="landing-discover-links mb-0"><a href="#maps">Browse the map below</a> or <a href="{{ route('shops.index') }}">see all providers</a>.</p>
                 </div>
             </div>
             <div class="landing-find-map" id="maps" aria-labelledby="landing-map-title">
                 <div class="landing-map-heading">
                     <div>
-                        <h3 id="landing-map-title" class="h4">Explore shops on the map</h3>
-                        <p class="text-secondary mb-0">See approved service shops across the Philippines. Select a marker to view a shop.</p>
+                        <h3 id="landing-map-title" class="h4">Explore providers on the map</h3>
+                        <p class="text-secondary mb-0">See approved shops and mechanics across the Philippines. Select a marker to view a provider.</p>
                     </div>
-                    <a class="btn btn-outline-primary" href="{{ route('shops.index') }}#shop-map">Open full shop map</a>
+                    <a class="btn btn-outline-primary" href="{{ route('shops.index') }}#shop-map">Open full provider map</a>
                 </div>
-                <div id="landing-shop-map" class="landing-shop-map" role="region" aria-label="Map of approved service shops"
+                <div id="landing-shop-map" class="landing-shop-map" role="region" aria-label="Map of approved shops and mechanics"
                     data-shops-url="{{ url('/api/shops') }}" data-google-key="{{ config('services.google.maps_api_key') }}"
                     data-shop-url-template="{{ route('shops.show', ['shop' => '__SHOP_ID__']) }}">
                     <p class="landing-map-message">Map loads when you reach this section.</p>
                 </div>
-                <p id="landing-map-status" class="small text-secondary mt-2 mb-0" role="status" aria-live="polite">Only approved shops with saved locations appear on the map.</p>
+                <p id="landing-map-status" class="small text-secondary mt-2 mb-0" role="status" aria-live="polite">Only approved providers with saved locations appear on the map.</p>
             </div>
         </div>
     </section>
@@ -67,7 +67,7 @@
             <div class="col-md-4">
                 <article class="feature-panel h-100"><i class="bi bi-geo-alt feature-icon" aria-hidden="true"></i>
                     <h2 class="h4">Local by design</h2>
-                    <p class="mb-0">Browse approved shops across the Philippines by city, location, and service.</p>
+                    <p class="mb-0">Browse approved shops and mechanics across the Philippines by city, location, and service.</p>
                 </article>
             </div>
             <div class="col-md-4">
@@ -93,7 +93,7 @@
                 <h2 id="before-booking-title" class="h4 mb-3">Before you book</h2>
                 <details class="border-bottom py-3">
                     <summary class="fw-semibold">Do I need an account?</summary>
-                    <p class="text-secondary mt-3 mb-0">You can browse shops and the map without signing in. Create a
+                    <p class="text-secondary mt-3 mb-0">You can browse providers and the map without signing in. Create a
                         customer account to add a vehicle and request an appointment.</p>
                 </details>
                 <details class="border-bottom py-3">

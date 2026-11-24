@@ -32,6 +32,21 @@ class Shop extends Model
         return $this->isIndependentMechanic() ? 'Independent mechanic' : 'Service shop';
     }
 
+    /** @return array{latitude: float, longitude: float}|null */
+    public function publicMapPosition(): ?array
+    {
+        if ($this->latitude === null || $this->longitude === null) {
+            return null;
+        }
+
+        $precision = $this->isIndependentMechanic() ? 2 : 7;
+
+        return [
+            'latitude' => round((float) $this->latitude, $precision),
+            'longitude' => round((float) $this->longitude, $precision),
+        ];
+    }
+
     public function activePlanSlug(): string
     {
         if ($this->trialIsActive()) {

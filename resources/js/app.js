@@ -30,6 +30,9 @@ if (document.querySelector('#shop-map')) {
 if (document.querySelector('#location-picker-map')) {
     import('./location-picker.js');
 }
+if (document.querySelector('.driving-directions')) {
+    import('./driving-directions.js');
+}
 
 const systemTheme = window.matchMedia('(prefers-color-scheme: dark)');
 

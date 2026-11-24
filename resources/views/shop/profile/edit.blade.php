@@ -87,7 +87,7 @@
                 <div class="invalid-feedback">{{ $message }}</div>@enderror
         </div>
         @endif
-        <div class="col-md-6"><label for="logo" class="form-label">Shop logo</label><input id="logo"
+        <div class="col-md-6"><label for="logo" class="form-label">{{ $shop->isIndependentMechanic() ? 'Mechanic logo or profile photo' : 'Shop logo' }}</label><input id="logo"
                 class="form-control @error('logo') is-invalid @enderror" type="file" name="logo"
                 accept="image/png,image/jpeg,image/webp" aria-describedby="logo-help"
                 data-image-preview-target="shop-logo-preview" data-image-max-size="2097152">@error('logo')

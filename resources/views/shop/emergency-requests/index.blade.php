@@ -6,9 +6,6 @@
     <x-form-errors />
     <section class="roadside-request-list" aria-label="Assigned roadside requests">
         @forelse ($requests as $emergencyRequest)
-            @php
-                $shopHasLocation = $shop->latitude !== null && $shop->longitude !== null;
-            @endphp
             <article class="surface roadside-request p-4" id="roadside-request-{{ $emergencyRequest->id }}">
                 <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
                     <div>
@@ -44,19 +41,12 @@
                         @endif
                     </div>
                     <div class="roadside-location-overview">
-                        <h3 class="h6 mb-2">Customer pickup map</h3>
-                        <div class="roadside-street-map" role="region" aria-label="Street map of {{ $emergencyRequest->customer->name }}'s pickup location" data-latitude="{{ $emergencyRequest->latitude }}" data-longitude="{{ $emergencyRequest->longitude }}" data-shop-latitude="{{ $shop->latitude }}" data-shop-longitude="{{ $shop->longitude }}">Loading street map…</div>
-                        <div class="roadside-location-legend">
-                            @if ($shopHasLocation)<span><i class="roadside-location-key shop" aria-hidden="true"></i>{{ $shop->isIndependentMechanic() ? 'Your service area' : 'Your shop' }}</span>@endif
-                            <span><i class="roadside-location-key customer" aria-hidden="true"></i>Customer pickup</span>
-                        </div>
-                        <p class="small text-secondary mb-0">
-                            @if ($shopHasLocation)
-                                Orange: the customer's shared pickup point. Blue: {{ $shop->isIndependentMechanic() ? 'your service-area center' : 'your shop' }}. This is not live tracking.
-                            @else
-                                Orange marks the customer's shared pickup point. Add your map coordinates to show your service area too.
-                            @endif
-                        </p>
+                        @if (in_array($emergencyRequest->status, ['pending', 'accepted', 'en_route'], true))
+                            <x-driving-directions :latitude="$emergencyRequest->latitude" :longitude="$emergencyRequest->longitude" :destination-label="$emergencyRequest->customer->name.' pickup'" destination-type="pickup" title="Route to customer pickup" button-label="Show route to pickup" />
+                            <p class="small text-secondary mt-2 mb-0">This route starts at your current location. Your service-area or private base location is not shared.</p>
+                        @else
+                            <p class="small text-secondary mb-0">Directions are unavailable for a closed request.</p>
+                        @endif
                     </div>
                 </div>
             </article>
@@ -67,82 +57,4 @@
             </div>
         @endforelse
     </section>
-    @push('scripts')
-        <script>
-            (() => {
-                const mapElements = [...document.querySelectorAll('.roadside-street-map')];
-                if (!mapElements.length) return;
-                let leafletPromise;
-                const loadLeaflet = () => {
-                    if (window.L) return Promise.resolve(window.L);
-                    if (leafletPromise) return leafletPromise;
-                    leafletPromise = new Promise((resolve, reject) => {
-                        let cssReady = false;
-                        let jsReady = false;
-                        const timeout = window.setTimeout(() => reject(new Error('Map timed out')), 8000);
-                        const ready = () => {
-                            if (cssReady && jsReady) {
-                                window.clearTimeout(timeout);
-                                resolve(window.L);
-                            }
-                        };
-                        const css = document.createElement('link');
-                        css.rel = 'stylesheet';
-                        css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-                        css.integrity = 'sha512-Zcn6bjR/8RZbLEpLIeOwNtzREBAJnUKESxces60Mpoj+2okopSAcSUIUOseddDm0cxnGQzxIR7vJgsLZbdLE3w==';
-                        css.crossOrigin = 'anonymous';
-                        css.onload = () => { cssReady = true; ready(); };
-                        css.onerror = () => reject(new Error('Map styles unavailable'));
-                        document.head.append(css);
-                        const js = document.createElement('script');
-                        js.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-                        js.integrity = 'sha512-BwHfrr4c9kmRkLw6iXFdzcdWV/PGkVgiIyIWLLlTSXzWQzxuSg4DiQUCpauz/EWjgk5TYQqX/kvn9pG1NpYfqg==';
-                        js.crossOrigin = 'anonymous';
-                        js.onload = () => { jsReady = true; ready(); };
-                        js.onerror = () => reject(new Error('Map script unavailable'));
-                        document.body.append(js);
-                    }).catch(error => { leafletPromise = null; throw error; });
-                    return leafletPromise;
-                };
-                const renderMap = async element => {
-                    const customer = [Number.parseFloat(element.dataset.latitude), Number.parseFloat(element.dataset.longitude)];
-                    const shop = [Number.parseFloat(element.dataset.shopLatitude), Number.parseFloat(element.dataset.shopLongitude)];
-                    if (!Number.isFinite(customer[0]) || !Number.isFinite(customer[1])) {
-                        element.textContent = 'Pickup coordinates unavailable. Please contact the customer.';
-                        return;
-                    }
-                    try {
-                        const leaflet = await loadLeaflet();
-                        element.textContent = '';
-                        const map = leaflet.map(element, { scrollWheelZoom: false }).setView(customer, 15);
-                        leaflet.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                            attribution: '&copy; OpenStreetMap contributors',
-                        }).addTo(map);
-                        leaflet.circleMarker(customer, {
-                            radius: 9, color: '#b45309', fillColor: '#f97316', fillOpacity: 1, weight: 2,
-                        }).addTo(map).bindPopup('Customer pickup location').openPopup();
-                        if (Number.isFinite(shop[0]) && Number.isFinite(shop[1])) {
-                            leaflet.circleMarker(shop, {
-                                radius: 8, color: '#1e40af', fillColor: '#2563eb', fillOpacity: 1, weight: 2,
-                            }).addTo(map).bindPopup(@json($shop->isIndependentMechanic() ? 'Your service area' : 'Your shop'));
-                            map.fitBounds([customer, shop], { padding: [30, 30], maxZoom: 15 });
-                        }
-                        window.setTimeout(() => map.invalidateSize(), 100);
-                    } catch {
-                        element.textContent = 'Street map unavailable. Use the GPS coordinates shown beside it.';
-                    }
-                };
-                if ('IntersectionObserver' in window) {
-                    const observer = new IntersectionObserver(entries => entries.forEach(entry => {
-                        if (!entry.isIntersecting) return;
-                        observer.unobserve(entry.target);
-                        renderMap(entry.target);
-                    }), { rootMargin: '150px' });
-                    mapElements.forEach(element => observer.observe(element));
-                } else {
-                    mapElements.forEach(renderMap);
-                }
-            })();
-        </script>
-    @endpush
 </x-layouts.app>

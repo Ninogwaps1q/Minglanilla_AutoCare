@@ -1,4 +1,5 @@
 import { loadGoogleMaps } from './google-maps';
+import { createShopMapPopup } from './shop-map-popup';
 
 const mapElement = document.querySelector('#shop-map');
 const shops = JSON.parse(mapElement.dataset.shops || '[]');
@@ -20,16 +21,14 @@ if (!shops.length) {
 
         shops.forEach(shop => {
             const position = { lat: Number(shop.latitude), lng: Number(shop.longitude) };
-            const marker = new googleMaps.Marker({ map, position, title: shop.name });
+            const marker = new googleMaps.Marker({
+                map,
+                position,
+                title: shop.provider_type === 'independent_mechanic' ? `${shop.name} approximate service area` : shop.name,
+                icon: shop.provider_type === 'independent_mechanic' ? 'https://maps.google.com/mapfiles/ms/icons/orange-dot.png' : undefined,
+            });
             bounds.extend(position);
-            const content = document.createElement('div');
-            const name = document.createElement('strong');
-            name.textContent = shop.name;
-            const link = document.createElement('a');
-            link.href = shop.url;
-            link.textContent = 'View provider';
-            link.className = 'd-block';
-            content.append(name, link);
+            const content = createShopMapPopup(shop, shop.url, shop.provider_type === 'independent_mechanic' ? 'View mechanic' : 'View shop');
             marker.addListener('click', () => { infoWindow.setContent(content); infoWindow.open({ anchor: marker, map }); });
             if (Number(shop.id) === selectedShopId) selectedMarker = marker;
         });
@@ -39,7 +38,7 @@ if (!shops.length) {
             new googleMaps.Marker({ map, position, title: 'Your approximate location', icon: 'https://maps.google.com/mapfiles/ms/icons/orange-dot.png' });
             bounds.extend(position);
         }
-        map.fitBounds(bounds, 30);
+        map.fitBounds(bounds, { top: Math.min(150, Math.round(mapElement.clientHeight * .38)), right: 30, bottom: 30, left: 30 });
         googleMaps.event.addListenerOnce(map, 'bounds_changed', () => { if (map.getZoom() > 15) map.setZoom(15); });
         if (selectedMarker) googleMaps.event.trigger(selectedMarker, 'click');
     }).catch(error => message(error.message === 'Google Maps API key is not configured.' ? 'Map unavailable until the administrator configures Google Maps. Browse providers below.' : 'The map could not load. Browse providers below.'));

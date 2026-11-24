@@ -25,8 +25,7 @@
             <div id="publicNavigation" class="collapse navbar-collapse">
                 <ul class="navbar-nav ms-lg-auto align-items-lg-center gap-lg-2">
                     <li class="nav-item public-nav-home d-flex align-items-center"><x-theme-toggle /><a class="nav-link" href="{{ $onLandingPage ? '#home' : route('home') }}">Home</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ $onLandingPage ? '#find-shops' : route('shops.index') }}">Find a shop</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ route('shops.index', ['provider' => 'independent_mechanic']) }}">Find a mechanic</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ $onLandingPage ? '#find-shops' : route('shops.index') }}">Find shops &amp; mechanics</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ route('shop.pricing') }}">For providers</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ $onLandingPage ? '#about' : route('home').'#about' }}">About</a></li>
                     @auth

@@ -10,12 +10,12 @@
                     @elseif ($unpaidInvoiceCount > 0) You have a payment to review. Open your invoices to see the amount and next step.
                     @elseif ($activeRepair) Your repair is underway. Check its progress and any estimate awaiting your decision.
                     @elseif ($nextAppointment) Your next visit is scheduled. Open your appointments for the date, time, and shop.
-                    @else Ready for your next service? Find a shop near you or choose a booking time.
+                    @else Ready for your next service? Find a shop or mechanic near you, or choose a booking time.
                     @endif</p>
                 <div class="d-flex flex-wrap gap-2 mt-4">
                     @if (! $primaryVehicle)
                         <a class="btn btn-accent" href="{{ route('customer.vehicles.create') }}"><i class="bi bi-car-front me-2" aria-hidden="true"></i>Add my vehicle</a>
-                        <a class="btn btn-light" href="{{ route('shops.index') }}">Find nearby shops</a>
+                        <a class="btn btn-light" href="{{ route('shops.index') }}">Browse providers</a>
                     @elseif ($unpaidInvoiceCount > 0)
                         <a class="btn btn-accent" href="{{ route('customer.invoices.index') }}"><i class="bi bi-receipt me-2" aria-hidden="true"></i>Review payments</a>
                         <a class="btn btn-light" href="{{ route('customer.appointments.create') }}">Book a service</a>
@@ -24,9 +24,9 @@
                         <a class="btn btn-light" href="{{ route('customer.appointments.create') }}">Book a service</a>
                     @elseif ($nextAppointment)
                         <a class="btn btn-accent" href="{{ route('customer.appointments.index') }}"><i class="bi bi-calendar-check me-2" aria-hidden="true"></i>View appointment</a>
-                        <a class="btn btn-light" href="{{ route('shops.index') }}">Find nearby shops</a>
+                        <a class="btn btn-light" href="{{ route('shops.index') }}">Browse providers</a>
                     @else
-                        <a class="btn btn-accent" href="{{ route('shops.index') }}"><i class="bi bi-geo-alt me-2" aria-hidden="true"></i>Find a nearby shop</a>
+                        <a class="btn btn-accent" href="{{ route('shops.index') }}"><i class="bi bi-geo-alt me-2" aria-hidden="true"></i>Find a provider</a>
                         <a class="btn btn-light" href="{{ route('customer.appointments.create') }}">Book a service</a>
                     @endif
                 </div>

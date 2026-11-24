@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { installDirectionsMapStub } from './directions-map-stub.js';
 
 test.skip(() => process.env.BROWSER_ISOLATED !== '1', 'Requires disposable browser database');
 
@@ -269,10 +270,63 @@ test('customer can share location and see the assigned roadside shop', async ({ 
     const request = page.getByRole('article', { name: 'breakdown request' }).filter({ hasText: landmark });
     await expect(request).toContainText('Browser Test AutoCare');
     await expect(request.getByRole('link', { name: '09170000000' })).toHaveAttribute('href', 'tel:09170000000');
+    await expect(request.getByRole('link', { name: 'View pickup in Google Maps' })).toHaveCount(0);
+    await expect(request.getByRole('link', { name: 'View route from shop to pickup' })).toHaveCount(0);
     await expect(request).toContainText('Dispatch history (1)');
+    await page.evaluate(() => localStorage.setItem('autocare-theme', 'dark'));
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await expect(request).toContainText('Browser Test AutoCare');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+    if (testInfo.project.name !== 'desktop') {
+        await request.scrollIntoViewIfNeeded();
+        await page.screenshot({ path: testInfo.outputPath('customer-roadside-route-dark.png') });
+    }
     page.once('dialog', dialog => dialog.accept());
     await request.getByRole('button', { name: 'Cancel request' }).click();
     await expect(request).toContainText('Cancelled');
+});
+
+test('assigned roadside responder sees route and turn steps inside the page', async ({ page, context }, testInfo) => {
+    await installDirectionsMapStub(page);
+    await signIn(page, 'customer');
+    await context.grantPermissions(['geolocation']);
+    await context.setGeolocation({ latitude: 10.2443, longitude: 123.7898 });
+    await page.goto('/customer/emergency-requests');
+    await page.getByRole('button', { name: 'Use my current location' }).click();
+    await expect(page.getByRole('status')).toContainText('Location ready');
+    await page.getByRole('button', { name: 'Send assistance request' }).click();
+
+    await context.clearCookies();
+    await signIn(page, 'shop_owner');
+    await page.goto('/shop/emergency-requests');
+    const request = page.locator('.roadside-request').first();
+    await expect(request).toContainText('Browser customer');
+    const directions = request.getByRole('button', { name: 'Show route to pickup' });
+    await expect(directions).toBeVisible();
+    await directions.click();
+    await expect(request.getByText('Turn right onto Test Road')).toBeVisible();
+    await expect(request.locator('.driving-directions-summary')).toContainText('2.5 km');
+    const map = request.getByRole('region', { name: /Map showing .* pickup/ });
+    await expect(map).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+    if (testInfo.project.name !== 'desktop') {
+        await map.scrollIntoViewIfNeeded();
+        await page.screenshot({ path: testInfo.outputPath('roadside-route-light.png') });
+        await page.evaluate(() => localStorage.setItem('autocare-theme', 'dark'));
+        await page.reload();
+        await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+        await expect(page.locator('.roadside-request').first().getByRole('button', { name: 'Show route to pickup' })).toBeVisible();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+        await page.locator('.roadside-request').first().scrollIntoViewIfNeeded();
+        await page.screenshot({ path: testInfo.outputPath('roadside-route-dark.png') });
+    }
+
+    await context.clearCookies();
+    await signIn(page, 'customer');
+    await page.goto('/customer/emergency-requests');
+    page.once('dialog', dialog => dialog.accept());
+    await page.getByRole('article', { name: 'breakdown request' }).first().getByRole('button', { name: 'Cancel request' }).click();
 });
 
 for (const [role, notificationsPath] of [['customer', '/customer/notifications'], ['shop_owner', '/shop/notifications']]) {

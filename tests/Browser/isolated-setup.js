@@ -27,7 +27,11 @@ export default async function setup() {
     const env = { ...process.env, LARAVEL_STORAGE_PATH: isolatedStorage, APP_ENV: 'testing', APP_DEBUG: 'false', CACHE_STORE: 'array', SESSION_DRIVER: 'file', SESSION_COOKIE: 'autocare_browser_test', MAIL_MAILER: 'array', QUEUE_CONNECTION: 'sync', PAYMONGO_SECRET_KEY: '', PAYMONGO_WEBHOOK_SECRET: '', PAYMONGO_LEGACY_MANUAL_PAYMENTS: 'true' };
     const fixture = JSON.parse(execFileSync('php', ['tests/Browser/prepare.php'], { env, encoding: 'utf8', timeout: 120000, windowsHide: true }));
     process.env.BROWSER_FIXTURE = JSON.stringify(fixture);
-    const server = spawn('php', ['-S', '127.0.0.1:8877', resolve('vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php')], {
+    const logoPath = resolve(isolatedStorage, 'app/public', fixture.logo);
+    if (!existsSync(logoPath)) {
+        throw new Error('The isolated browser shop logo was not written to its expected storage path.');
+    }
+    const server = spawn('php', ['-d', 'variables_order=EGPCS', '-S', '127.0.0.1:8877', resolve('vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php')], {
         cwd: resolve('public'),
         env: { ...env, DB_CONNECTION: 'sqlite', DB_DATABASE: fixture.database, DB_URL: '', APP_URL: 'http://127.0.0.1:8877' },
         windowsHide: true, stdio: 'ignore',
@@ -54,7 +58,6 @@ export default async function setup() {
         if (resolve(fixture.database).startsWith(resolve('storage/framework/testing') + sep)) {
             unlinkSync(fixture.database);
         }
-        const logoPath = resolve(isolatedStorage, 'app/public', fixture.logo);
         if (/^shop-logos\/browser-map-[a-f0-9]{16}\.png$/.test(fixture.logo)
             && logoPath.startsWith(resolve(isolatedStorage, 'app/public/shop-logos') + sep)
             && existsSync(logoPath)) {

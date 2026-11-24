@@ -1,6 +1,6 @@
 <x-layouts.app title="Find vehicle care">
     <div class="page-heading">
-        <h1>Find a shop or mobile mechanic</h1>
+        <h1>Find shops &amp; mechanics</h1>
         <p>Compare verified providers, check their service areas, and choose where to book.</p>
     </div>
 
@@ -24,8 +24,11 @@
     </section>
 
     <section id="shop-results" aria-labelledby="shop-results-heading">
-        <h2 id="shop-results-heading" class="h4 mb-3">{{ $shops->count() }} {{ $shops->count() === 1 ? 'provider found' : 'providers found' }}</h2>
-        <div class="shop-directory-grid">
+        <h2 id="shop-results-heading" class="h4 mb-1">{{ $shops->count() }} {{ $shops->count() === 1 ? 'provider found' : 'providers found' }}</h2>
+        @if ($shops->count() > 1)
+            <p id="shop-scroll-hint" class="small text-secondary mb-3">Swipe or scroll sideways to compare shops and mechanics. Use the arrow keys when the results are focused.</p>
+        @endif
+        <div class="shop-directory-grid {{ $shops->isEmpty() ? 'shop-directory-grid-empty' : '' }}" role="region" aria-label="Shop and mechanic results" @if ($shops->isNotEmpty()) tabindex="0" @endif @if ($shops->count() > 1) aria-describedby="shop-scroll-hint" @endif>
             @forelse ($shops as $shop)
                 <div>
                     <article class="surface h-100 d-flex flex-column overflow-hidden">
@@ -49,12 +52,12 @@
                             </div>
                             <p class="small mb-2">
                                 <i class="bi bi-geo-alt me-1 text-secondary" aria-hidden="true"></i>
-                                @if ($shop->latitude !== null && $shop->longitude !== null)
-                                    <a class="shop-directory-location-link" href="{{ route('shops.index', ['search' => $shop->name, 'selected' => $shop->id]) }}#shop-map" aria-label="Show {{ $shop->name }} on map">{{ $shop->barangay->name }}, {{ $shop->barangay->municipality?->name }} &middot; Show on map</a>
+                                @if ($shop->publicMapPosition() !== null)
+                                    <a class="shop-directory-location-link" href="{{ route('shops.index', ['search' => $shop->name, 'selected' => $shop->id]) }}#shop-map" aria-label="Show {{ $shop->name }} on map">{{ $shop->barangay->name }}, {{ $shop->barangay->municipality?->name }} &middot; {{ $shop->isIndependentMechanic() ? 'Approximate service area' : 'Show on map' }}</a>
                                 @else
                                     <span class="text-secondary">{{ $shop->barangay->name }}, {{ $shop->barangay->municipality?->name }}</span>
                                 @endif
-                                @if ($distances->has($shop->id))<span class="text-secondary"> &middot; {{ number_format($distances->get($shop->id), 1) }} km away</span>@endif
+                                @if ($distances->has($shop->id))<span class="text-secondary"> &middot; {{ $shop->isIndependentMechanic() ? 'Approx. ' : '' }}{{ number_format($distances->get($shop->id), 1) }} km {{ $shop->isIndependentMechanic() ? 'to service area' : 'away' }}</span>@endif
                             </p>
                             <p class="small">{{ $shop->services->where('availability', true)->pluck('service.name')->implode(', ') ?: 'Services not listed yet.' }}</p>
                             <a class="btn btn-outline-primary mt-auto align-self-start" href="{{ route('shops.show', $shop) }}">View {{ $shop->isIndependentMechanic() ? 'mechanic' : 'shop' }} <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i></a>
