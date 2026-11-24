@@ -6,7 +6,7 @@
     <div class="row g-3 mt-1">
         <div class="col-md-6"><label for="latitude" class="form-label">Latitude</label><input id="latitude" class="form-control" type="number" min="4" max="22" step="any"
                 name="latitude" value="{{ old('latitude', $latitude) }}" required></div>
-        <div class="col-md-6"><label for="longitude" class="form-label">Longitude</label><input id="longitude" class="form-control" type="number" min="116" max="127" step="any"
+        <div class="col-md-6"><label for="longitude" class="form-label">Longitude</label><input id="longitude" class="form-control" type="number" min="112" max="128" step="any"
                 name="longitude" value="{{ old('longitude', $longitude) }}" required></div>
     </div>
 </div>

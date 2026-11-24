@@ -17,7 +17,7 @@
                 <div class="roadside-request-main">
                     <div>
                         <dl class="roadside-request-details">
-                            <div><dt>Shared pickup location</dt><dd>{{ $emergencyRequest->address ?: 'GPS location shared by customer' }}</dd></div>
+                            <div><dt>Shared pickup location</dt><dd>{{ $emergencyRequest->pickupAddress() ?: 'GPS location shared by customer' }}</dd></div>
                             <div><dt>GPS coordinates</dt><dd>{{ $emergencyRequest->latitude }}, {{ $emergencyRequest->longitude }}</dd></div>
                             <div><dt>Requested</dt><dd>{{ $emergencyRequest->requested_at?->format('M j, Y · g:i A') ?? 'Time unavailable' }}</dd></div>
                             <div><dt>Contact</dt><dd>@if ($emergencyRequest->customer->phone)<a href="tel:{{ preg_replace('/[^+0-9]/', '', $emergencyRequest->customer->phone) }}">{{ $emergencyRequest->customer->phone }}</a>@else No phone number provided @endif</dd></div>

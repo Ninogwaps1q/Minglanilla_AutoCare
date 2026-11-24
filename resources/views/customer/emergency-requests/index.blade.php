@@ -6,7 +6,10 @@
             <form method="POST" action="{{ route('customer.emergency-requests.store') }}" class="vstack gap-3">@csrf
                 <div><label class="form-label" for="vehicle_id">Vehicle</label><select id="vehicle_id" class="form-select" name="vehicle_id"><option value="">No vehicle selected</option>@foreach ($vehicles as $vehicle)<option value="{{ $vehicle->id }}" @selected(old('vehicle_id') == $vehicle->id)>{{ $vehicle->plate_number }} · {{ $vehicle->make }} {{ $vehicle->model }}</option>@endforeach</select></div>
                 <div><label class="form-label" for="emergency_type">Type of emergency</label><select id="emergency_type" class="form-select" name="emergency_type" required>@foreach (['breakdown' => 'Breakdown', 'flat_tire' => 'Flat tire', 'battery' => 'Battery', 'overheating' => 'Overheating', 'accident' => 'Accident', 'towing' => 'Towing', 'other' => 'Other'] as $value => $label)<option value="{{ $value }}" @selected(old('emergency_type') === $value)>{{ $label }}</option>@endforeach</select></div>
-                <div><label class="form-label" for="address">Location details</label><input id="address" class="form-control" name="address" maxlength="500" value="{{ old('address') }}" placeholder="Street, landmark, or barangay"></div>
+                <fieldset>
+                    <legend class="h6">Pickup address (optional)</legend>
+                    <x-address-picker prefix="pickup" :street-max="255" />
+                </fieldset>
                 <div><label class="form-label" for="description">What happened?</label><textarea id="description" class="form-control" name="description" rows="3" maxlength="2000" placeholder="Describe your situation briefly">{{ old('description') }}</textarea></div>
                 <input id="latitude" type="hidden" name="latitude" value="{{ old('latitude') }}"><input id="longitude" type="hidden" name="longitude" value="{{ old('longitude') }}">
                 <div><button id="location-button" class="btn btn-outline-primary" type="button">Use my current location</button><p id="location-status" class="small text-secondary mt-2 mb-0" role="status" aria-live="polite">Location is needed to find the nearest eligible provider.</p></div>
@@ -19,7 +22,7 @@
                 @php $attempts = $dispatchAttempts->get($emergencyRequest->id, collect()); @endphp
                 <article class="border rounded p-3" aria-label="{{ str_replace('_', ' ', $emergencyRequest->emergency_type) }} request">
                     <div class="d-flex flex-wrap justify-content-between gap-2 mb-2"><strong>{{ ucfirst(str_replace('_', ' ', $emergencyRequest->emergency_type)) }}</strong><span class="badge text-bg-{{ $emergencyRequest->status === 'completed' ? 'success' : ($emergencyRequest->status === 'cancelled' ? 'secondary' : 'warning') }} text-capitalize">{{ str_replace('_', ' ', $emergencyRequest->status) }}</span></div>
-                    <p class="small text-secondary mb-2">Requested {{ $emergencyRequest->requested_at?->format('M j, Y · g:i A') }} · {{ $emergencyRequest->address ?: 'Location coordinates shared' }}</p>
+                    <p class="small text-secondary mb-2">Requested {{ $emergencyRequest->requested_at?->format('M j, Y · g:i A') }} · {{ $emergencyRequest->pickupAddress() ?: 'Location coordinates shared' }}</p>
                     @if ($emergencyRequest->assignedShop)
                         <p class="mb-1"><strong>Assigned {{ $emergencyRequest->assignedShop->isIndependentMechanic() ? 'mechanic' : 'shop' }}:</strong> {{ $emergencyRequest->assignedShop->name }}</p>
                         @if ($emergencyRequest->assignedShop->phone)<p class="mb-1"><strong>Contact:</strong> <a href="tel:{{ preg_replace('/[^+0-9]/', '', $emergencyRequest->assignedShop->phone) }}">{{ $emergencyRequest->assignedShop->phone }}</a></p>@endif

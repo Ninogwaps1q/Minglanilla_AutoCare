@@ -15,6 +15,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -110,13 +111,8 @@ class AppointmentController extends Controller
                 throw ValidationException::withMessages(['service_street' => 'Enter the full visit address for this mobile service.']);
             }
             if ($shop->isIndependentMechanic()) {
-                $barangay = Barangay::query()->with('municipality.province')->findOrFail($attributes['service_barangay_id']);
-                $attributes['service_address'] = implode(', ', array_filter([
-                    $attributes['service_street'],
-                    $barangay->name,
-                    $barangay->municipality->name,
-                    $barangay->municipality->province->name,
-                ]));
+                $barangay = Barangay::query()->with('municipality.province.region')->findOrFail($attributes['service_barangay_id']);
+                $attributes['service_address'] = Str::limit($attributes['service_street'].', '.$barangay->areaLabel(), 500, '');
             } else {
                 unset($attributes['service_barangay_id'], $attributes['service_street'], $attributes['service_landmark']);
             }

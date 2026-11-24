@@ -35,6 +35,16 @@ class EmergencyRequest extends Model
         return $this->belongsTo(Vehicle::class);
     }
 
+    public function barangay(): BelongsTo
+    {
+        return $this->belongsTo(Barangay::class);
+    }
+
+    public function pickupAddress(): string
+    {
+        return implode(', ', array_filter([$this->address, $this->barangay?->areaLabel(), $this->landmark]));
+    }
+
     public function assignedShop(): BelongsTo
     {
         return $this->belongsTo(Shop::class, 'assigned_shop_id');

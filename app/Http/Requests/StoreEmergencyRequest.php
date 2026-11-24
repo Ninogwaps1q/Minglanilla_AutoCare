@@ -28,7 +28,9 @@ class StoreEmergencyRequest extends FormRequest
             'description' => ['nullable', 'string', 'max:2000'],
             'latitude' => ['required', 'numeric', 'between:-90,90'],
             'longitude' => ['required', 'numeric', 'between:-180,180'],
-            'address' => ['nullable', 'string', 'max:500'],
+            'address' => ['nullable', 'string', 'max:255'],
+            'barangay_id' => ['nullable', 'integer', 'exists:barangays,id'],
+            'landmark' => ['nullable', 'string', 'max:255'],
         ];
     }
 }

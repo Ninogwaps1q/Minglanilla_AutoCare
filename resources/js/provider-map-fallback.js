@@ -19,7 +19,7 @@ export const showProviderMapFallback = (mapElement, providers, providerUrl, sele
 
     const shops = providers.filter(shop => shop.latitude !== null && shop.longitude !== null
         && Number(shop.latitude) >= 4 && Number(shop.latitude) <= 22
-        && Number(shop.longitude) >= 116 && Number(shop.longitude) <= 127);
+        && Number(shop.longitude) >= 112 && Number(shop.longitude) <= 128);
     if (!shops.length) return false;
 
     const wrapper = document.createElement('div');

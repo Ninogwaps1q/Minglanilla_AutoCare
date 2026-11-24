@@ -4,55 +4,80 @@ document.querySelectorAll('[data-address-picker]').forEach(picker => {
     const municipality = picker.querySelector('[data-address-municipality]');
     const barangay = picker.querySelector('[data-address-barangay]');
     const status = picker.querySelector('[data-address-status]');
-    const fill = (select, entries, placeholder, selected) => {
-        select.replaceChildren(new Option(placeholder, ''));
+    const selects = [region, province, municipality, barangay].filter(Boolean);
+    const placeholders = new Map(selects.map(select => [select, select.options[0].textContent]));
+    let selectionVersion = 0;
+
+    const fill = (select, entries, selected = '') => {
+        select.replaceChildren(new Option(placeholders.get(select), ''));
         entries.forEach(entry => select.add(new Option(entry.name, String(entry.id))));
-        select.value = selected && [...select.options].some(option => option.value === String(selected)) ? String(selected) : '';
+        select.value = [...select.options].some(option => option.value === String(selected)) ? String(selected) : '';
     };
-    const load = async (select, urlName, parentName, parentId, selected = '') => {
-        if (!parentId && parentName) return;
-        const url = new URL(picker.dataset[urlName]);
-        if (parentName) url.searchParams.set(parentName, parentId);
+
+    const read = async url => {
         const response = await fetch(url, { headers: { Accept: 'application/json' } });
         if (!response.ok) throw new Error('Location list unavailable');
-        const entries = await response.json();
-        fill(select, entries, select === region ? 'Select region' : select === province ? 'Select province' : select === municipality ? 'Select city or municipality' : 'Select barangay', selected);
+        return response.json();
     };
-    const clearBelow = (level) => {
-        if (level <= 1) fill(province, [], 'Select province');
-        if (level <= 2) fill(municipality, [], 'Select city or municipality');
-        if (level <= 3) fill(barangay, [], 'Select barangay');
-    };
-    const showError = () => { status.textContent = 'Locations could not load. Try again or contact support before saving this address.'; };
-    region.addEventListener('change', async () => {
-        clearBelow(1);
-        try { await load(province, 'provincesUrl', 'region_id', region.value); status.textContent = 'Choose a province.'; } catch { showError(); }
-    });
-    province.addEventListener('change', async () => {
-        clearBelow(2);
-        try { await load(municipality, 'municipalitiesUrl', 'province_id', province.value); status.textContent = 'Choose a city or municipality.'; } catch { showError(); }
-    });
-    municipality.addEventListener('change', async () => {
-        clearBelow(3);
-        try { await load(barangay, 'barangaysUrl', 'municipality_id', municipality.value); status.textContent = 'Choose a barangay.'; } catch { showError(); }
-    });
-    barangay.addEventListener('change', () => { status.textContent = barangay.value ? 'Address area selected.' : 'Choose a barangay.'; });
 
-    (async () => {
-        try {
-            const initialId = picker.dataset.initialBarangay;
-            let path = null;
-            if (initialId) {
-                const url = new URL(picker.dataset.pathUrl);
-                url.searchParams.set('barangay_id', initialId);
-                const response = await fetch(url, { headers: { Accept: 'application/json' } });
-                if (response.ok) path = await response.json();
+    const load = async (select, urlName, version, parentName = null, parentId = null, selected = '') => {
+        if (!select || (parentName && !parentId)) return;
+        const url = new URL(picker.dataset[urlName]);
+        if (parentName) url.searchParams.set(parentName, parentId);
+        const entries = await read(url);
+        if (version === selectionVersion) fill(select, entries, selected);
+    };
+
+    const showError = version => {
+        if (version === selectionVersion) status.textContent = 'Locations could not load. Try again before saving or filtering.';
+    };
+
+    const choices = [
+        [region, province, 'provincesUrl', 'region_id', 'Choose a province or area.'],
+        [province, municipality, 'municipalitiesUrl', 'province_id', 'Choose a city or municipality.'],
+        [municipality, barangay, 'barangaysUrl', 'municipality_id', barangay ? 'Choose a barangay.' : 'Area selected.'],
+    ];
+
+    choices.forEach(([select, child, url, parent, message], index) => {
+        select.addEventListener('change', async () => {
+            const version = ++selectionVersion;
+            selects.slice(index + 1).forEach(next => fill(next, []));
+            try {
+                await load(child, url, version, parent, select.value);
+                if (version === selectionVersion) status.textContent = select.value ? message : 'Choose a region, province, or city.';
+            } catch {
+                showError(version);
             }
-            await load(region, 'regionsUrl', null, null, path?.region_id);
-            if (path?.region_id) await load(province, 'provincesUrl', 'region_id', path.region_id, path.province_id);
-            if (path?.province_id) await load(municipality, 'municipalitiesUrl', 'province_id', path.province_id, path.municipality_id);
-            if (path?.municipality_id) await load(barangay, 'barangaysUrl', 'municipality_id', path.municipality_id, path.barangay_id);
-            status.textContent = path ? 'Current address area loaded.' : 'Choose a region to load provinces and cities.';
-        } catch { showError(); }
-    })();
+        });
+    });
+    barangay?.addEventListener('change', () => {
+        selectionVersion++;
+        status.textContent = barangay.value ? 'Address area selected.' : 'Choose a barangay.';
+    });
+
+    const initialize = async () => {
+        const version = selectionVersion;
+        const initial = { region_id: region.value, province_id: province.value, municipality_id: municipality.value, barangay_id: barangay?.value };
+        try {
+            if (picker.dataset.initialBarangay) {
+                const url = new URL(picker.dataset.pathUrl);
+                url.searchParams.set('barangay_id', picker.dataset.initialBarangay);
+                Object.assign(initial, await read(url));
+            }
+
+            await load(region, 'regionsUrl', version, null, null, initial.region_id);
+            await load(province, 'provincesUrl', version, 'region_id', initial.region_id, initial.province_id);
+            await load(municipality, 'municipalitiesUrl', version, 'province_id', initial.province_id, initial.municipality_id);
+            await load(barangay, 'barangaysUrl', version, 'municipality_id', initial.municipality_id, initial.barangay_id);
+            if (version === selectionVersion) {
+                status.textContent = region.value ? 'Area selection loaded.' : 'Choose a region to load provinces and cities.';
+                picker.dataset.ready = 'true';
+                picker.dispatchEvent(new Event('address:ready'));
+            }
+        } catch {
+            showError(version);
+        }
+    };
+
+    initialize();
 });

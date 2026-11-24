@@ -27,9 +27,7 @@ Start the database server before running migrations or opening the app. If login
 
 ```powershell
 php artisan migrate --no-interaction
-php artisan catalog:import-psgc --no-interaction
-php artisan db:seed --class=VehicleMakeSeeder --no-interaction
-php artisan db:seed --class=VehicleModelSeeder --no-interaction
+php artisan db:seed --no-interaction
 php artisan catalog:import-vehicles --no-interaction
 php artisan storage:link
 npm run build
@@ -38,13 +36,15 @@ php artisan app:deployment-check
 
 Start the app with `composer run dev`, which also starts the scheduler. Alternatively, run `php artisan serve`, `npm run dev`, `php artisan queue:work`, and `php artisan schedule:work` in separate terminals. Keep the scheduler running for scheduled subscription activation, background PayMongo checkout/refund checks, reminders, quotation expiry, and unanswered roadside reassignment. Payment checks need both the PayMongo secret key and webhook secret; they recover missed callbacks without an open browser.
 
-`php artisan db:seed` is optional **only on a fresh local database**. It creates demo accounts with known passwords; never expose those accounts to the internet and change their passwords if you keep them. Do not run `migrate:fresh` or reset an existing database to set up this project.
+`php artisan db:seed` loads the nationwide address, service, and vehicle catalogs and can be rerun. For a private local demo, run `php artisan db:seed --class=DemoSeeder --no-interaction` separately. Demo accounts have known passwords. Do not run `migrate:fresh` or reset an existing database to set up this project.
 
 If you do not use demo accounts, create the first administrator with `php artisan app:bootstrap-admin`. The command asks for a strong password privately and refuses to run once an administrator exists.
 
 ### Address and vehicle catalogs
 
-`catalog:import-psgc` imports the bundled Philippine Statistics Authority (PSA) catalog as of 30 September 2026: all 18 regions, 82 provinces, 149 cities, 1,493 municipalities, and 42,010 barangays. The snapshot uses [ph-psgc's June 2026 normalization](https://github.com/Tenasia/ph-psgc/tree/2026-Q2) with the [PSA's September name correction](https://psa.gov.ph/classification/psgc) and legacy correspondence from the former PSGC API. The address picker uses local data. Rerun the command to refresh the same release without deleting older address records or resetting database IDs.
+`db:seed` and `composer setup` run the bundled PSGC import. To refresh addresses alone, run `php artisan catalog:import-psgc --no-interaction`. The snapshot contains all 18 regions, 82 provinces, 149 cities, 1,493 municipalities, and 42,010 barangays as of 30 September 2026. It uses [ph-psgc's June 2026 normalization](https://github.com/Tenasia/ph-psgc/tree/2026-Q2) with the [PSA's September name correction](https://psa.gov.ph/classification/psgc) and legacy correspondence. Reruns retain older address records and existing IDs.
+
+Shop and mechanic registration, customer profiles, mechanic booking addresses, and roadside pickup addresses use the nationwide catalog. In the directory, search by provider, city, or province, filter by area, or share your location to see nearby providers. Google Maps can center the registration pin picker on a selected area when the Maps JavaScript API and Geocoding API are enabled. Providers still place their pin or enter coordinates.
 
 The vehicle seeders add local makes and models. `catalog:import-vehicles` fetches additional models for configured makes from the NHTSA vPIC API and links matching older vehicle records while keeping their original text. The vehicle picker uses the local catalog after import.
 
@@ -61,7 +61,7 @@ If images do not appear:
 
 ## Optional integrations
 
--   Google keys: set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `.env` for OAuth, and `GOOGLE_MAPS_API_KEY` for browser maps. Enable Maps JavaScript API and Routes API in the Google Cloud project, enable billing for a production key, and restrict the browser key to the allowed site origins and APIs. Keep real values out of `.env.example` and source control. Run `php artisan config:clear` after changing the local values.
+-   Google keys: set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `.env` for OAuth, and `GOOGLE_MAPS_API_KEY` for browser maps. Enable Maps JavaScript API for maps, Geocoding API for centering provider pins on the selected area, and Routes API for directions. Enable billing for a production key and restrict the browser key to the allowed site origins and APIs. Keep real values out of `.env.example` and source control. Run `php artisan config:clear` after changing the local values.
 -   Google login on another device: `localhost` always refers to the device opening the browser. Use one shared HTTPS domain or tunnel URL as `APP_URL`, register that exact origin followed by `/auth/google/callback` in the Google OAuth client's **Authorized redirect URIs**, then run `php artisan config:clear`. Open the shared HTTPS address on every device before signing in. Google does not allow ordinary LAN IP callback URLs. Keep `SESSION_DOMAIN=null`; the app trusts proxy headers only from a tunnel running on the same computer (`127.0.0.1` / `::1`). `GOOGLE_REDIRECT_URI` is not used; the callback is derived from `APP_URL` to keep both addresses consistent.
 -   AI assistant: set `AI_PROVIDER=gemini`, `GEMINI_API_KEY`, and `AI_MODEL` in `.env`. Keep the key server-side.
 -   Password-reset email: `MAIL_MAILER=log` writes development mail to Laravel logs. Configure a real mail provider before inviting users, then send and redeem a test reset link.
@@ -109,7 +109,7 @@ To verify recovery, copy a backup to a safe test machine, inspect `manifest.json
 Before switching traffic to a new host:
 
 1. Set `APP_ENV=production`, `APP_DEBUG=false`, an HTTPS `APP_URL`, real database credentials, and a working mail provider. Generate a unique `APP_KEY` for a new installation; preserve the original key when moving an existing installation so encrypted data remains readable. Keep `.env` outside source control.
-2. Run `composer install --no-dev --optimize-autoloader`, `npm ci`, `npm run build`, and `php artisan migrate --force --no-interaction` on the target host. Run `php artisan catalog:import-psgc --no-interaction` and the vehicle catalog commands above before accepting registrations. Add `--force` to the two vehicle catalog seed commands on production. Then run `php artisan storage:link` and `php artisan optimize`. Ensure `storage/` and `bootstrap/cache/` are writable and the web server serves the manifest and worker from the public root.
+2. Run `composer install --no-dev --optimize-autoloader`, `npm ci`, `npm run build`, and `php artisan migrate --force --no-interaction` on the target host. Run `php artisan db:seed --force --no-interaction` to load the nationwide address, service, and vehicle catalogs before accepting registrations. Run `php artisan catalog:import-vehicles --no-interaction` to add the vPIC models. Then run `php artisan storage:link` and `php artisan optimize`. Ensure `storage/` and `bootstrap/cache/` are writable and the web server serves the manifest and worker from the public root.
 3. Start a supervised queue worker and configure the once-per-minute scheduler. Check `php artisan queue:failed` and `php artisan schedule:list`.
 4. Run `php artisan app:deployment-check --strict`. It checks configuration, database access and pending migrations, storage link, writable directories, and whether scheduled backups are enabled, but it cannot prove external services are operating.
 5. Manually verify a delivered password-reset email, customer/shop/admin workflows, image upload and display, HTTPS, payment review, and a database **backup plus restore into a separate disposable database**. Do not restore over production as a test. Run a short real-user usability session on desktop and mobile; automated browser checks cannot prove that the interface is easy to understand.

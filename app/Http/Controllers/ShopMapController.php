@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Barangay;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -10,6 +11,7 @@ class ShopMapController extends Controller
     public function __invoke(Request $request): RedirectResponse
     {
         $filters = $request->validate([
+            ...Barangay::AREA_FILTER_RULES,
             'search' => ['nullable', 'string', 'max:100'],
             'barangay' => ['nullable', 'integer', 'exists:barangays,id'],
             'service' => ['nullable', 'integer', 'exists:services,id'],

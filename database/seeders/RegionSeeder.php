@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
-use App\Models\Province;
-use App\Models\Region;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Artisan;
+use RuntimeException;
 
 class RegionSeeder extends Seeder
 {
@@ -13,7 +13,8 @@ class RegionSeeder extends Seeder
      */
     public function run(): void
     {
-        $region = Region::query()->firstOrCreate(['psgc_code' => '070000000'], ['name' => 'Central Visayas']);
-        Province::query()->where('name', 'Cebu')->update(['region_id' => $region->id, 'psgc_code' => '072200000']);
+        if (Artisan::call('catalog:import-psgc', ['--no-interaction' => true]) !== 0) {
+            throw new RuntimeException(trim(Artisan::output()));
+        }
     }
 }

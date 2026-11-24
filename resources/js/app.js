@@ -281,3 +281,6 @@ if (document.querySelector('[data-vehicle-picker]')) {
 if (document.querySelector('[data-address-picker]')) {
     import('./address-picker.js');
 }
+if (document.querySelector('[data-nearby-search]')) {
+    import('./nearby-search.js');
+}

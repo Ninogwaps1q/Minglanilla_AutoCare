@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
 import { installDirectionsMapStub } from './directions-map-stub.js';
 
 test.skip(() => process.env.BROWSER_ISOLATED !== '1', 'Requires disposable browser database');
@@ -92,7 +93,7 @@ test('booking vehicle and address controls work with keyboard in both themes', a
         await page.goto('/customer/profile');
         await expect(page.locator('[data-address-picker]')).toBeVisible();
         await expect(page.getByLabel('Region').locator('option').nth(1)).toBeAttached();
-        await page.getByLabel('Region').selectOption({ label: 'Central Visayas' });
+        await page.getByLabel('Region').selectOption({ label: 'Davao Region' });
         await expect(page.getByLabel('Province').locator('option').nth(1)).toBeAttached();
         await page.getByLabel('Province').selectOption({ index: 1 });
         await expect(page.getByLabel('City / municipality').locator('option').nth(1)).toBeAttached();
@@ -100,6 +101,95 @@ test('booking vehicle and address controls work with keyboard in both themes', a
         await expect(page.getByLabel('Barangay').locator('option').nth(1)).toBeAttached();
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
         await page.screenshot({ path: testInfo.outputPath(`profile-${theme}.png`), fullPage: true });
+    }
+});
+
+test('provider registration centers the map on the selected city without assigning a pin', async ({ page }) => {
+    test.setTimeout(90000);
+    await installDirectionsMapStub(page);
+    await signIn(page, 'shop_owner');
+    await page.goto('/shop/register');
+    const map = page.locator('#location-picker-map');
+    await expect(map).toHaveAttribute('data-test-map-zoom', '5');
+
+    const region = page.getByLabel('Region', { exact: true });
+    await region.selectOption({ label: 'Davao Region' });
+    await region.focus();
+    await page.keyboard.press('Tab');
+    const province = page.getByLabel('Province or area');
+    await expect(province).toBeFocused();
+    await province.selectOption({ label: 'Davao del Sur' });
+    await page.getByLabel('City / municipality').selectOption({ label: 'City of Digos' });
+    await expect(map).toHaveAttribute('data-test-map-area', 'City of Digos, Davao del Sur, Davao Region, Philippines');
+    await page.getByLabel('Barangay', { exact: true }).selectOption({ label: 'Aplaya' });
+    await expect(map).toHaveAttribute('data-test-map-area', 'Aplaya, City of Digos, Davao del Sur, Davao Region, Philippines');
+    await expect(page.getByLabel('Latitude')).toHaveValue('');
+    await expect(page.getByLabel('Longitude')).toHaveValue('');
+    await page.evaluate(() => document.querySelector('[data-theme-toggle]').click());
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+});
+
+test('admin can filter providers and barangays by area in both themes', async ({ page }) => {
+    test.setTimeout(90000);
+    const fixture = JSON.parse(process.env.BROWSER_FIXTURE);
+    await page.goto('/login');
+    await page.getByLabel('Email address').fill('admin@browser.example.test');
+    await page.getByLabel('Password', { exact: true }).fill(fixture.password);
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await expect(page.getByLabel('Email code')).toBeVisible();
+    const mail = await readFile(process.env.BROWSER_TEST_MAIL_LOG, 'utf8');
+    const codes = [...mail.matchAll(/Your six-digit admin sign-in code is (\d{6})/g)];
+    await page.getByLabel('Email code').fill(codes.at(-1)[1]);
+    await page.getByRole('button', { name: 'Verify and continue' }).click();
+    await expect(page).toHaveURL(/dashboard$/);
+
+    for (const [path, prefix, button, result] of [
+        ['/admin/shops', 'verification-area', 'Apply filter', 'Browser Test AutoCare'],
+        ['/admin/barangays', 'barangay-filter', 'Find barangays', 'Aplaya'],
+    ]) {
+        await page.evaluate(() => localStorage.setItem('autocare-theme', 'light'));
+        await page.goto(path, { waitUntil: 'domcontentloaded' });
+        await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+
+        const region = page.locator(`#${prefix}-region`);
+        const province = page.locator(`#${prefix}-province`);
+        const city = page.locator(`#${prefix}-municipality`);
+        await region.selectOption({ label: 'Davao Region' });
+        await region.focus();
+        await page.keyboard.press('Tab');
+        await expect(province).toBeFocused();
+        await province.selectOption({ label: 'Davao del Sur' });
+        await city.selectOption({ label: 'City of Digos' });
+        await page.getByRole('button', { name: button }).click();
+        await expect(page.getByText(result, { exact: true }).first()).toBeVisible();
+        await expect(city.locator('option:checked')).toHaveText('City of Digos');
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+        await page.evaluate(() => localStorage.setItem('autocare-theme', 'dark'));
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+        await expect(page.getByText(result, { exact: true }).first()).toBeVisible();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+    }
+});
+
+test('provider profile restores the nationwide address and existing pin in both themes', async ({ page }) => {
+    test.setTimeout(90000);
+    await installDirectionsMapStub(page);
+    await signIn(page, 'shop_owner');
+
+    for (const theme of ['light', 'dark']) {
+        await page.evaluate(value => localStorage.setItem('autocare-theme', value), theme);
+        await page.goto('/shop/profile', { waitUntil: 'domcontentloaded' });
+        await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+        const region = page.getByLabel('Region', { exact: true });
+        await expect(region.locator('option:checked')).toHaveText('Davao Region');
+        await expect(page.getByLabel('Barangay', { exact: true }).locator('option:checked')).toHaveText('Aplaya');
+        await expect(page.locator('#location-picker-map')).toHaveAttribute('data-test-map-zoom', '16');
+        await region.focus();
+        await page.keyboard.press('Tab');
+        await expect(page.getByLabel('Province or area')).toBeFocused();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
     }
 });
 
@@ -259,17 +349,23 @@ test('shop can send itemized estimate, start approved repair, and issue its invo
 });
 
 test('customer can share location and see the assigned roadside shop', async ({ page }, testInfo) => {
+    test.setTimeout(90000);
     await signIn(page, 'customer');
     await page.context().grantPermissions(['geolocation']);
-    await page.context().setGeolocation({ latitude: 10.2443, longitude: 123.7898 });
+    await page.context().setGeolocation({ latitude: 6.7493, longitude: 125.3552 });
     await page.goto('/customer/emergency-requests');
     await page.getByRole('button', { name: 'Use my current location' }).click();
-    await expect(page.getByRole('status')).toContainText('Location ready');
+    await expect(page.locator('#location-status')).toContainText('Location ready');
+    await page.getByLabel('Region', { exact: true }).selectOption({ label: 'Davao Region' });
+    await page.getByLabel('Province or area').selectOption({ label: 'Davao del Sur' });
+    await page.getByLabel('City / municipality').selectOption({ label: 'City of Digos' });
+    await page.getByLabel('Barangay', { exact: true }).selectOption({ label: 'Aplaya' });
     const landmark = 'Browser roadside ' + testInfo.project.name;
-    await page.getByLabel('Location details').fill(landmark);
+    await page.getByLabel('Landmark (optional)').fill(landmark);
     await page.getByRole('button', { name: 'Send assistance request' }).click();
     const request = page.getByRole('article', { name: 'breakdown request' }).filter({ hasText: landmark });
     await expect(request).toContainText('Browser Test AutoCare');
+    await expect(request).toContainText('Aplaya, City of Digos, Davao del Sur, Davao Region');
     await expect(request.getByRole('link', { name: '09170000000' })).toHaveAttribute('href', 'tel:09170000000');
     await expect(request.getByRole('link', { name: 'View pickup in Google Maps' })).toHaveCount(0);
     await expect(request.getByRole('link', { name: 'View route from shop to pickup' })).toHaveCount(0);
@@ -292,10 +388,10 @@ test('assigned roadside responder sees route and turn steps inside the page', as
     await installDirectionsMapStub(page);
     await signIn(page, 'customer');
     await context.grantPermissions(['geolocation']);
-    await context.setGeolocation({ latitude: 10.2443, longitude: 123.7898 });
+    await context.setGeolocation({ latitude: 6.7493, longitude: 125.3552 });
     await page.goto('/customer/emergency-requests');
     await page.getByRole('button', { name: 'Use my current location' }).click();
-    await expect(page.getByRole('status')).toContainText('Location ready');
+    await expect(page.locator('#location-status')).toContainText('Location ready');
     await page.getByRole('button', { name: 'Send assistance request' }).click();
 
     await context.clearCookies();

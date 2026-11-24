@@ -36,7 +36,7 @@ class StoreAppointmentRequest extends FormRequest
             'appointment_date' => ['required', 'date', 'after_or_equal:today'],
             'appointment_time' => ['required', 'date_format:H:i'],
             'reason' => ['nullable', 'string', 'max:2000'],
-            'service_barangay_id' => ['nullable', 'integer', Rule::exists('barangays', 'id')->where('status', 'active')],
+            'service_barangay_id' => ['nullable', 'integer', 'exists:barangays,id'],
             'service_street' => ['nullable', 'string', 'max:255'],
             'service_landmark' => ['nullable', 'string', 'max:255'],
         ];

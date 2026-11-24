@@ -3,8 +3,8 @@
     "file": "assets/google-maps-BRpVqJD0.js",
     "name": "google-maps"
   },
-  "_provider-map-fallback-DUtOSPxp.js": {
-    "file": "assets/provider-map-fallback-DUtOSPxp.js",
+  "_provider-map-fallback-CJffA_AX.js": {
+    "file": "assets/provider-map-fallback-CJffA_AX.js",
     "name": "provider-map-fallback"
   },
   "node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff": {
@@ -34,13 +34,13 @@
     ]
   },
   "resources/js/address-picker.js": {
-    "file": "assets/address-picker-CdYot20F.js",
+    "file": "assets/address-picker-B_CfpJKK.js",
     "name": "address-picker",
     "src": "resources/js/address-picker.js",
     "isDynamicEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-DISlbau8.js",
+    "file": "assets/app-CZ9fDnrM.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -50,7 +50,8 @@
       "resources/js/location-picker.js",
       "resources/js/driving-directions.js",
       "resources/js/vehicle-picker.js",
-      "resources/js/address-picker.js"
+      "resources/js/address-picker.js",
+      "resources/js/nearby-search.js"
     ]
   },
   "resources/js/driving-directions.js": {
@@ -63,23 +64,29 @@
     ]
   },
   "resources/js/landing-map.js": {
-    "file": "assets/landing-map-ClCpVR4e.js",
+    "file": "assets/landing-map-hBKa1ldY.js",
     "name": "landing-map",
     "src": "resources/js/landing-map.js",
     "isDynamicEntry": true,
     "imports": [
       "_google-maps-BRpVqJD0.js",
-      "_provider-map-fallback-DUtOSPxp.js"
+      "_provider-map-fallback-CJffA_AX.js"
     ]
   },
   "resources/js/location-picker.js": {
-    "file": "assets/location-picker-ChD7YJDT.js",
+    "file": "assets/location-picker-Cd2Tmucl.js",
     "name": "location-picker",
     "src": "resources/js/location-picker.js",
     "isDynamicEntry": true,
     "imports": [
       "_google-maps-BRpVqJD0.js"
     ]
+  },
+  "resources/js/nearby-search.js": {
+    "file": "assets/nearby-search-B-F_3DMW.js",
+    "name": "nearby-search",
+    "src": "resources/js/nearby-search.js",
+    "isDynamicEntry": true
   },
   "resources/js/reports.js": {
     "file": "assets/reports-CEIvvpTP.js",
@@ -88,13 +95,13 @@
     "isEntry": true
   },
   "resources/js/shop-directory-map.js": {
-    "file": "assets/shop-directory-map-hVRPcip7.js",
+    "file": "assets/shop-directory-map-Q4fGL1aQ.js",
     "name": "shop-directory-map",
     "src": "resources/js/shop-directory-map.js",
     "isDynamicEntry": true,
     "imports": [
       "_google-maps-BRpVqJD0.js",
-      "_provider-map-fallback-DUtOSPxp.js"
+      "_provider-map-fallback-CJffA_AX.js"
     ]
   },
   "resources/js/vehicle-picker.js": {

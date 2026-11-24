@@ -6,10 +6,11 @@
     <x-form-errors />
 
     <form method="GET" action="{{ route('admin.shops.index') }}" class="surface p-3 mb-3 d-flex flex-wrap align-items-end gap-2">
+        <div class="w-100"><x-address-picker prefix="verification-area" area-only :area="$area" /></div>
         <div><label for="verification-status-filter" class="form-label">Show shops</label><select id="verification-status-filter" name="status" class="form-select"><option value="">All statuses</option>@foreach (['pending' => 'Awaiting review', 'approved' => 'Approved', 'rejected' => 'Rejected'] as $value => $label)<option value="{{ $value }}" @selected($selectedStatus === $value)>{{ $label }}</option>@endforeach</select></div>
         <div><label for="provider-filter" class="form-label">Provider type</label><select id="provider-filter" name="provider" class="form-select"><option value="">Shops and mechanics</option><option value="shop" @selected($selectedProvider === 'shop')>Service shops</option><option value="independent_mechanic" @selected($selectedProvider === 'independent_mechanic')>Independent mechanics</option></select></div>
         <button class="btn btn-outline-primary">Apply filter</button>
-        @if ($selectedStatus || $selectedProvider)<a class="btn btn-link" href="{{ route('admin.shops.index') }}">Clear</a>@endif
+        @if ($selectedStatus || $selectedProvider || array_filter($area))<a class="btn btn-link" href="{{ route('admin.shops.index') }}">Clear filters</a>@endif
     </form>
 
     <div class="d-grid gap-3">
@@ -20,7 +21,7 @@
             @endphp
             <article class="surface p-4" aria-labelledby="shop-review-{{ $shop->id }}">
                 <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
-                    <div><h2 id="shop-review-{{ $shop->id }}" class="h5 mb-1">{{ $shop->name }}</h2><p class="text-secondary mb-0">{{ $shop->providerLabel() }} · {{ $shop->owner->name }} · {{ $shop->barangay->name }}</p></div>
+                    <div><h2 id="shop-review-{{ $shop->id }}" class="h5 mb-1">{{ $shop->name }}</h2><p class="text-secondary mb-0">{{ $shop->providerLabel() }} · {{ $shop->owner->name }}</p><p class="text-secondary mb-0">{{ $shop->barangay->areaLabel() }}</p></div>
                     <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-{{ $shop->verification_status === 'approved' ? 'success' : ($shop->verification_status === 'rejected' ? 'danger' : 'warning') }} text-capitalize">{{ $shop->verification_status }}</span><span class="badge text-bg-secondary text-capitalize">{{ $shop->shop_status }}</span></div>
                 </div>
                 @unless ($documentsComplete)

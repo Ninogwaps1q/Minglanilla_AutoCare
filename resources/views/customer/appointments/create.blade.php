@@ -72,7 +72,7 @@
             @php($selectedProvider = $shops->firstWhere('id', old('shop_id', $selectedShopId)))
             <div class="col-12" id="service-address-field" @if(! $selectedProvider?->isIndependentMechanic()) hidden @endif>
                 <h2 class="h5">Where should the mechanic meet you?</h2>
-                <x-address-picker prefix="service" barangay-name="service_barangay_id" street-name="service_street" landmark-name="service_landmark" :selected-barangay="auth()->user()->barangay_id" :street="auth()->user()->address" :landmark="auth()->user()->landmark" :required="$selectedProvider?->isIndependentMechanic()" />
+                <x-address-picker prefix="service" barangay-name="service_barangay_id" street-name="service_street" landmark-name="service_landmark" :selected-barangay="auth()->user()->barangay_id" :street="auth()->user()->address" :landmark="auth()->user()->landmark" :street-max="255" :required="$selectedProvider?->isIndependentMechanic()" />
             </div>
             <div class="col-12 booking-form-section-head">
                 <h2>Choose a visit time</h2>

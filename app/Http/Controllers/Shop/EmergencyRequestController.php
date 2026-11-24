@@ -22,7 +22,7 @@ class EmergencyRequestController extends Controller
 
         return view('shop.emergency-requests.index', ['shop' => $shop, 'requests' => $shop->emergencyRequests()
             ->when($request->integer('focus') > 0, fn ($query) => $query->whereKey($request->integer('focus')))
-            ->with(['customer', 'vehicle'])->latest('requested_at')->get()]);
+            ->with(['customer', 'vehicle', 'barangay.municipality.province.region'])->latest('requested_at')->get()]);
     }
 
     public function update(Request $request, EmergencyRequest $emergencyRequest): RedirectResponse

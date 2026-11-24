@@ -78,11 +78,10 @@ class ImportPsgc extends Command
      */
     private function importBarangays(Municipality $city, array $barangays): void
     {
-        $byName = $city->barangays()->get()->keyBy(fn (Barangay $barangay): string => $this->addressName($barangay->name));
-        $byCode = Barangay::query()
-            ->whereIn('psgc_code', array_column($barangays, 0))
-            ->orWhereIn('psgc_code', array_filter(array_column($barangays, 2)))
-            ->get()->keyBy('psgc_code');
+        $codes = array_merge(array_column($barangays, 0), array_filter(array_column($barangays, 2)));
+        $existing = Barangay::query()->where('municipality_id', $city->id)->orWhereIn('psgc_code', $codes)->get();
+        $byName = $existing->where('municipality_id', $city->id)->keyBy(fn (Barangay $barangay): string => $this->addressName($barangay->name));
+        $byCode = $existing->whereNotNull('psgc_code')->keyBy('psgc_code');
 
         $now = now();
         $new = [];

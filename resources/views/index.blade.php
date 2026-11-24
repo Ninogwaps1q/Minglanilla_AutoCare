@@ -35,11 +35,20 @@
                     <p class="text-secondary landing-section-intro mb-0">Search approved shops and independent mechanics, or compare their services and locations in one directory.</p>
                 </div>
                 <div class="col-lg-6 offset-lg-1">
-                    <form action="{{ route('shops.index') }}" method="GET" class="landing-shop-search">
+                    <form action="{{ route('shops.index') }}" method="GET" class="landing-shop-search" data-nearby-search>
                         <label for="home-search" class="form-label fw-semibold">Shop, mechanic, or city</label>
                         <div class="input-group"><input id="home-search" class="form-control" name="search"
-                                type="search" maxlength="100" placeholder="Search by provider or city"><button
+                                type="search" maxlength="100" placeholder="Search by provider, city, or province"><button
                                 class="btn btn-primary" type="submit">Find providers</button></div>
+                        <details class="mt-3">
+                            <summary>Filter by region, province, or city</summary>
+                            <div class="mt-2"><x-address-picker prefix="home-area" area-only /></div>
+                        </details>
+                        <div class="mt-3">
+                            <input type="hidden" name="latitude"><input type="hidden" name="longitude"><input type="hidden" name="sort" disabled>
+                            <button class="btn btn-outline-primary" type="button" data-nearby-button>Use my location</button>
+                            <p class="small text-secondary mb-0 mt-1" role="status" data-nearby-status></p>
+                        </div>
                     </form>
                     <p class="landing-discover-links mb-0"><a href="#maps">Browse the map below</a> or <a href="{{ route('shops.index') }}">see all providers</a>.</p>
                 </div>
@@ -66,7 +75,7 @@
         <div class="row g-4">
             <div class="col-md-4">
                 <article class="feature-panel h-100"><i class="bi bi-geo-alt feature-icon" aria-hidden="true"></i>
-                    <h2 class="h4">Local by design</h2>
+                    <h2 class="h4">Vehicle care near you</h2>
                     <p class="mb-0">Browse approved shops and mechanics across the Philippines by city, location, and service.</p>
                 </article>
             </div>

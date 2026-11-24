@@ -37,7 +37,7 @@ class AddressCatalogController extends Controller
         $filters = $request->validate(['municipality_id' => ['required', 'integer', 'exists:municipalities,id']]);
 
         return response()->json(Barangay::query()->where('municipality_id', $filters['municipality_id'])
-            ->where('status', 'active')->orderBy('name')->get(['id', 'name', 'psgc_code']));
+            ->orderBy('name')->get(['id', 'name', 'psgc_code']));
     }
 
     public function path(Request $request): JsonResponse

@@ -50,24 +50,3 @@ if (!shops.length) {
         message(error.message === 'Google Maps authentication failed.' ? authenticationFailureMessage : (error.message === 'Google Maps API key is not configured.' ? 'Map unavailable until the administrator configures Google Maps. Browse providers below.' : 'The map could not load. Browse providers below.'));
     });
 }
-
-const nearbyButton = document.querySelector('#nearby-button');
-const locationStatus = document.querySelector('#location-status');
-nearbyButton.addEventListener('click', () => {
-    if (!navigator.geolocation) {
-        locationStatus.textContent = 'Location is not supported by this browser. You can still browse all providers.';
-        return;
-    }
-    nearbyButton.disabled = true;
-    locationStatus.textContent = 'Finding your location…';
-    navigator.geolocation.getCurrentPosition(position => {
-        locationInput.value = position.coords.latitude;
-        longitudeInput.value = position.coords.longitude;
-        document.querySelector('#shop-sort').querySelector('[value="distance"]').disabled = false;
-        document.querySelector('#shop-sort').value = 'distance';
-        document.querySelector('#shop-filters').requestSubmit();
-    }, () => {
-        nearbyButton.disabled = false;
-        locationStatus.textContent = 'We could not access your location. You can still browse all providers.';
-    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 });
-});

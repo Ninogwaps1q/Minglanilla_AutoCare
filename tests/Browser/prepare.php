@@ -4,8 +4,8 @@ use App\Models\Appointment;
 use App\Models\Barangay;
 use App\Models\Invoice;
 use App\Models\MessageThread;
-use App\Models\RepairJob;
 use App\Models\Region;
+use App\Models\RepairJob;
 use App\Models\Service;
 use App\Models\ServiceCase;
 use App\Models\ServiceCategory;
@@ -55,9 +55,10 @@ foreach (['customer', 'shop_owner'] as $role) {
         ['type' => 'status', 'title' => 'Browser older update', 'message' => 'This update was already read.', 'read_at' => now()],
     ]);
 }
-$barangay = Barangay::factory()->create();
-$region = Region::factory()->create(['name' => 'Central Visayas', 'psgc_code' => '070000000']);
-$barangay->municipality->province->update(['region_id' => $region->id]);
+$barangay = Barangay::factory()->create(['name' => 'Aplaya', 'psgc_code' => '1102403001']);
+$region = Region::factory()->create(['name' => 'Davao Region', 'psgc_code' => '1100000000']);
+$barangay->municipality->update(['name' => 'City of Digos', 'psgc_code' => '1102403000']);
+$barangay->municipality->province->update(['region_id' => $region->id, 'name' => 'Davao del Sur', 'psgc_code' => '1102400000']);
 $logoPath = 'shop-logos/browser-map-'.bin2hex(random_bytes(8)).'.png';
 $logoContents = file_get_contents(public_path('images/Minglanilla AutoCare Hub Logo.png'));
 if ($logoContents === false || ! Storage::disk('public')->put($logoPath, $logoContents)) {
@@ -66,10 +67,10 @@ if ($logoContents === false || ! Storage::disk('public')->put($logoPath, $logoCo
 $shop = Shop::factory()->create([
     'owner_id' => $users['shop_owner']->id, 'barangay_id' => $barangay->id,
     'name' => 'Browser Test AutoCare', 'phone' => '09170000000',
-    'email' => 'shop@browser.example.test', 'address' => 'Minglanilla',
+    'email' => 'shop@browser.example.test', 'address' => '18 Service Road',
     'logo' => $logoPath,
     'gcash_number' => '09171234567', 'bank_transfer_details' => "Test Bank\nAccount: Browser Test AutoCare\nNo. 123456",
-    'latitude' => 10.2443, 'longitude' => 123.7898,
+    'latitude' => 6.7493, 'longitude' => 125.3552,
     'verification_status' => 'approved', 'shop_status' => 'active',
     'opening_time' => '08:00', 'closing_time' => '17:00',
 ]);

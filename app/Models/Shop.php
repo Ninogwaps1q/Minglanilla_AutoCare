@@ -32,6 +32,30 @@ class Shop extends Model
         return $this->isIndependentMechanic() ? 'Independent mechanic' : 'Service shop';
     }
 
+    public function scopeInArea(Builder $query, array $filters): Builder
+    {
+        $area = array_filter(array_intersect_key($filters, Barangay::AREA_FILTER_RULES));
+
+        return $area === [] ? $query : $query->whereHas('barangay', fn (Builder $barangays): Builder => $barangays->inArea($area));
+    }
+
+    public function scopePublicListing(Builder $query): Builder
+    {
+        return $query->where('verification_status', 'approved')->where('shop_status', 'active')
+            ->whereHas('owner', fn (Builder $owner): Builder => $owner->where('status', 'active'));
+    }
+
+    public function scopeMatchingPlace(Builder $query, string $search): Builder
+    {
+        $pattern = '%'.$search.'%';
+
+        return $query->where(fn (Builder $query): Builder => $query
+            ->where('name', 'like', $pattern)
+            ->orWhereHas('barangay', fn (Builder $barangay): Builder => $barangay->where('name', 'like', $pattern))
+            ->orWhereHas('barangay.municipality', fn (Builder $city): Builder => $city->where('name', 'like', $pattern))
+            ->orWhereHas('barangay.municipality.province', fn (Builder $province): Builder => $province->where('name', 'like', $pattern)));
+    }
+
     /** @return array{latitude: float, longitude: float}|null */
     public function publicMapPosition(): ?array
     {

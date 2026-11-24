@@ -21,7 +21,7 @@ class ShopFactory extends Factory
     {
         return [
             'owner_id' => User::factory()->state(['role' => 'shop_owner']),
-            'barangay_id' => Barangay::factory(),
+            'barangay_id' => fn () => Barangay::query()->inRandomOrder()->value('id') ?? Barangay::factory(),
             'name' => fake()->company().' AutoCare',
             'phone' => '09'.fake()->numerify('#########'),
             'email' => fake()->unique()->companyEmail(),

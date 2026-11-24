@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateShopStatusRequest;
 use App\Models\ActivityLog;
+use App\Models\Barangay;
 use App\Models\Shop;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,17 +17,20 @@ class ShopVerificationController extends Controller
 {
     public function index(Request $request): View
     {
+        $area = $request->validate(Barangay::AREA_FILTER_RULES);
         $status = $request->query('status');
         $status = in_array($status, ['pending', 'approved', 'rejected'], true) ? $status : null;
         $provider = in_array($request->query('provider'), ['shop', 'independent_mechanic'], true) ? $request->query('provider') : null;
 
         return view('admin.shops.index', [
-            'shops' => Shop::query()->with(['owner', 'barangay', 'documents'])
+            'shops' => Shop::query()->with(['owner', 'barangay.municipality.province.region', 'documents'])
+                ->inArea($area)
                 ->when($status, fn ($query) => $query->where('verification_status', $status))
                 ->when($provider, fn ($query) => $query->where('provider_type', $provider))
                 ->latest()->paginate(10)->withQueryString(),
             'selectedStatus' => $status,
             'selectedProvider' => $provider,
+            'area' => $area,
         ]);
     }
 

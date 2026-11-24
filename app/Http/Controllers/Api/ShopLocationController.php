@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Barangay;
 use App\Models\Shop;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,15 +14,15 @@ class ShopLocationController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $filters = $request->validate(['barangay' => ['nullable', 'integer', 'exists:barangays,id'], 'service' => ['nullable', 'integer', 'exists:services,id']]);
+        $filters = $request->validate($this->filterRules());
 
         return response()->json(['data' => $this->shops($filters)->map(fn (Shop $shop) => $this->data($shop))]);
     }
 
     public function nearby(Request $request): JsonResponse
     {
-        $location = $request->validate(['latitude' => ['required', 'numeric', 'between:-90,90'], 'longitude' => ['required', 'numeric', 'between:-180,180']]);
-        $shops = $this->shops()->map(function (Shop $shop) use ($location): array {
+        $location = $request->validate([...$this->filterRules(), 'latitude' => ['required', 'numeric', 'between:-90,90'], 'longitude' => ['required', 'numeric', 'between:-180,180']]);
+        $shops = $this->shops($location)->map(function (Shop $shop) use ($location): array {
             $data = $this->data($shop);
             $data['distance_km'] = round($this->distance($location['latitude'], $location['longitude'], $data['latitude'], $data['longitude']), 2);
 
@@ -31,9 +32,23 @@ class ShopLocationController extends Controller
         return response()->json(['data' => $shops]);
     }
 
+    private function filterRules(): array
+    {
+        return [
+            ...Barangay::AREA_FILTER_RULES,
+            'search' => ['nullable', 'string', 'max:100'],
+            'barangay' => ['nullable', 'integer', 'exists:barangays,id'],
+            'service' => ['nullable', 'integer', 'exists:services,id'],
+            'provider' => ['nullable', 'in:shop,independent_mechanic'],
+        ];
+    }
+
     private function shops(array $filters = []): Collection
     {
-        return Shop::query()->where('verification_status', 'approved')->where('shop_status', 'active')->whereNotNull(['latitude', 'longitude'])->with(['barangay:id,name', 'services.service:id,name'])
+        return Shop::query()->publicListing()->whereNotNull(['latitude', 'longitude'])->with(['barangay:id,name', 'services.service:id,name'])
+            ->inArea($filters)
+            ->when($filters['search'] ?? null, fn ($query, $search) => $query->matchingPlace($search))
+            ->when($filters['provider'] ?? null, fn ($query, $provider) => $query->where('provider_type', $provider))
             ->when($filters['barangay'] ?? null, fn ($query, $barangay) => $query->where('barangay_id', $barangay))
             ->when($filters['service'] ?? null, fn ($query, $service) => $query->whereHas('services', fn ($query) => $query->where('service_id', $service)->where('availability', true)))
             ->orderBy('name')->get();

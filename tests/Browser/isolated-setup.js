@@ -24,7 +24,8 @@ export default async function setup() {
     for (const directory of ['framework/views', 'framework/sessions', 'framework/cache/data', 'logs']) {
         mkdirSync(resolve(isolatedStorage, directory), { recursive: true });
     }
-    const env = { ...process.env, LARAVEL_STORAGE_PATH: isolatedStorage, APP_ENV: 'testing', APP_DEBUG: 'false', CACHE_STORE: 'array', SESSION_DRIVER: 'file', SESSION_COOKIE: 'autocare_browser_test', MAIL_MAILER: 'array', QUEUE_CONNECTION: 'sync', PAYMONGO_SECRET_KEY: '', PAYMONGO_WEBHOOK_SECRET: '', PAYMONGO_LEGACY_MANUAL_PAYMENTS: 'true' };
+    const env = { ...process.env, LARAVEL_STORAGE_PATH: isolatedStorage, APP_ENV: 'testing', APP_DEBUG: 'false', CACHE_STORE: 'array', SESSION_DRIVER: 'file', SESSION_COOKIE: 'autocare_browser_test', MAIL_MAILER: 'log', MAIL_LOG_CHANNEL: 'single', LOG_LEVEL: 'debug', QUEUE_CONNECTION: 'sync', PAYMONGO_SECRET_KEY: '', PAYMONGO_WEBHOOK_SECRET: '', PAYMONGO_LEGACY_MANUAL_PAYMENTS: 'true' };
+    process.env.BROWSER_TEST_MAIL_LOG = resolve(isolatedStorage, 'logs/laravel.log');
     if (process.env.LIVE_GOOGLE_MAPS !== '1') {
         env.GOOGLE_MAPS_API_KEY = 'browser-test-key';
     }

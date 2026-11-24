@@ -211,6 +211,27 @@ test('landing provider search opens the shared directory with the query', async 
     await expect(page.getByLabel('Provider or city')).toHaveValue('Browser Test AutoCare');
 });
 
+test('landing area choices carry through to the nationwide directory', async ({ page }) => {
+    test.skip(process.env.BROWSER_ISOLATED !== '1', 'Requires the disposable browser fixture');
+    test.setTimeout(90000);
+    await installDirectionsMapStub(page);
+    await page.goto('/');
+    await page.getByText('Filter by region, province, or city', { exact: true }).click();
+    const region = page.getByLabel('Region', { exact: true });
+    await region.selectOption({ label: 'Davao Region' });
+    await region.focus();
+    await page.keyboard.press('Tab');
+    const province = page.getByLabel('Province or area');
+    await expect(province).toBeFocused();
+    await province.selectOption({ label: 'Davao del Sur' });
+    await page.getByLabel('City / municipality').selectOption({ label: 'City of Digos' });
+    await page.getByRole('button', { name: 'Find providers' }).click();
+    await expect(page).toHaveURL(/\/shops\?.*municipality_id=\d+/);
+    await expect(page.locator('#shop-results')).toContainText('Browser Test AutoCare');
+    await expect(page.getByLabel('City / municipality').locator('option:checked')).toHaveText('City of Digos');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+});
+
 test('provider results scroll sideways with the keyboard when space is limited', async ({ page }) => {
     test.skip(process.env.BROWSER_ISOLATED !== '1', 'Requires the disposable browser fixture');
     await page.goto('/shops');
@@ -302,14 +323,14 @@ test('nearby map uses permitted browser coordinates', async ({ page, context }) 
     test.skip(process.env.BROWSER_ISOLATED !== '1', 'Requires the disposable browser fixture');
     await installDirectionsMapStub(page);
     await context.grantPermissions(['geolocation']);
-    await context.setGeolocation({ latitude: 10.2443, longitude: 123.7898 });
+    await context.setGeolocation({ latitude: 6.7493, longitude: 125.3552 });
     await page.goto('/map');
     await expect(page).toHaveURL(/\/shops#shop-map$/);
     await expect(page.locator('#shop-map .test-google-marker-icon')).toHaveCount(1);
     await page.getByRole('button', { name: 'Use my location', exact: true }).click();
     await expect(page.locator('#location-status')).toHaveText('Showing distances from your location.');
-    await expect(page.locator('#latitude')).toHaveValue('10.2443');
-    await expect(page.locator('#longitude')).toHaveValue('123.7898');
+    await expect(page.locator('#latitude')).toHaveValue('6.7493');
+    await expect(page.locator('#longitude')).toHaveValue('125.3552');
 });
 
 test('nearby shop search filters the verified shop and shows its distance on the map', async ({ page, context }) => {
@@ -317,7 +338,7 @@ test('nearby shop search filters the verified shop and shows its distance on the
     await installDirectionsMapStub(page);
     const fixture = JSON.parse(process.env.BROWSER_FIXTURE);
     await context.grantPermissions(['geolocation']);
-    await context.setGeolocation({ latitude: 10.2443, longitude: 123.7898 });
+    await context.setGeolocation({ latitude: 6.7493, longitude: 125.3552 });
     await page.goto('/map');
     await page.getByLabel('Service', { exact: true }).selectOption(String(fixture.service));
     await page.getByRole('button', { name: 'Find providers' }).click();
@@ -393,7 +414,7 @@ test('public shop profile guides customers to booking and messaging', async ({ p
     test.skip(process.env.BROWSER_ISOLATED !== '1', 'Requires the disposable browser fixture');
     await installDirectionsMapStub(page);
     await page.context().grantPermissions(['geolocation']);
-    await page.context().setGeolocation({ latitude: 10.2443, longitude: 123.7898 });
+    await page.context().setGeolocation({ latitude: 6.7493, longitude: 125.3552 });
     const fixture = JSON.parse(process.env.BROWSER_FIXTURE);
     const response = await page.goto('/shops/' + fixture.shop);
     expect(response.status()).toBe(200);
@@ -439,7 +460,7 @@ test('shop directions explain when no driving route is found', async ({ page }, 
     test.skip(process.env.BROWSER_ISOLATED !== '1' || testInfo.project.name !== 'desktop', 'The error state needs one browser check');
     await installDirectionsMapStub(page, 'empty');
     await page.context().grantPermissions(['geolocation']);
-    await page.context().setGeolocation({ latitude: 10.2443, longitude: 123.7898 });
+    await page.context().setGeolocation({ latitude: 6.7493, longitude: 125.3552 });
     const fixture = JSON.parse(process.env.BROWSER_FIXTURE);
     await page.goto('/shops/' + fixture.shop);
     await page.getByRole('button', { name: 'Get directions' }).click();

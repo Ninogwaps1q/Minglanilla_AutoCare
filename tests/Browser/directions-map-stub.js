@@ -1,8 +1,9 @@
 export async function installDirectionsMapStub(page, routeResult = 'success') {
     await page.addInitScript(result => {
         class Map {
-            constructor(element) { this.element = element; }
-            fitBounds() {}
+            constructor(element, options) { this.element = element; this.element.dataset.testMapZoom = String(options.zoom); }
+            addListener() {}
+            fitBounds(bounds) { if (bounds.testArea) this.element.dataset.testMapArea = bounds.testArea; }
             getZoom() { return 15; }
             setZoom() {}
         }
@@ -44,10 +45,16 @@ export async function installDirectionsMapStub(page, routeResult = 'success') {
                 return { routes: [{
                     distanceMeters: 2500,
                     durationMillis: 360000,
-                    path: [{ lat: 10.2443, lng: 123.7898 }, { lat: 10.241, lng: 123.781 }],
+                    path: [{ lat: 6.7493, lng: 125.3552 }, { lat: 6.741, lng: 125.351 }],
                     legs: [{ steps: [{ instructions: 'Turn right onto Test Road', localizedValues: { distance: '500 m' } }] }],
                     createPolylines: () => [{ setMap() {} }],
                 }] };
+            }
+        }
+
+        class Geocoder {
+            async geocode({ address }) {
+                return { results: [{ geometry: { location: { lat: 6.7493, lng: 125.3552 }, viewport: { testArea: address } } }] };
             }
         }
 
@@ -57,7 +64,7 @@ export async function installDirectionsMapStub(page, routeResult = 'success') {
             InfoWindow,
             LatLngBounds,
             event: { addListenerOnce() {}, trigger: (marker, event) => marker.listeners[event]?.() },
-            importLibrary: async () => ({ Route }),
+            importLibrary: async () => ({ Route, Geocoder }),
         } };
     }, routeResult);
 }

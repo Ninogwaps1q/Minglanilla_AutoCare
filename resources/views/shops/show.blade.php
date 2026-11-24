@@ -5,7 +5,7 @@
             <x-uploaded-image class="shop-public-logo" :path="$shop->logo" :alt="$shop->name.' logo'" fallback-icon="wrench-adjustable-circle" />
             <div>
                 <h1 class="mb-1">{{ $shop->name }}</h1>
-                <p class="text-secondary mb-2">{{ $shop->providerLabel() }} · {{ $shop->isIndependentMechanic() ? 'Mobile service around '.$shop->barangay->name : $shop->address.', '.$shop->barangay->name }}{{ $shop->barangay->municipality ? ', '.$shop->barangay->municipality->name : '' }}</p>
+                <p class="text-secondary mb-2">{{ $shop->providerLabel() }} · {{ $shop->isIndependentMechanic() ? 'Mobile service around '.$shop->barangay->areaLabel() : $shop->address.', '.$shop->barangay->areaLabel() }}</p>
                 @if ($shop->isIndependentMechanic())<p class="small text-secondary mb-2">The mechanic travels to your service address. Confirm any travel details before the appointment.</p>@endif
                 @if ($shop->total_reviews > 0)
                     <div class="d-flex flex-wrap align-items-center gap-2"><x-star-rating :rating="$shop->average_rating" /><span class="text-secondary small">from {{ $shop->total_reviews }} {{ $shop->total_reviews === 1 ? 'review' : 'reviews' }}</span></div>

@@ -16,15 +16,16 @@ it('imports the full PSA catalog and preserves existing address IDs on reimport'
     $barangay = Barangay::factory()->create(['name' => 'Poblacion Ward I', 'municipality_id' => $municipality->id, 'psgc_code' => '072232010']);
     $customer = User::factory()->create(['barangay_id' => $barangay->id]);
 
-    $this->artisan('catalog:import-psgc')->assertSuccessful();
-    $this->artisan('catalog:import-psgc')->assertSuccessful();
+    $this->seed();
+    $this->seed();
 
     expect(Region::query()->count())->toBe(18)
         ->and(Province::query()->whereNotNull('psgc_code')->where('psgc_code', '!=', '1999900000')->count())->toBe(82)
         ->and(Municipality::query()->count())->toBe(1642)
         ->and(Barangay::query()->count())->toBe(42010)
         ->and($customer->fresh()->barangay_id)->toBe($barangay->id)
-        ->and($barangay->fresh()->psgc_code)->toBe('0702232010');
+        ->and($barangay->fresh()->psgc_code)->toBe('0702232010')
+        ->and(User::query()->count())->toBe(1);
 
     $this->assertDatabaseHas('regions', ['psgc_code' => '1800000000']);
     $this->assertDatabaseHas('barangays', ['psgc_code' => '1001322005', 'name' => 'Lambagan']);
