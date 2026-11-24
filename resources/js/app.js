@@ -3,6 +3,7 @@ import 'bootstrap';
 import './ai-chat';
 import './activity-counts';
 import './message-updates';
+import './install-app';
 
 document.querySelectorAll('.public-navbar a[href^="#"]').forEach((link) => {
     link.addEventListener('click', () => {

@@ -9,18 +9,19 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-it('lets an administrator hide a review and records the moderation action', function () {
+it('lets an administrator remove a review for a violation and records the reason', function () {
     $fixture = moderationFixture();
 
     $this->actingAs($fixture['admin'])
-        ->patch(route('admin.reviews.update', $fixture['review']), ['status' => 'hidden'])
+        ->patch(route('admin.reviews.update', $fixture['review']), ['violation' => 'abuse', 'reason' => 'The review contains targeted abuse.'])
         ->assertRedirect();
 
-    $this->assertDatabaseHas('reviews', ['id' => $fixture['review']->id, 'status' => 'hidden']);
+    $this->assertDatabaseHas('reviews', ['id' => $fixture['review']->id, 'status' => 'removed', 'comment' => 'Good work.']);
     $this->assertDatabaseHas('activity_logs', [
         'user_id' => $fixture['admin']->id,
-        'action' => 'updated_review_status',
+        'action' => 'removed_review',
         'module' => 'review_moderation',
+        'description' => "Removed review #{$fixture['review']->id} for Abuse or harassment. Reason: The review contains targeted abuse.",
     ]);
     $this->assertDatabaseHas('notifications', [
         'user_id' => $fixture['customer']->id,
@@ -28,27 +29,38 @@ it('lets an administrator hide a review and records the moderation action', func
     ]);
 });
 
-it('keeps public ratings in sync when an administrator hides and restores reviews', function () {
+it('keeps public ratings in sync when a review is removed', function () {
     $fixture = moderationFixture();
     $shop = $fixture['review']->shop;
     $shop->refreshPublishedRating();
     expect($shop->fresh()->total_reviews)->toBe(1);
 
-    $this->actingAs($fixture['admin'])->patch(route('admin.reviews.update', $fixture['review']), ['status' => 'hidden'])->assertRedirect();
+    $this->actingAs($fixture['admin'])->patch(route('admin.reviews.update', $fixture['review']), ['violation' => 'spam', 'reason' => 'Unrelated commercial solicitation.'])->assertRedirect();
     expect($shop->fresh()->total_reviews)->toBe(0);
     expect((float) $shop->fresh()->average_rating)->toBe(0.0);
+    $this->get(route('shops.show', $shop))->assertOk()->assertDontSee('Good work.');
+});
 
-    $this->patch(route('admin.reviews.update', $fixture['review']), ['status' => 'published'])->assertRedirect();
-    expect($shop->fresh()->total_reviews)->toBe(1);
-    expect((float) $shop->fresh()->average_rating)->toBe(4.0);
+it('rejects the legacy hide action and requires an explanation for removal', function () {
+    $fixture = moderationFixture();
+    $url = route('admin.reviews.update', $fixture['review']);
+
+    $this->actingAs($fixture['admin'])->patch($url, ['status' => 'hidden'])->assertInvalid(['status', 'violation', 'reason']);
+    $this->patch($url, ['violation' => 'abuse', 'reason' => '  '])->assertInvalid('reason');
+
+    expect($fixture['review']->fresh()->status)->toBe('published');
+    $this->assertDatabaseMissing('activity_logs', ['action' => 'removed_review']);
 });
 
 it('shows moderation and audit pages only to administrators', function () {
     $fixture = moderationFixture();
 
-    $this->actingAs($fixture['admin'])->get(route('admin.reviews.index'))->assertOk()->assertSee('Review moderation');
+    $this->actingAs($fixture['admin'])->get(route('admin.reviews.index'))->assertOk()->assertSee('Remove for a violation')->assertDontSee('Hide review');
     $this->actingAs($fixture['admin'])->get(route('admin.activity-logs.index'))->assertOk()->assertSee('Activity logs');
     $this->actingAs($fixture['customer'])->get(route('admin.reviews.index'))->assertForbidden();
+    $this->actingAs($fixture['review']->shop->owner)
+        ->patch(route('admin.reviews.update', $fixture['review']), ['violation' => 'abuse', 'reason' => 'Only administrators can remove reviews.'])
+        ->assertForbidden();
 });
 
 /**

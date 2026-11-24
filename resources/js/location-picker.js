@@ -1,9 +1,14 @@
-import { loadGoogleMaps } from './google-maps';
+import { loadGoogleMaps, onGoogleMapsAuthenticationFailure } from './google-maps';
 
 const element = document.querySelector('#location-picker-map');
 const status = document.querySelector('#location-picker-status');
 const latitude = document.querySelector('#latitude');
 const longitude = document.querySelector('#longitude');
+
+onGoogleMapsAuthenticationFailure(() => {
+    element.textContent = 'Google Maps could not load. Enter the latitude and longitude below.';
+    status.textContent = 'Ask the administrator to check the Maps API key, billing, and daily quota.';
+});
 
 loadGoogleMaps(element.dataset.googleKey).then(googleMaps => {
     const saved = latitude.value && longitude.value ? { lat: Number(latitude.value), lng: Number(longitude.value) } : null;
@@ -26,7 +31,8 @@ loadGoogleMaps(element.dataset.googleKey).then(googleMaps => {
             map.panTo(position);
         }
     }));
-}).catch(() => {
+}).catch(error => {
+    if (error.message === 'Google Maps authentication failed.') return;
     element.textContent = 'Map unavailable. Enter the latitude and longitude below.';
     status.textContent = 'Enter coordinates in the Philippines to save the location.';
 });

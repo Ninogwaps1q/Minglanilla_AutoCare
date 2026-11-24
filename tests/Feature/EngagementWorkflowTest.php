@@ -68,8 +68,8 @@ it('requires a completed booking at the same shop before publishing a review', f
     $review = $fixture['repairJob']->review()->sole();
     $this->assertDatabaseHas('reviews', ['id' => $review->id, 'status' => 'published']);
 
-    $this->actingAs($fixture['owner'])->patch(route('shop.reviews.update', $review), ['response' => 'Thanks.', 'status' => 'hidden', 'rating' => 1])->assertRedirect();
-    $this->assertDatabaseHas('reviews', ['id' => $review->id, 'status' => 'published', 'rating' => 4]);
+    $this->actingAs($fixture['owner'])->patch(route('shop.reviews.update', $review), ['response' => 'Thanks.', 'status' => 'hidden', 'rating' => 1, 'comment' => 'Changed by the shop.'])->assertRedirect();
+    $this->assertDatabaseHas('reviews', ['id' => $review->id, 'status' => 'published', 'rating' => 4, 'comment' => null, 'response' => 'Thanks.']);
 });
 
 it('publishes a review after a completed booking without a repair job', function () {

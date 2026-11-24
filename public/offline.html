@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#2563eb">
+    <title>You're offline · Minglanilla AutoCare</title>
+    <style>
+        :root { color-scheme: light dark; --canvas: #f5f7fb; --surface: #fff; --ink: #111827; --muted: #52627a; --border: #d6dee9; --link: #1d4ed8; }
+        @media (prefers-color-scheme: dark) {
+            :root { --canvas: #0d1728; --surface: #152238; --ink: #f2f6fb; --muted: #c2cede; --border: #30415b; --link: #7cb5ff; }
+        }
+        body { display: grid; place-items: center; min-height: 100vh; margin: 0; padding: 1rem; box-sizing: border-box; font: 1rem/1.55 system-ui, sans-serif; background: var(--canvas); color: var(--ink); }
+        main { width: min(100%, 27rem); box-sizing: border-box; padding: 1.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: .875rem; }
+        h1 { margin: .75rem 0 .5rem; font-size: clamp(1.65rem, 3vw, 2.25rem); }
+        p { margin: 0 0 1rem; color: var(--muted); }
+        a { color: var(--link); text-underline-offset: .2em; }
+        a:focus-visible { outline: 2px solid var(--link); outline-offset: .25rem; }
+    </style>
+</head>
+<body>
+    <main>
+        <img src="/icons/icon-192.png" width="64" height="64" alt="Minglanilla AutoCare">
+        <h1>You're offline</h1>
+        <p>Reconnect to the internet and reload this page to continue where you left off.</p>
+        <a href="/">Return to AutoCare home</a>
+    </main>
+</body>
+</html>

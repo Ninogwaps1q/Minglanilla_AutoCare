@@ -21,6 +21,17 @@ it('renders the branded public footer with useful navigation', function () {
         ->assertSee('Create an account');
 });
 
+it('shows the provider plans entry on the landing page only', function () {
+    $this->get(route('home'))
+        ->assertSee('For providers')
+        ->assertSee('View provider plans');
+
+    $this->get(route('shops.index'))
+        ->assertDontSee('For providers')
+        ->assertDontSee('Provider pricing')
+        ->assertDontSee('View provider plans');
+});
+
 it('shows only approved active shops in the directory', function () {
     $barangay = Barangay::factory()->create();
     $owner = User::factory()->create(['role' => 'shop_owner']);

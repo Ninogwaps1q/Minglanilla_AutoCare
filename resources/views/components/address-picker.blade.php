@@ -8,4 +8,5 @@
     <div class="col-md-8"><label class="form-label" for="{{ $prefix }}-street">Street / house number</label><input id="{{ $prefix }}-street" class="form-control @error($streetName) is-invalid @enderror" name="{{ $streetName }}" value="{{ old($streetName, $street) }}" maxlength="500" autocomplete="street-address" data-address-street @if($required) required @endif>@error($streetName)<div class="invalid-feedback">{{ $message }}</div>@enderror</div>
     <div class="col-md-4"><label class="form-label" for="{{ $prefix }}-landmark">Landmark (optional)</label><input id="{{ $prefix }}-landmark" class="form-control @error($landmarkName) is-invalid @enderror" name="{{ $landmarkName }}" value="{{ old($landmarkName, $landmark) }}" maxlength="255">@error($landmarkName)<div class="invalid-feedback">{{ $message }}</div>@enderror</div>
     <div class="col-12"><p class="form-text mb-0" role="status" aria-live="polite" data-address-status>Choose a region to load provinces and cities.</p></div>
+    <p class="col-12 form-text mt-1 mb-0">Address data from the Philippine Statistics Authority (PSGC).</p>
 </div>

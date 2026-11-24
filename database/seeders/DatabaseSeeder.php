@@ -2,9 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\Barangay;
-use App\Models\Municipality;
-use App\Models\Province;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -18,12 +15,6 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $cebu = Province::query()->firstOrCreate(['code' => 'CEB'], ['name' => 'Cebu']);
-        $minglanilla = Municipality::query()->firstOrCreate(['province_id' => $cebu->id, 'code' => 'MING'], ['name' => 'Minglanilla']);
-        foreach (['Cadulawan', 'Calajo-an', 'Camp 7', 'Camp 8', 'Cuanos', 'Guindaruhan', 'Linao', 'Manduang', 'Pakigne', 'Poblacion Ward I', 'Poblacion Ward II', 'Poblacion Ward III', 'Poblacion Ward IV', 'Tubod', 'Tulay', 'Tunghaan', 'Tungkil', 'Tungkop', 'Vito'] as $name) {
-            Barangay::query()->firstOrCreate(['municipality_id' => $minglanilla->id, 'name' => $name], ['status' => 'active']);
-        }
-        $this->call(RegionSeeder::class);
         $this->call(ServiceCatalogSeeder::class);
         $this->call([VehicleMakeSeeder::class, VehicleModelSeeder::class]);
 

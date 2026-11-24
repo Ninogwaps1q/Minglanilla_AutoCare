@@ -1,6 +1,6 @@
 # Minglanilla AutoCare Hub
 
-Laravel application for customers, auto shops, and administrators. It covers shop discovery, appointments, estimates, repairs, invoices and payments, roadside assistance, service passports, and maintenance reminders.
+Laravel application for customers, auto shops, independent mechanics, and administrators. It covers nationwide provider discovery, appointments, estimates, repairs, invoices and payments, roadside assistance, reviews, and maintenance reminders.
 
 ## Requirements
 
@@ -27,6 +27,10 @@ Start the database server before running migrations or opening the app. If login
 
 ```powershell
 php artisan migrate --no-interaction
+php artisan catalog:import-psgc --no-interaction
+php artisan db:seed --class=VehicleMakeSeeder --no-interaction
+php artisan db:seed --class=VehicleModelSeeder --no-interaction
+php artisan catalog:import-vehicles --no-interaction
 php artisan storage:link
 npm run build
 php artisan app:deployment-check
@@ -37,6 +41,12 @@ Start the app with `composer run dev`, which also starts the scheduler. Alternat
 `php artisan db:seed` is optional **only on a fresh local database**. It creates demo accounts with known passwords; never expose those accounts to the internet and change their passwords if you keep them. Do not run `migrate:fresh` or reset an existing database to set up this project.
 
 If you do not use demo accounts, create the first administrator with `php artisan app:bootstrap-admin`. The command asks for a strong password privately and refuses to run once an administrator exists.
+
+### Address and vehicle catalogs
+
+`catalog:import-psgc` imports the bundled Philippine Statistics Authority (PSA) catalog as of 30 September 2026: all 18 regions, 82 provinces, 149 cities, 1,493 municipalities, and 42,010 barangays. The snapshot uses [ph-psgc's June 2026 normalization](https://github.com/Tenasia/ph-psgc/tree/2026-Q2) with the [PSA's September name correction](https://psa.gov.ph/classification/psgc) and legacy correspondence from the former PSGC API. The address picker uses local data. Rerun the command to refresh the same release without deleting older address records or resetting database IDs.
+
+The vehicle seeders add local makes and models. `catalog:import-vehicles` fetches additional models for configured makes from the NHTSA vPIC API and links matching older vehicle records while keeping their original text. The vehicle picker uses the local catalog after import.
 
 ## Images and documents after cloning
 
@@ -51,11 +61,16 @@ If images do not appear:
 
 ## Optional integrations
 
+-   Google keys: set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `.env` for OAuth, and `GOOGLE_MAPS_API_KEY` for browser maps. Enable Maps JavaScript API and Routes API in the Google Cloud project, enable billing for a production key, and restrict the browser key to the allowed site origins and APIs. Keep real values out of `.env.example` and source control. Run `php artisan config:clear` after changing the local values.
 -   Google login on another device: `localhost` always refers to the device opening the browser. Use one shared HTTPS domain or tunnel URL as `APP_URL`, register that exact origin followed by `/auth/google/callback` in the Google OAuth client's **Authorized redirect URIs**, then run `php artisan config:clear`. Open the shared HTTPS address on every device before signing in. Google does not allow ordinary LAN IP callback URLs. Keep `SESSION_DOMAIN=null`; the app trusts proxy headers only from a tunnel running on the same computer (`127.0.0.1` / `::1`). `GOOGLE_REDIRECT_URI` is not used; the callback is derived from `APP_URL` to keep both addresses consistent.
 -   AI assistant: set `AI_PROVIDER=gemini`, `GEMINI_API_KEY`, and `AI_MODEL` in `.env`. Keep the key server-side.
 -   Password-reset email: `MAIL_MAILER=log` writes development mail to Laravel logs. Configure a real mail provider before inviting users, then send and redeem a test reset link.
 -   Maps and browser location: geolocation requires the user's permission and HTTPS in production (localhost is suitable for local testing).
 -   Background work: the default database queue requires a running `php artisan queue:work` process. Production also needs a scheduler that invokes `php artisan schedule:run` every minute.
+
+## Install AutoCare
+
+Open the app over HTTPS (or localhost for development). When supported by the browser, choose **Install app** in the public footer or the signed-in account menu. On iPhone or iPad, open Share and choose **Add to Home Screen**. After the first successful online visit, the app can show an offline notice if a page fails to load. Bookings, accounts, and payments need a connection.
 
 ## Tests
 
@@ -63,6 +78,7 @@ If images do not appear:
 php artisan route:list --except-vendor
 php artisan migrate:status
 php artisan test --compact
+php artisan test --compact tests/Feature/PwaAssetsTest.php
 npm run build
 ```
 
@@ -93,7 +109,7 @@ To verify recovery, copy a backup to a safe test machine, inspect `manifest.json
 Before switching traffic to a new host:
 
 1. Set `APP_ENV=production`, `APP_DEBUG=false`, an HTTPS `APP_URL`, real database credentials, and a working mail provider. Generate a unique `APP_KEY` for a new installation; preserve the original key when moving an existing installation so encrypted data remains readable. Keep `.env` outside source control.
-2. Run `composer install --no-dev --optimize-autoloader`, `npm ci`, `npm run build`, `php artisan migrate --force --no-interaction`, `php artisan storage:link`, and `php artisan optimize` on the target host. Ensure `storage/` and `bootstrap/cache/` are writable by the application.
+2. Run `composer install --no-dev --optimize-autoloader`, `npm ci`, `npm run build`, and `php artisan migrate --force --no-interaction` on the target host. Run `php artisan catalog:import-psgc --no-interaction` and the vehicle catalog commands above before accepting registrations. Add `--force` to the two vehicle catalog seed commands on production. Then run `php artisan storage:link` and `php artisan optimize`. Ensure `storage/` and `bootstrap/cache/` are writable and the web server serves the manifest and worker from the public root.
 3. Start a supervised queue worker and configure the once-per-minute scheduler. Check `php artisan queue:failed` and `php artisan schedule:list`.
 4. Run `php artisan app:deployment-check --strict`. It checks configuration, database access and pending migrations, storage link, writable directories, and whether scheduled backups are enabled, but it cannot prove external services are operating.
 5. Manually verify a delivered password-reset email, customer/shop/admin workflows, image upload and display, HTTPS, payment review, and a database **backup plus restore into a separate disposable database**. Do not restore over production as a test. Run a short real-user usability session on desktop and mobile; automated browser checks cannot prove that the interface is easy to understand.

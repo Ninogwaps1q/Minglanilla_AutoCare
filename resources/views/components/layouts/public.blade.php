@@ -9,6 +9,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <x-theme-init />
+    @unless(request()->routeIs('admin.two-factor.*'))
+        <x-pwa-head />
+    @endunless
     <title>{{ $title ? $title.' · ' : '' }}{{ config('app.name', 'Minglanilla AutoCare Hub') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
@@ -26,7 +29,6 @@
                 <ul class="navbar-nav ms-lg-auto align-items-lg-center gap-lg-2">
                     <li class="nav-item public-nav-home d-flex align-items-center"><x-theme-toggle /><a class="nav-link" href="{{ $onLandingPage ? '#home' : route('home') }}">Home</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ $onLandingPage ? '#find-shops' : route('shops.index') }}">Find shops &amp; mechanics</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ route('shop.pricing') }}">For providers</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ $onLandingPage ? '#about' : route('home').'#about' }}">About</a></li>
                     @auth
                         <li class="nav-item ms-lg-2"><a class="btn btn-primary" href="{{ auth()->user()->hasVerifiedEmail() ? route(auth()->user()->isShopOperator() ? 'shop.dashboard' : (auth()->user()->role === 'admin' ? 'admin.dashboard' : 'dashboard')) : route('verification.notice') }}">{{ auth()->user()->hasVerifiedEmail() ? 'Open dashboard' : 'Verify email' }}</a></li>
@@ -53,7 +55,6 @@
             <nav class="public-footer-links" aria-label="Footer navigation">
                 <strong>Explore</strong>
                 <a href="{{ route('shops.index') }}">Provider directory &amp; map</a>
-                <a href="{{ route('shop.pricing') }}">Provider pricing</a>
                 <a href="{{ route('home') }}#about">About the platform</a>
             </nav>
             <div class="public-footer-action">
@@ -64,6 +65,9 @@
                 @else
                     <a class="btn btn-accent" href="{{ route('register') }}">Create an account</a>
                 @endauth
+                @unless(request()->routeIs('admin.two-factor.*'))
+                    <x-install-app />
+                @endunless
             </div>
         </div>
             <div class="container public-footer-bottom"><span>&copy; {{ now()->year }} Minglanilla AutoCare Hub</span><span>Serving drivers and service shops across the Philippines.</span></div>

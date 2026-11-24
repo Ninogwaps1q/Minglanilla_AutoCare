@@ -30,3 +30,19 @@ export const createShopMapPopup = (shop, url, linkLabel) => {
 
     return popup;
 };
+
+export const openShopMapPopup = (googleMaps, infoWindow, map, mapElement, marker, content) => {
+    infoWindow.setContent(content);
+    googleMaps.event.addListenerOnce(infoWindow, 'domready', () => {
+        requestAnimationFrame(() => {
+            const popup = mapElement.querySelector('.gm-style-iw-c');
+            if (!popup) return;
+
+            const mapTop = mapElement.getBoundingClientRect().top;
+            const popupTop = popup.getBoundingClientRect().top;
+            const overflow = Math.ceil(mapTop + 12 - popupTop);
+            if (overflow > 0) map.panBy(0, -overflow);
+        });
+    });
+    infoWindow.open({ anchor: marker, map });
+};

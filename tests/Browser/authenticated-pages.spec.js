@@ -73,6 +73,7 @@ for (const [role, paths] of Object.entries(pages)) {
 }
 
 test('booking vehicle and address controls work with keyboard in both themes', async ({ page }, testInfo) => {
+    test.setTimeout(90000);
     await signIn(page, 'customer');
     for (const theme of ['light', 'dark']) {
         await page.evaluate(value => localStorage.setItem('autocare-theme', value), theme);

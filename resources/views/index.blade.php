@@ -109,4 +109,13 @@
             </div>
         </div>
     </section>
+    <section class="container pb-5" id="for-providers" aria-labelledby="for-providers-title">
+        <div class="surface p-4 p-md-5 d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+            <div>
+                <h2 id="for-providers-title" class="h4 mb-2">For providers</h2>
+                <p class="text-secondary mb-0">Run a service shop or work as an independent mechanic? See how to list your services and manage bookings.</p>
+            </div>
+            <a class="btn btn-outline-primary flex-shrink-0 align-self-start align-self-md-center" href="{{ route('shop.pricing') }}">View provider plans</a>
+        </div>
+    </section>
 </x-layouts.public>

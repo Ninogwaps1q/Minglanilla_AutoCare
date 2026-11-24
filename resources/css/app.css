@@ -882,6 +882,7 @@ h4 {
     background: #e8edf4;
 }
 
+[hidden][data-install-button],
 [hidden].profile-photo-preview,
 [hidden].vehicle-form-preview,
 [hidden].shop-cover-preview,
@@ -988,7 +989,7 @@ h4 {
 }
 
 .shop-directory-map {
-    height: clamp(18rem, 42vw, 27rem);
+    height: clamp(24rem, 42vw, 27rem);
 }
 
 .shop-directory-location-link {
@@ -1061,10 +1062,10 @@ h4 {
 
 .shop-map-popup {
     display: grid;
-    grid-template-columns: 6rem minmax(0, 1fr);
+    grid-template-columns: 8rem minmax(0, 1fr);
     align-items: center;
     gap: .875rem;
-    width: min(19rem, 72vw);
+    width: min(23rem, 78vw);
     padding: 1rem 2rem 1rem 1rem;
     color: var(--ink);
 }
@@ -1081,6 +1082,8 @@ h4 {
 
 :is(#shop-map, #landing-shop-map) .gm-style-iw-c {
     padding: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
     color: var(--ink) !important;
     background: var(--surface) !important;
     border: 1px solid var(--border-color);
@@ -1089,23 +1092,24 @@ h4 {
 }
 
 :is(#shop-map, #landing-shop-map) .gm-style-iw-d {
-    overflow: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
 }
 
 :is(#shop-map, #landing-shop-map) .gm-style-iw-tc::after {
     background: var(--surface) !important;
 }
 
-html[data-theme="dark"] :is(#shop-map, #landing-shop-map) .gm-ui-hover-effect {
-    filter: invert(1);
+html[data-theme="dark"] :is(#shop-map, #landing-shop-map) .gm-ui-hover-effect span {
+    filter: brightness(0) invert(1);
 }
 
 .shop-map-popup-logo {
     position: relative;
     display: grid;
     place-items: center;
-    width: 6rem;
-    height: 4.5rem;
+    width: 8rem;
+    height: 6rem;
     overflow: hidden;
     color: #52627a;
     background: #fff;
@@ -1130,6 +1134,60 @@ html[data-theme="dark"] :is(#shop-map, #landing-shop-map) .gm-ui-hover-effect {
 
 .shop-map-popup-details strong {
     overflow-wrap: anywhere;
+}
+
+:is(.shop-directory-map, .landing-shop-map).map-fallback-active {
+    display: block;
+    height: auto;
+    padding: 0;
+}
+
+.provider-map-fallback {
+    display: grid;
+    gap: .75rem;
+    width: 100%;
+    padding: 1rem;
+    color: var(--ink);
+    background: var(--surface);
+}
+
+.provider-map-fallback-toolbar {
+    width: min(100%, 28rem);
+}
+
+.provider-map-fallback-frame {
+    display: block;
+    width: 100%;
+    height: clamp(20rem, 42vw, 27rem);
+    border: 1px solid var(--border-color);
+    border-radius: .75rem;
+}
+
+.provider-map-fallback-details .shop-map-popup {
+    grid-template-columns: 4.5rem minmax(0, 1fr);
+    width: 100%;
+    padding: 0;
+}
+
+.provider-map-fallback-details .shop-map-popup-logo {
+    width: 4.5rem;
+    height: 4rem;
+}
+
+.provider-map-fallback > a {
+    justify-self: start;
+}
+
+@media (max-width: 575.98px) {
+    .shop-map-popup {
+        grid-template-columns: minmax(0, 1fr);
+        width: min(17rem, 78vw);
+    }
+
+    .shop-map-popup-logo {
+        width: 100%;
+        height: 5.5rem;
+    }
 }
 
 .shop-directory-logo,
@@ -3979,7 +4037,7 @@ html:not([data-theme="dark"]) .report-date-presets .btn.active {
 
 .landing-shop-map {
     display: grid;
-    height: clamp(20rem, 45vw, 30rem);
+    height: clamp(24rem, 45vw, 30rem);
     overflow: hidden;
     color: var(--ink);
     background: var(--surface);

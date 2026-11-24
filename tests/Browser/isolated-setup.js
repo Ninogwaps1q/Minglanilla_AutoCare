@@ -25,6 +25,9 @@ export default async function setup() {
         mkdirSync(resolve(isolatedStorage, directory), { recursive: true });
     }
     const env = { ...process.env, LARAVEL_STORAGE_PATH: isolatedStorage, APP_ENV: 'testing', APP_DEBUG: 'false', CACHE_STORE: 'array', SESSION_DRIVER: 'file', SESSION_COOKIE: 'autocare_browser_test', MAIL_MAILER: 'array', QUEUE_CONNECTION: 'sync', PAYMONGO_SECRET_KEY: '', PAYMONGO_WEBHOOK_SECRET: '', PAYMONGO_LEGACY_MANUAL_PAYMENTS: 'true' };
+    if (process.env.LIVE_GOOGLE_MAPS !== '1') {
+        env.GOOGLE_MAPS_API_KEY = 'browser-test-key';
+    }
     const fixture = JSON.parse(execFileSync('php', ['tests/Browser/prepare.php'], { env, encoding: 'utf8', timeout: 120000, windowsHide: true }));
     process.env.BROWSER_FIXTURE = JSON.stringify(fixture);
     const logoPath = resolve(isolatedStorage, 'app/public', fixture.logo);

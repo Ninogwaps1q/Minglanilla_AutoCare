@@ -16,7 +16,7 @@ class ReviewModerationController extends Controller
 {
     public function index(Request $request): View
     {
-        $filters = $request->validate(['status' => ['nullable', 'in:published,hidden']]);
+        $filters = $request->validate(['status' => ['nullable', 'in:published,removed,hidden']]);
 
         return view('admin.reviews.index', [
             'reviews' => Review::query()
@@ -26,36 +26,41 @@ class ReviewModerationController extends Controller
                 ->paginate()
                 ->withQueryString(),
             'filters' => $filters,
+            'violations' => UpdateReviewModerationRequest::VIOLATIONS,
         ]);
     }
 
     public function update(UpdateReviewModerationRequest $request, Review $review): RedirectResponse
     {
-        DB::transaction(function () use ($request, $review): void {
+        $violation = UpdateReviewModerationRequest::VIOLATIONS[$request->validated('violation')];
+        $reason = $request->validated('reason');
+        $removed = DB::transaction(function () use ($request, $review, $violation, $reason): bool {
             $shop = Shop::query()->lockForUpdate()->findOrFail($review->shop_id);
             $review->refresh();
-            if ($review->status === $request->validated('status')) {
-                return;
+            if ($review->status !== 'published') {
+                return false;
             }
 
-            $review->update($request->validated());
+            $review->update(['status' => 'removed']);
             $shop->refreshPublishedRating();
             ActivityLog::query()->create([
                 'user_id' => $request->user()->id,
-                'action' => 'updated_review_status',
+                'action' => 'removed_review',
                 'module' => 'review_moderation',
-                'description' => "Set review #{$review->id} status to {$review->status}.",
+                'description' => "Removed review #{$review->id} for {$violation}. Reason: {$reason}",
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
             $review->customer->notifications()->create([
                 'type' => 'review_moderation',
-                'title' => 'Review visibility updated',
-                'message' => "Your review has been {$review->status}.",
+                'title' => 'Review removed for a rule violation',
+                'message' => "Your review was removed from the public shop page. {$violation}: {$reason}",
                 'data' => ['review_id' => $review->id],
             ]);
+
+            return true;
         });
 
-        return back()->with('status', 'Review visibility updated.');
+        return back()->with('status', $removed ? 'Review removed and reason recorded.' : 'This review is already off the public shop page.');
     }
 }

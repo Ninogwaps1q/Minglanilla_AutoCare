@@ -1,5 +1,6 @@
-import { loadGoogleMaps } from './google-maps';
-import { createShopMapPopup } from './shop-map-popup';
+import { loadGoogleMaps, onGoogleMapsAuthenticationFailure } from './google-maps';
+import { createShopMapPopup, openShopMapPopup } from './shop-map-popup';
+import { showProviderMapFallback } from './provider-map-fallback';
 
 const mapElement = document.querySelector('#shop-map');
 const shops = JSON.parse(mapElement.dataset.shops || '[]');
@@ -7,6 +8,9 @@ const locationInput = document.querySelector('#latitude');
 const longitudeInput = document.querySelector('#longitude');
 const selectedShopId = Number(mapElement.dataset.selectedShopId || 0);
 const message = text => { mapElement.textContent = text; };
+const authenticationFailureMessage = 'Google Maps could not load. Ask the administrator to check the Maps API key, billing, and daily quota. Browse providers below.';
+const showFallback = () => showProviderMapFallback(mapElement, shops, shop => shop.url, selectedShopId);
+onGoogleMapsAuthenticationFailure(() => { if (!showFallback()) message(authenticationFailureMessage); });
 
 if (!shops.length) {
     message('No matching providers have a map location yet. Browse the results below.');
@@ -29,7 +33,7 @@ if (!shops.length) {
             });
             bounds.extend(position);
             const content = createShopMapPopup(shop, shop.url, shop.provider_type === 'independent_mechanic' ? 'View mechanic' : 'View shop');
-            marker.addListener('click', () => { infoWindow.setContent(content); infoWindow.open({ anchor: marker, map }); });
+            marker.addListener('click', () => openShopMapPopup(googleMaps, infoWindow, map, mapElement, marker, content));
             if (Number(shop.id) === selectedShopId) selectedMarker = marker;
         });
 
@@ -41,7 +45,10 @@ if (!shops.length) {
         map.fitBounds(bounds, { top: Math.min(150, Math.round(mapElement.clientHeight * .38)), right: 30, bottom: 30, left: 30 });
         googleMaps.event.addListenerOnce(map, 'bounds_changed', () => { if (map.getZoom() > 15) map.setZoom(15); });
         if (selectedMarker) googleMaps.event.trigger(selectedMarker, 'click');
-    }).catch(error => message(error.message === 'Google Maps API key is not configured.' ? 'Map unavailable until the administrator configures Google Maps. Browse providers below.' : 'The map could not load. Browse providers below.'));
+    }).catch(error => {
+        if (showFallback()) return;
+        message(error.message === 'Google Maps authentication failed.' ? authenticationFailureMessage : (error.message === 'Google Maps API key is not configured.' ? 'Map unavailable until the administrator configures Google Maps. Browse providers below.' : 'The map could not load. Browse providers below.'));
+    });
 }
 
 const nearbyButton = document.querySelector('#nearby-button');

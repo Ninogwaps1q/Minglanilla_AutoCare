@@ -6,6 +6,13 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateReviewModerationRequest extends FormRequest
 {
+    public const VIOLATIONS = [
+        'abuse' => 'Abuse or harassment',
+        'spam' => 'Spam',
+        'private_information' => 'Private information',
+        'other' => 'Other rule violation',
+    ];
+
     public function authorize(): bool
     {
         return true;
@@ -17,7 +24,9 @@ class UpdateReviewModerationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'status' => ['required', 'in:published,hidden'],
+            'status' => ['prohibited'],
+            'violation' => ['required', 'in:'.implode(',', array_keys(self::VIOLATIONS))],
+            'reason' => ['required', 'string', 'max:500'],
         ];
     }
 }

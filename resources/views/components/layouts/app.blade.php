@@ -52,6 +52,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
         <x-theme-init />
+        <x-pwa-head />
         <title>{{ $title ? $title . ' · ' : '' }}{{ config('app.name', 'Minglanilla AutoCare Hub') }}</title>
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
@@ -164,6 +165,7 @@
                             @endif
                             <li><a class="dropdown-item" href="{{ route('home') }}">Public website</a></li>
                             <li><x-theme-toggle menu /></li>
+                            <li><x-install-app menu /></li>
                             <li>
                                 <hr class="dropdown-divider">
                             </li>

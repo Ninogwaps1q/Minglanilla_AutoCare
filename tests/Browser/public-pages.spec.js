@@ -1,6 +1,11 @@
 import { test, expect } from '@playwright/test';
 import { installDirectionsMapStub } from './directions-map-stub.js';
 
+const stubOpenStreetMap = page => page.route('https://www.openstreetmap.org/export/embed.html*', route => route.fulfill({
+    contentType: 'text/html',
+    body: '<main>OpenStreetMap preview</main>',
+}));
+
 for (const path of ['/', '/login', '/register', '/forgot-password', '/shops', '/map']) {
     test('public page renders without overflow or JavaScript exceptions: ' + path, async ({ page }, testInfo) => {
         const errors = [];
@@ -79,25 +84,51 @@ test('landing map shows the shop logo only after its pin is clicked', async ({ p
 });
 
 test('live directory popup uses the saved shop logo', async ({ page }, testInfo) => {
-    test.skip(process.env.LIVE_GOOGLE_MAPS !== '1' || testInfo.project.name !== 'desktop', 'Live map check is opt-in');
+    test.skip(process.env.LIVE_GOOGLE_MAPS !== '1', 'Live map check is opt-in');
     test.setTimeout(60000);
     await page.goto('/shops');
-    await expect(page.locator('#shop-map .gm-style')).toBeVisible({ timeout: 15000 });
     const providers = JSON.parse(await page.locator('#shop-map').getAttribute('data-shops'));
     const shop = providers.find(provider => provider.provider_type === 'shop');
+    await expect.poll(async () => {
+        if (await page.locator('#shop-map .provider-map-fallback').count()) return 'fallback';
+        return await page.getByTitle(shop.name, { exact: true }).count() ? 'ready' : 'loading';
+    }, { timeout: 15000 }).not.toBe('loading');
+    if (await page.locator('#shop-map .provider-map-fallback').count()) {
+        await expect(page.locator('#shop-map iframe')).toHaveAttribute('src', /openstreetmap\.org\/export\/embed\.html/);
+        await expect(page.locator('#shop-map .gm-err-container')).toHaveCount(0);
+        await page.locator('#shop-map').screenshot({ path: testInfo.outputPath('live-map-fallback.png') });
+        test.skip(true, 'The configured Google Maps key has reached its daily quota');
+    }
     await page.getByTitle(shop.name, { exact: true }).dispatchEvent('click');
     await expect(page.locator('#shop-map .shop-map-popup img')).toBeVisible();
     await expect.poll(() => page.locator('#shop-map .gm-style-iw-c').evaluate(element => getComputedStyle(element).backgroundColor)).toBe('rgb(255, 255, 255)');
     await page.locator('#shop-map').screenshot({ path: testInfo.outputPath('live-shop-popup-light.png') });
 
-    await page.evaluate(() => localStorage.setItem('autocare-theme', 'dark'));
-    await page.reload();
+    await page.locator('[data-theme-toggle]').first().dispatchEvent('click');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-    await expect(page.locator('#shop-map .gm-style')).toBeVisible({ timeout: 15000 });
-    await page.getByTitle(shop.name, { exact: true }).dispatchEvent('click');
     await expect(page.locator('#shop-map .shop-map-popup img')).toBeVisible();
     await expect.poll(() => page.locator('#shop-map .gm-style-iw-c').evaluate(element => getComputedStyle(element).backgroundColor)).toBe('rgb(21, 34, 56)');
     await page.locator('#shop-map').screenshot({ path: testInfo.outputPath('live-shop-popup-dark.png') });
+});
+
+test('live fallback map renders OpenStreetMap tiles when Google Maps is blocked', async ({ page }, testInfo) => {
+    test.skip(process.env.LIVE_OPENSTREETMAP !== '1', 'Live map check is opt-in');
+    test.setTimeout(60000);
+    const tileLoaded = page.waitForResponse(response => /openstreetmap\.org\/\d+\/\d+\/\d+\.png/.test(response.url()) && response.status() === 200, { timeout: 20000 });
+    await page.route('https://maps.googleapis.com/maps/api/js*', route => route.abort());
+    await page.goto('/shops');
+    const iframe = page.locator('#shop-map iframe');
+    await expect(iframe).toBeVisible({ timeout: 15000 });
+    await iframe.scrollIntoViewIfNeeded();
+    const map = page.frameLocator('#shop-map iframe');
+    await expect(map.locator('.maplibregl-canvas')).toBeVisible({ timeout: 20000 });
+    await expect(map.locator('.maplibregl-marker')).toBeVisible();
+    await tileLoaded;
+    await page.locator('#shop-map').screenshot({ path: testInfo.outputPath('live-openstreetmap-fallback.png') });
+    await page.locator('[data-theme-toggle]').first().dispatchEvent('click');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await expect(iframe).toBeVisible();
+    await page.locator('#shop-map').screenshot({ path: testInfo.outputPath('live-openstreetmap-fallback-dark.png') });
 });
 
 test('landing map shows a mechanic logo after its service-area pin is clicked', async ({ page }) => {
@@ -129,11 +160,46 @@ test('landing map shows a mechanic logo after its service-area pin is clicked', 
 });
 
 test('landing map failure keeps the shop directory reachable', async ({ page }) => {
+    await stubOpenStreetMap(page);
     await page.route('https://maps.googleapis.com/maps/api/js*', route => route.abort());
     await page.goto('/');
     await page.locator('#maps').scrollIntoViewIfNeeded();
-    await expect(page.locator('#landing-shop-map')).toContainText('Map unavailable', { timeout: 15000 });
+    await expect(page.locator('#landing-shop-map iframe')).toBeVisible({ timeout: 15000 });
     await expect(page.locator('#maps').getByRole('link', { name: 'Open full provider map' })).toBeVisible();
+});
+
+test('landing and directory show provider map previews when Google Maps rejects the key', async ({ page }) => {
+    test.skip(process.env.BROWSER_ISOLATED !== '1', 'Requires the disposable browser fixture');
+    await stubOpenStreetMap(page);
+    await page.route('**/api/shops', async route => {
+        const response = await route.fetch();
+        const payload = await response.json();
+        payload.data.push({ id: 99999, name: 'Browser Mobile Mechanic', provider_type: 'independent_mechanic', latitude: 10.2, longitude: 123.8 });
+        await route.fulfill({ response, json: payload });
+    });
+    await page.route('https://maps.googleapis.com/maps/api/js*', route => route.fulfill({
+        contentType: 'application/javascript',
+        body: 'window.gm_authFailure?.();',
+    }));
+
+    await page.goto('/');
+    await page.locator('#maps').scrollIntoViewIfNeeded();
+    await expect(page.locator('#landing-shop-map iframe')).toHaveAttribute('src', /openstreetmap\.org\/export\/embed\.html/);
+    await expect(page.locator('#landing-map-status')).toContainText('OpenStreetMap preview');
+    await page.locator('#landing-shop-map select').selectOption('99999');
+    await expect(page.locator('#landing-shop-map iframe')).toHaveAttribute('src', /marker=10\.2%2C123\.8/);
+    await expect(page.locator('#landing-shop-map .provider-map-fallback-details')).toContainText('Browser Mobile Mechanic');
+    await expect(page.locator('#landing-shop-map .provider-map-fallback-details')).toContainText('Approximate service area');
+    await page.locator('#landing-shop-map select').focus();
+    await expect(page.locator('#landing-shop-map select')).toBeFocused();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+    await expect(page.locator('#maps').getByRole('link', { name: 'Open full provider map' })).toBeVisible();
+
+    await page.goto('/shops');
+    await expect(page.locator('#shop-map iframe')).toBeVisible();
+    await expect(page.locator('#shop-map .provider-map-fallback-details')).toContainText('Browser Test AutoCare');
+    await expect(page.locator('#shop-results')).toContainText('Browser Test AutoCare');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
 });
 
 test('landing provider search opens the shared directory with the query', async ({ page }) => {
@@ -305,11 +371,12 @@ test('nearby map explains denied location access', async ({ page }) => {
 
 test('shop directory remains usable when the map provider is unavailable', async ({ page }) => {
     test.skip(process.env.BROWSER_ISOLATED !== '1', 'Requires the disposable browser fixture');
+    await stubOpenStreetMap(page);
     await page.route('https://maps.googleapis.com/maps/api/js*', route => route.abort());
     await page.goto('/shops');
-    await expect(page.locator('#shop-map')).toContainText('The map could not load.');
+    await expect(page.locator('#shop-map iframe')).toBeVisible();
     await expect(page.locator('#shop-results')).toContainText('Browser Test AutoCare');
-    await expect(page.getByRole('link', { name: 'View shop' })).toBeVisible();
+    await expect(page.locator('#shop-results').getByRole('link', { name: 'View shop' })).toBeVisible();
 });
 
 test('directory filter submits and can be cleared', async ({ page }) => {

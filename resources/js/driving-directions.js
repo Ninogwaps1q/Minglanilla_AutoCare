@@ -1,4 +1,4 @@
-import { loadGoogleMaps } from './google-maps';
+import { loadGoogleMaps, onGoogleMapsAuthenticationFailure } from './google-maps';
 
 const getCurrentLocation = () => new Promise((resolve, reject) => {
     navigator.geolocation.getCurrentPosition(resolve, reject, {
@@ -30,6 +30,14 @@ document.querySelectorAll('.driving-directions').forEach(section => {
     let map;
     let originMarker;
     let polylines = [];
+    let authenticationFailed = false;
+    const authenticationFailureMessage = 'Google Maps could not load. Ask the administrator to check the Maps API key, billing, and daily quota.';
+    onGoogleMapsAuthenticationFailure(() => {
+        authenticationFailed = true;
+        mapElement.textContent = authenticationFailureMessage;
+        status.textContent = authenticationFailureMessage;
+        button.disabled = true;
+    });
 
     const loadMap = () => {
         mapPromise ??= loadGoogleMaps(section.dataset.googleKey).then(googleMaps => {
@@ -46,7 +54,7 @@ document.querySelectorAll('.driving-directions').forEach(section => {
 
             return googleMaps;
         }).catch(error => {
-            mapElement.textContent = 'Map could not load. Check your connection and try again.';
+            if (!authenticationFailed) mapElement.textContent = 'Map could not load. Check your connection and try again.';
             mapPromise = undefined;
             throw error;
         });
@@ -144,13 +152,15 @@ document.querySelectorAll('.driving-directions').forEach(section => {
         } catch (error) {
             if (typeof error?.code === 'number' && [1, 2, 3].includes(error.code)) {
                 status.textContent = locationErrorMessage(error);
+            } else if (authenticationFailed) {
+                status.textContent = authenticationFailureMessage;
             } else if (!map) {
                 status.textContent = 'Map could not load. Check your connection or ask the administrator to check Google Maps setup.';
             } else {
                 status.textContent = 'Driving directions could not load. Try again later or contact support.';
             }
         } finally {
-            button.disabled = false;
+            button.disabled = authenticationFailed;
         }
     });
 
@@ -159,14 +169,14 @@ document.querySelectorAll('.driving-directions').forEach(section => {
             if (entries.some(entry => entry.isIntersecting)) {
                 observer.disconnect();
                 loadMap().catch(() => {
-                    status.textContent = 'Map could not load. Check your connection or ask the administrator to check Google Maps setup.';
+                    if (!authenticationFailed) status.textContent = 'Map could not load. Check your connection or ask the administrator to check Google Maps setup.';
                 });
             }
         }, { rootMargin: '150px' });
         observer.observe(mapElement);
     } else {
         loadMap().catch(() => {
-            status.textContent = 'Map could not load. Check your connection or ask the administrator to check Google Maps setup.';
+            if (!authenticationFailed) status.textContent = 'Map could not load. Check your connection or ask the administrator to check Google Maps setup.';
         });
     }
 });
