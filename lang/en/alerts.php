@@ -17,7 +17,7 @@ return [
     'saved' => 'Notification preferences saved.',
     'save' => 'Save preferences',
     'push_help' => 'Choose Allow to register this browser for important updates. Message delivery is pending platform setup.',
-    'push_setup' => 'The platform has not configured browser subscriptions yet.',
+    'push_setup' => 'Browser notifications are unavailable until setup is complete.',
     'push_allow' => 'Allow push on this device',
     'push_revoke' => 'Disable push on all devices',
     'push_saved' => 'This browser is registered.',

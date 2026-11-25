@@ -77,7 +77,11 @@ Open the app over HTTPS (or localhost for development). When supported by the br
 
 The public Privacy Policy and Terms are drafts. Set `PRIVACY_CONTACT_EMAIL` to the designated privacy inbox and have a Philippine lawyer review the text and retention periods before launch. Account holders can submit access and deletion requests from their profile. Use **Privacy requests** in the admin workspace to verify the requester, arrange secure fulfillment, and record the outcome. Retain required invoice, payment and dispute records. Marking a request complete records the decision after fulfillment.
 
-Set `SEMAPHORE_API_KEY` and `SEMAPHORE_SENDER_NAME` in the deployment environment for SMS. The queue worker sends only opted-in important alerts to saved Philippine mobile numbers. The default is five attempts per user per Philippine day, adjustable with `SMS_DAILY_LIMIT`. Review failures in the application logs. `WEB_PUSH_PUBLIC_KEY` enables subscription registration over HTTPS for supported browsers. Browser delivery still needs a push transport.
+Set `SEMAPHORE_API_KEY` and `SEMAPHORE_SENDER_NAME` in the deployment environment for SMS. The worker sends opted-in inspection, estimate, repair, payment, and vehicle handover alerts to saved Philippine mobile numbers. The default is five attempts per user per Philippine day, adjustable with `SMS_DAILY_LIMIT`. Review delivery outcomes and any provider cost in the SMS delivery records.
+
+For Web Push, set `WEB_PUSH_PUBLIC_KEY` to a base64url-encoded uncompressed P-256 public point and `WEB_PUSH_PRIVATE_KEY` to its base64url-encoded 32-byte private scalar. Set `WEB_PUSH_SUBJECT` to an HTTPS contact URL or a `mailto:` address. Keep the keys stable across deployments and keep the private key out of source control. Use the same HTTPS origin for `APP_URL` and the PWA. Customers opt in through notification preferences on each browser.
+
+Keep the queue worker and scheduler running so workflow alerts deliver after a change commits. The scheduler sends estimate reminders after 24 and 48 hours while the estimate is still open, and requeues outstanding alerts if the initial queue submission fails.
 
 ## Uptime and scheduler monitoring
 

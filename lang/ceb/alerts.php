@@ -18,7 +18,7 @@ return [
     'saved' => 'Natipig ang mga gusto sa pahibalo.',
     'save' => 'Itipig ang mga gusto',
     'push_help' => 'Pilia ang Tugoti aron marehistro kini nga browser. Naghuwat pa ang pagpadala sa setup.',
-    'push_setup' => 'Wala pa ma-set up ang pagrehistro sa browser.',
+    'push_setup' => 'Magamit ang mga pahibalo sa browser human makompleto ang setup.',
     'push_allow' => 'Tugoti ang pahibalo sa kini nga device',
     'push_revoke' => 'I-off ang pahibalo sa tanang device',
     'push_saved' => 'Narehistro na kini nga browser.',

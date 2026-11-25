@@ -14,6 +14,8 @@ Schedule::command('app:expire-quotations')
     ->daily()
     ->withoutOverlapping(30);
 
+Schedule::command('app:dispatch-workflow-alerts')->everyMinute()->withoutOverlapping(5);
+
 Schedule::command('app:send-maintenance-reminders')
     ->daily()
     ->withoutOverlapping(30)

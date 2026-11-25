@@ -18,7 +18,7 @@ return [
     'saved' => 'Na-save ang mga pagpipilian sa abiso.',
     'save' => 'I-save ang mga pagpipilian',
     'push_help' => 'Piliin ang Payagan para irehistro ang browser na ito. Naghihintay pa ng setup ang pagpapadala.',
-    'push_setup' => 'Hindi pa na-set up ang pagrehistro ng browser.',
+    'push_setup' => 'Magagamit ang mga abiso sa browser kapag tapos na ang setup.',
     'push_allow' => 'Payagan ang push sa device na ito',
     'push_revoke' => 'I-off ang push sa lahat ng device',
     'push_saved' => 'Nakarehistro na ang browser na ito.',

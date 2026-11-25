@@ -7,11 +7,18 @@ use App\Models\Notification;
 enum ServiceAlert: string
 {
     case Booking = 'booking';
+    case Inspection = 'inspection';
     case Estimate = 'estimate';
     case Repair = 'repair';
     case Payment = 'payment';
+    case Release = 'release';
     case Roadside = 'roadside';
     case Plan = 'plan';
+
+    public function supportsSms(): bool
+    {
+        return in_array($this, [self::Inspection, self::Estimate, self::Repair, self::Payment, self::Release], true);
+    }
 
     public static function forNotification(Notification $notification): ?self
     {

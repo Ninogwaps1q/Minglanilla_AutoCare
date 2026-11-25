@@ -1,0 +1,32 @@
+<?php
+
+// Translation draft for native-speaker review.
+return [
+    'inspection_started' => ['title' => 'Gisugdan ang inspeksyon', 'next' => 'Gisusi na sa shop ang imong sakyanan. Hulata ang resulta.', 'sms' => 'Nagsugod ang inspeksyon.'],
+    'inspection_results' => ['title' => 'Andam na ang resulta', 'next' => 'Ablihi ang repair para sa checklist ug mga litrato.', 'sms' => 'Andam na ang resulta.'],
+    'estimate_ready' => ['title' => 'Kinahanglan ang imong pagtugot', 'next' => 'Susiha ang banabana. Uyoni o balibari kini una mopadayon ang trabaho.', 'sms' => 'Susiha ang banabana.'],
+    'estimate_updated' => ['title' => 'Naay giusab nga banabana', 'next' => 'Susiha ang dugang trabaho. Uyoni o balibari ang giusab nga banabana.', 'sms' => 'Susiha ang giusab nga banabana.'],
+    'estimate_reminder' => ['title' => 'Naghulat pa sa imong desisyon', 'next' => 'Ablihi ang banabana ug uyoni o balibari kini aron makahibalo ang shop unsay buhaton.', 'sms' => 'Pahinumdom: Desisyon sa banabana.'],
+    'repair_approved' => ['title' => 'Giuyonan ang pag-ayo', 'next' => 'Narekord ang imong pagtugot. Pahibaloon ka sa shop inig sugod.', 'sms' => 'Giuyonan ang pag-ayo.'],
+    'repair_started' => ['title' => 'Gisugdan ang pag-ayo', 'next' => 'Nagsugod na ang shop. Ablihi ang repair para masundan ang trabaho.', 'sms' => 'Nagsugod na ang pag-ayo.'],
+    'repair_resumed' => ['title' => 'Gipadayon ang pag-ayo', 'next' => 'Nagpadayon na ang trabaho. Ablihi ang repair para sa kahimtang.', 'sms' => 'Gipadayon ang pag-ayo.'],
+    'repair_delayed' => ['title' => 'Naghulat sa piyesa', 'next' => 'Nadugay ang trabaho samtang nangita og piyesa ang shop. Ablihi ang repair para sa update.', 'sms' => 'Naghulat og piyesa.'],
+    'repair_completed' => ['title' => 'Nahuman ang pag-ayo', 'next' => 'Ablihi ang repair para makita ang gibuhat ug ang sunod nga lakang.', 'sms' => 'Nahuman ang pag-ayo.'],
+    'invoice_ready' => ['title' => 'Andam na ang invoice', 'next' => 'Susiha ang invoice ug pilia ang paagi sa pagbayad.', 'sms' => 'Andam na ang invoice.'],
+    'payment_received' => ['title' => 'Nadawat ang bayad', 'next' => 'Ablihi ang invoice para makita ang bag-ong balanse ug sunod nga lakang.', 'sms' => 'Nadawat ang bayad.'],
+    'payment_failed' => ['title' => 'Kinahanglang susihon ang bayad', 'next' => 'Ablihi ang invoice para susihon ang bayad ug sulayi pag-usab kung kinahanglan.', 'sms' => 'Susihon ang bayad.'],
+    'payment_refunded' => ['title' => 'Nakumpirma ang refund', 'next' => 'Ablihi ang invoice para susihon ang refund ug bag-ong balanse.', 'sms' => 'Nakumpirma ang refund.'],
+    'pickup_ready' => ['title' => 'Andam nang kuhaon ang sakyanan', 'next' => 'Nahuman na ang repair ug bayad. Kontaka ang shop para sa pagkuha o pag-abot sa sakyanan.', 'sms' => 'Andam nang kuhaon.'],
+    'vehicle_released' => ['title' => 'Gihatag na ang sakyanan', 'next' => 'Girekord na sa shop ang paghatag. Ablihi ang repair para sa rekord.', 'sms' => 'Gihatag na ang sakyanan.'],
+    'inspection_details' => 'Nakita nga problema: :count. Mga litrato: :photos.',
+    'inspection_examples' => 'Mga item nga naay problema: :items.',
+    'open_button' => 'Tan-awa ang update',
+    'preferences_title' => 'Mga update sa serbisyo',
+    'other_title' => 'Ubang mga update',
+    'event_inspection' => 'Inspeksyon',
+    'event_release' => 'Pagkuha ug paghatag sa sakyanan',
+    'event_payment' => 'Bayad ug invoice',
+    'open_update' => 'Ablihi ang AutoCare aron makita ang update.',
+    'vehicle_unlinked' => 'Walay nalink nga sakyanan',
+    'push_help' => 'Tugoti ang mga pahibalo sa browser aron madawat ang imong gipili nga mga update.',
+];

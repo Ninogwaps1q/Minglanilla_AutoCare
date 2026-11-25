@@ -2,12 +2,18 @@
 
 namespace App\Providers;
 
+use App\Models\Invoice;
 use App\Models\Message;
+use App\Models\Payment;
+use App\Models\Quotation;
+use App\Models\RepairJobStatusHistory;
 use App\Models\ServiceCase;
+use App\Models\VehicleInspection;
 use App\Services\AI\AiProviderInterface;
 use App\Services\AI\AiServiceStatus;
 use App\Services\AI\GeminiProvider;
 use App\Services\AI\OpenAiProvider;
+use App\Services\CustomerWorkflowAlerts;
 use App\Services\Messaging\MessageStorage;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\QueryException;
@@ -37,6 +43,9 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Paginator::useBootstrapFive();
+        foreach ([RepairJobStatusHistory::class, VehicleInspection::class, Quotation::class, Invoice::class, Payment::class] as $model) {
+            $model::observe(CustomerWorkflowAlerts::class);
+        }
         RateLimiter::for('review-posts', fn (Request $request): Limit => Limit::perHour(5)->by($request->user()->id));
         RateLimiter::for('review-reports', fn (Request $request): Limit => Limit::perHour(10)->by($request->user()->id));
 

@@ -1,0 +1,32 @@
+<?php
+
+// Translation draft for native-speaker review.
+return [
+    'inspection_started' => ['title' => 'Nagsimula ang inspeksyon', 'next' => 'Sinusuri na ng shop ang sasakyan mo. Hintayin ang resulta.', 'sms' => 'Nagsimula ang inspeksyon.'],
+    'inspection_results' => ['title' => 'Handa na ang resulta', 'next' => 'Buksan ang repair para sa checklist at mga larawan.', 'sms' => 'Handa na ang resulta.'],
+    'estimate_ready' => ['title' => 'Kailangan ang iyong aprubal', 'next' => 'Suriin ang tantiya. Aprubahan o tanggihan ito bago magpatuloy ang trabaho.', 'sms' => 'Suriin ang tantiya.'],
+    'estimate_updated' => ['title' => 'May binagong tantiya', 'next' => 'Suriin ang dagdag na trabaho. Aprubahan o tanggihan ang binagong tantiya.', 'sms' => 'Suriin ang binagong tantiya.'],
+    'estimate_reminder' => ['title' => 'Hinihintay pa ang desisyon mo', 'next' => 'Buksan ang tantiya at aprubahan o tanggihan ito para malaman ng shop ang susunod.', 'sms' => 'Paalala: Magdesisyon sa tantiya.'],
+    'repair_approved' => ['title' => 'Aprubado na ang repair', 'next' => 'Naitala ang aprubal mo. Aabisuhan ka ng shop kapag nagsimula ang trabaho.', 'sms' => 'Aprubado na ang repair.'],
+    'repair_started' => ['title' => 'Nagsimula ang repair', 'next' => 'Nagsimula na ang shop. Buksan ang repair para masubaybayan ito.', 'sms' => 'Nagsimula ang repair.'],
+    'repair_resumed' => ['title' => 'Nagpatuloy ang repair', 'next' => 'Nagpatuloy na ang trabaho. Buksan ang repair para sa estado nito.', 'sms' => 'Nagpatuloy ang repair.'],
+    'repair_delayed' => ['title' => 'Naghihintay ng piyesa', 'next' => 'Naantala ang trabaho habang kumukuha ng piyesa ang shop. Buksan ang repair para sa update.', 'sms' => 'Naghihintay ng piyesa.'],
+    'repair_completed' => ['title' => 'Tapos na ang repair', 'next' => 'Buksan ang repair para makita ang ginawa at ang susunod na hakbang.', 'sms' => 'Tapos na ang repair.'],
+    'invoice_ready' => ['title' => 'Handa na ang invoice', 'next' => 'Suriin ang invoice at pumili ng paraan ng pagbabayad.', 'sms' => 'Handa na ang invoice.'],
+    'payment_received' => ['title' => 'Natanggap ang bayad', 'next' => 'Buksan ang invoice para sa bagong balanse at susunod na hakbang.', 'sms' => 'Natanggap ang bayad.'],
+    'payment_failed' => ['title' => 'Kailangang suriin ang bayad', 'next' => 'Buksan ang invoice para suriin ang bayad at subukan ulit kung kailangan.', 'sms' => 'Suriin ang bayad.'],
+    'payment_refunded' => ['title' => 'Kumpirmado ang refund', 'next' => 'Buksan ang invoice para sa refund at bagong balanse.', 'sms' => 'Kumpirmado ang refund.'],
+    'pickup_ready' => ['title' => 'Handa nang kunin ang sasakyan', 'next' => 'Tapos na ang repair at bayad. Kontakin ang shop para sa pagkuha o pag-abot ng sasakyan.', 'sms' => 'Handa nang kunin.'],
+    'vehicle_released' => ['title' => 'Naibigay na ang sasakyan', 'next' => 'Naitala na ng shop ang pag-abot. Buksan ang repair para sa rekord.', 'sms' => 'Naibigay na ang sasakyan.'],
+    'inspection_details' => 'Mga nakitang problema: :count. Mga larawan: :photos.',
+    'inspection_examples' => 'Mga item na may problema: :items.',
+    'open_button' => 'Tingnan ang update',
+    'preferences_title' => 'Mga update sa serbisyo',
+    'other_title' => 'Iba pang update',
+    'event_inspection' => 'Inspeksyon',
+    'event_release' => 'Pagkuha at pag-abot ng sasakyan',
+    'event_payment' => 'Bayad at mga invoice',
+    'open_update' => 'Buksan ang AutoCare para makita ang update.',
+    'vehicle_unlinked' => 'Walang naka-link na sasakyan',
+    'push_help' => 'Payagan ang mga abiso sa browser para matanggap ang pinili mong mga update.',
+];

@@ -32,7 +32,7 @@ it('keeps email on by default and honors opt-in and event choices', function () 
     $user->notifications()->create($record);
     $user->notifications()->create(['type' => 'repair_status', 'title' => 'Started', 'message' => 'Work started', 'data' => ['status' => 'repairing']]);
     Notification::assertSentToTimes($user, ImportantEventMail::class, 1);
-    Bus::assertDispatchedTimes(SendEventSms::class, 1);
+    Bus::assertNotDispatched(SendEventSms::class);
     expect($user->fresh()->hasConsentFor('sms'))->toBeTrue();
 });
 
@@ -43,7 +43,7 @@ it('normalizes Philippine numbers and sends each important SMS at most once with
     Http::fake(['api.semaphore.co/*' => Http::response([['message_id' => 42, 'status' => 'Queued']])]);
     $user = User::factory()->create(['phone' => '+63 (917) 123-4567']);
     $user->recordOptionalConsent('sms', true);
-    $record = ['type' => 'emergency_status', 'title' => 'Update', 'message' => 'Private pickup at 22 Sample Street.'];
+    $record = ['type' => 'quotation_sent', 'title' => 'Update', 'message' => 'Private pickup at 22 Sample Street.'];
     $first = $user->notifications()->create($record);
     $second = $user->notifications()->create($record);
     $sms = app(SmsService::class);
@@ -54,7 +54,7 @@ it('normalizes Philippine numbers and sends each important SMS at most once with
 
     Http::assertSentCount(1);
     Http::assertSent(fn ($request) => $request['number'] === '639171234567'
-        && str_contains($request['message'], 'roadside') && ! str_contains($request['message'], 'Sample Street'));
+        && str_contains($request['message'], 'estimate') && ! str_contains($request['message'], 'Sample Street'));
     $this->assertDatabaseHas('sms_deliveries', ['notification_id' => $first->id, 'status' => 'accepted']);
     $this->assertDatabaseMissing('sms_deliveries', ['notification_id' => $second->id]);
 });
@@ -81,13 +81,17 @@ it('records push consent and stores or removes a browser subscription', function
     config()->set('services.web_push.public_key', 'test-public-key');
     $user = User::factory()->create(['role' => 'customer']);
     $payload = [
-        'endpoint' => 'https://push.example.test/delivery/abc',
+        'endpoint' => 'https://fcm.googleapis.com/fcm/send/abc',
         'keys' => ['p256dh' => str_repeat('a', 87), 'auth' => str_repeat('a', 22)],
     ];
+    config()->set(['services.web_push.private_key' => null, 'services.web_push.subject' => null]);
+    $this->actingAs($user)->postJson(route('preferences.push.store'), $payload)->assertServiceUnavailable();
+    config()->set(['services.web_push.private_key' => 'test-private-key', 'services.web_push.subject' => 'mailto:test@example.test']);
     $this->actingAs($user)->postJson(route('preferences.push.store'), $payload)->assertNoContent();
     $this->assertDatabaseHas('push_subscriptions', ['endpoint_hash' => hash('sha256', $payload['endpoint']), 'user_id' => $user->id]);
     expect($user->fresh()->hasConsentFor('push'))->toBeTrue();
     $this->postJson(route('preferences.push.store'), ['endpoint' => 'http://localhost'] + $payload)->assertJsonValidationErrors('endpoint');
+    $this->postJson(route('preferences.push.store'), ['endpoint' => 'https://example.test/push'] + $payload)->assertJsonValidationErrors('endpoint');
     $this->deleteJson(route('preferences.push.destroy'))->assertNoContent();
     $this->assertDatabaseCount('push_subscriptions', 0);
     expect($user->fresh()->hasConsentFor('push'))->toBeFalse();

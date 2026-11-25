@@ -46,6 +46,26 @@ it('leaves transient failures and amount mismatches pending and cancels only con
         ->and(Payment::query()->sole()->status)->toBe('checkout_pending')->and($shop->fresh()->activePlanSlug())->toBe('free');
 });
 
+it('notifies about one declined checkout attempt without closing a session that can be retried', function () {
+    [$payment] = reconciliationInvoice();
+    Http::fake(['api.paymongo.com/v1/checkout_sessions/*' => Http::response(['data' => [
+        'id' => $payment->paymongo_session_id,
+        'attributes' => [
+            'status' => 'active', 'payments' => [],
+            'payment_intent' => ['id' => 'pi_failed_attempt', 'attributes' => [
+                'status' => 'awaiting_payment_method', 'last_payment_error' => ['code' => 'card_declined'],
+            ]],
+        ],
+    ]])]);
+
+    $this->artisan('app:reconcile-paymongo-payments')->assertSuccessful();
+    $this->travel(6)->minutes();
+    $this->artisan('app:reconcile-paymongo-payments')->assertSuccessful();
+
+    expect($payment->fresh()->status)->toBe('checkout_pending');
+    expect($payment->customer->notifications()->where('type', 'payment_verification')->sole()->title)->toBe('Payment needs attention');
+});
+
 it('bounds background checks and rotates past recently checked records', function () {
     [, $shop] = reconciliationInvoice();
     $subscription = $shop->planPayments()->create(['plan_slug' => 'basic', 'amount' => 499, 'status' => 'checkout_pending', 'paymongo_session_id' => 'cs_waiting']);

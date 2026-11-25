@@ -22,10 +22,5 @@ class QuotationService
         }
         $quotation->update(['subtotal' => $totalCents / 100, 'total' => $totalCents / 100, 'status' => 'sent', 'valid_until' => $validUntil, 'notes' => $notes]);
         $quotation->items()->createMany($pricedItems);
-        $quotation->customer->notifications()->create([
-            'type' => 'quotation_sent', 'title' => 'Quotation received',
-            'message' => "Your estimate {$quotation->quotation_number} is ready to review.",
-            'data' => ['quotation_id' => $quotation->id, 'number' => $quotation->quotation_number],
-        ]);
     }
 }

@@ -206,7 +206,6 @@ class PayMongoWebhookController extends Controller
             $method = $gatewayPayment['source']['type'] ?? null;
             $payment->update(['status' => 'confirmed', 'paymongo_session_id' => $sessionId, 'paymongo_payment_id' => $paymentId, 'paymongo_method' => is_string($method) && strlen($method) <= 50 ? $method : null, 'paymongo_fee' => is_int($fee) ? $fee / 100 : null, 'paymongo_net_amount' => is_int($netAmount) ? $netAmount / 100 : null, 'reference_number' => $paymentId, 'settlement_status' => 'pending', 'reviewed_at' => now()]);
             $invoice->update(['status' => $confirmedCents + $amount >= (int) round($invoice->payableTotal() * 100) ? 'paid' : 'unpaid']);
-            $payment->customer->notifications()->create(['type' => 'payment_verification', 'title' => 'Payment confirmed', 'message' => 'Your PayMongo payment was confirmed.', 'data' => ['payment_id' => $payment->id]]);
             $payment->shop->owner->notifications()->create(['type' => 'payment_verification', 'title' => 'Online payment received', 'message' => 'A customer invoice payment was received by the platform. Settlement is pending.', 'data' => ['payment_id' => $payment->id]]);
 
             return response('Processed', 200);

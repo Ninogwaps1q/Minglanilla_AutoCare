@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
-use App\Jobs\SendEventSms;
+use App\Jobs\SendNotificationPush;
 use App\Notifications\ImportantEventMail;
 use App\Notifications\ServiceAlert;
+use App\Services\WebPushDelivery;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class Notification extends Model
 {
@@ -15,31 +18,49 @@ class Notification extends Model
     protected static function booted(): void
     {
         static::created(function (self $notification): void {
-            $user = $notification->user;
-            if ($user?->status !== 'active') {
+            if ($notification->workflow_alert_id) {
                 return;
             }
-            $alert = ServiceAlert::forNotification($notification);
-            if ($alert && $user->phone && $user->receivesEventVia($alert->value, 'sms') && config('services.semaphore.api_key')) {
-                SendEventSms::dispatch($notification->id)->afterCommit();
-            }
-            if (! in_array($notification->type, [
-                'appointment_requested', 'appointment_status', 'appointment_reschedule_requested', 'appointment_reschedule_decided', 'appointment_cancelled',
-                'quotation_sent', 'quotation_requested', 'quotation_response', 'quotation_expired', 'repair_status', 'shop_plan_reminder',
-                'shop_plan_payment', 'emergency_request', 'emergency_status',
-                'payment_verification',
-            ], true) || ($notification->type === 'payment_verification' && $alert !== ServiceAlert::Payment)) {
-                return;
-            }
-            if ($user->email && $user->receivesEventVia(($alert ?? ServiceAlert::forEmailType($notification->type))->value, 'email')) {
-                $locale = $user->locale ?? 'en';
-                $user->notify((new ImportantEventMail(
-                    $notification->localizedTitle($locale),
-                    $notification->localizedMessage($locale),
-                    $notification->destinationFor($user),
-                ))->locale($locale));
+            $connection = $notification->getConnection();
+            if ($connection->transactionLevel() > 0) {
+                $connection->afterCommit(fn () => $notification->dispatchLegacyUpdates());
+            } else {
+                $notification->dispatchLegacyUpdates();
             }
         });
+    }
+
+    private function dispatchLegacyUpdates(): void
+    {
+        $user = $this->user;
+        if ($user?->status !== 'active') {
+            return;
+        }
+        $stage = ServiceAlert::forEmailType($this->type);
+        if (app(WebPushDelivery::class)->configured() && $user->receivesEventVia($stage->value, 'push')) {
+            try {
+                SendNotificationPush::dispatch($this->id);
+            } catch (Throwable $exception) {
+                Log::warning('notification.push_queue_failed', ['notification_id' => $this->id, 'exception_type' => $exception::class]);
+            }
+        }
+
+        $smsEvent = ServiceAlert::forNotification($this);
+        if (! in_array($this->type, [
+            'appointment_requested', 'appointment_status', 'appointment_reschedule_requested', 'appointment_reschedule_decided', 'appointment_cancelled',
+            'quotation_sent', 'quotation_requested', 'quotation_response', 'quotation_expired', 'repair_status', 'shop_plan_reminder',
+            'shop_plan_payment', 'emergency_request', 'emergency_status', 'payment_verification',
+        ], true) || ($this->type === 'payment_verification' && $smsEvent !== ServiceAlert::Payment)) {
+            return;
+        }
+        if ($user->email && $user->receivesEventVia(($smsEvent ?? $stage)->value, 'email')) {
+            try {
+                $locale = $user->locale ?? 'en';
+                $user->notify((new ImportantEventMail($this->localizedTitle($locale), $this->localizedMessage($locale), $this->destinationFor($user)))->locale($locale));
+            } catch (Throwable $exception) {
+                Log::warning('notification.mail_queue_failed', ['notification_id' => $this->id, 'exception_type' => $exception::class]);
+            }
+        }
     }
 
     protected function casts(): array
@@ -85,6 +106,12 @@ class Notification extends Model
         $id = static fn (string $key): ?int => filter_var($data[$key] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: null;
 
         if ($user->role === 'customer') {
+            if ($this->workflow_alert_id) {
+                $alert = WorkflowAlert::query()->whereKey($this->workflow_alert_id)->where('customer_id', $user->id)->first();
+                if ($alert) {
+                    return $alert->destination();
+                }
+            }
             if ($threadId = $id('thread_id')) {
                 $shopId = MessageThread::query()->whereKey($threadId)->where('customer_id', $user->id)->value('shop_id');
                 if ($shopId) {

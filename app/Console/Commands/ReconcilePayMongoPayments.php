@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\Payment;
 use App\Models\Shop;
 use App\Models\ShopPlanPayment;
+use App\Services\CustomerWorkflowAlerts;
 use App\Services\PayMongoCheckout;
 use App\Services\PayMongoRefunds;
 use Illuminate\Console\Command;
@@ -32,7 +33,7 @@ class ReconcilePayMongoPayments extends Command
     /**
      * Execute the console command.
      */
-    public function handle(PayMongoCheckout $checkout, PayMongoWebhookController $webhook, PayMongoRefunds $refunds): int
+    public function handle(PayMongoCheckout $checkout, PayMongoWebhookController $webhook, PayMongoRefunds $refunds, CustomerWorkflowAlerts $alerts): int
     {
         if (! $checkout->configured()) {
             $this->warn('PayMongo reconciliation skipped: complete the API key and webhook secret configuration.');
@@ -73,15 +74,19 @@ class ReconcilePayMongoPayments extends Command
                 if (collect($session['attributes']['payments'] ?? [])->contains(fn ($paid): bool => ($paid['attributes']['status'] ?? null) === 'paid')) {
                     $webhook->processSession($session);
                 } elseif (($session['attributes']['status'] ?? null) === 'expired') {
-                    DB::transaction(function () use ($payment): void {
+                    DB::transaction(function () use ($payment, $alerts, $session): void {
                         $payment = $payment->newQuery()->lockForUpdate()->findOrFail($payment->id);
                         if ($payment->status === 'checkout_pending') {
                             $payment->update(['status' => 'cancelled']);
                             if ($payment instanceof ShopPlanPayment) {
                                 Shop::query()->whereKey($payment->shop_id)->update(['requested_plan' => null]);
+                            } else {
+                                $alerts->checkoutProblem($payment, $session);
                             }
                         }
                     });
+                } elseif ($payment instanceof Payment) {
+                    $alerts->checkoutProblem($payment, $session);
                 }
             } elseif ($payment->paymongo_refund_id) {
                 if (! $refunds->check($payment)) {

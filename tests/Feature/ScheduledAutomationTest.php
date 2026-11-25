@@ -36,7 +36,7 @@ it('expires only sent quotations whose validity date has passed', function () {
     $this->assertDatabaseHas('notifications', ['user_id' => $fixture['customer']->id, 'type' => 'quotation_expired']);
 
     $this->artisan('app:expire-quotations')->assertExitCode(0);
-    $this->assertDatabaseCount('notifications', 1);
+    expect($fixture['customer']->notifications()->where('type', 'quotation_expired')->count())->toBe(1);
 });
 
 it('sends one notification for a pending maintenance reminder that is due', function () {

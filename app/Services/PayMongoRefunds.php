@@ -111,12 +111,11 @@ class PayMongoRefunds
                 if ($payment instanceof ShopPlanPayment) {
                     $shop = Shop::query()->lockForUpdate()->findOrFail($payment->shop_id);
                     $this->subscriptions->sync($shop);
+                    $payment->shop->owner->notifications()->create(['type' => 'payment_refund', 'title' => 'Refund confirmed', 'message' => 'PayMongo confirmed your refund of PHP '.number_format((float) $payment->refund_amount, 2).'. Your payment record has been updated.', 'data' => ['payment_id' => $payment->id, 'payment_type' => 'subscription']]);
                 } else {
                     $invoice = Invoice::query()->lockForUpdate()->findOrFail($payment->invoice_id);
                     $invoice->update(['status' => $invoice->remainingBalance() <= 0 ? 'paid' : 'unpaid']);
                 }
-                $recipient = $payment instanceof ShopPlanPayment ? $payment->shop->owner : $payment->customer;
-                $recipient->notifications()->create(['type' => 'payment_refund', 'title' => 'Refund confirmed', 'message' => 'PayMongo confirmed your refund of PHP '.number_format((float) $payment->refund_amount, 2).'. Your payment record has been updated.', 'data' => ['payment_id' => $payment->id, 'payment_type' => $payment instanceof ShopPlanPayment ? 'subscription' : 'invoice']]);
             }
             $this->audit($payment, $status, null);
 

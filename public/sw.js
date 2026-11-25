@@ -3,6 +3,33 @@ const cacheName = cachePrefix + 'v1';
 const offlinePage = '/offline.html';
 const icons = ['/icons/icon-192.png', '/icons/icon-512.png', '/icons/icon-maskable-512.png'];
 
+self.addEventListener('push', event => {
+    event.waitUntil((async () => {
+        const message = event.data?.json();
+        if (!message?.title || !message.url) return;
+        const url = new URL(message.url, self.location.origin);
+        if (url.origin !== self.location.origin) return;
+        await self.registration.showNotification(message.title, {
+            body: message.body,
+            icon: icons[0],
+            tag: message.tag,
+            data: { url: url.href },
+        });
+    })());
+});
+
+self.addEventListener('notificationclick', event => {
+    event.notification.close();
+    event.waitUntil((async () => {
+        const url = new URL(event.notification.data?.url ?? '/', self.location.origin);
+        if (url.origin !== self.location.origin) return;
+        const tabs = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        const current = tabs.find(tab => tab.url === url.href);
+        if (current) await current.focus();
+        else await self.clients.openWindow(url.href);
+    })());
+});
+
 self.addEventListener('install', event => {
     const assets = [offlinePage, ...icons].map(path => new Request(path, {
         credentials: 'omit',

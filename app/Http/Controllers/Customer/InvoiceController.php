@@ -69,11 +69,6 @@ class InvoiceController extends Controller
             report($exception);
             if ($exception instanceof RuntimeException && $exception->getCode() >= 400 && $exception->getCode() < 500 && $exception->getCode() !== 429) {
                 $payment->update(['status' => 'failed']);
-                $request->user()->notifications()->create([
-                    'type' => 'payment_verification', 'title' => 'Payment needs attention',
-                    'message' => 'PayMongo checkout could not start. You can try again from your invoice.',
-                    'data' => ['payment_id' => $payment->id, 'status' => 'failed'],
-                ]);
             }
             throw ValidationException::withMessages(['payment' => 'PayMongo checkout could not start. Please try again.']);
         }

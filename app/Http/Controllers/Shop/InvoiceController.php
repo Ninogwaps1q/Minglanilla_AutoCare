@@ -118,14 +118,6 @@ class InvoiceController extends Controller
             $confirmedCents = (int) round($invoice->confirmedPaymentsTotal() * 100);
             $totalCents = (int) round($invoice->payableTotal() * 100);
             $invoice->update(['status' => $confirmedCents >= $totalCents ? 'paid' : 'unpaid']);
-            $payment->customer->notifications()->create([
-                'type' => 'payment_verification',
-                'title' => 'Payment verification updated',
-                'message' => $payment->status === 'rejected'
-                    ? "Your payment was rejected. Reason: {$payment->review_note}"
-                    : 'Your payment was confirmed by the shop.',
-                'data' => ['payment_id' => $payment->id, 'status' => $payment->status],
-            ]);
         });
 
         return redirect()->route('shop.invoices.index')->with('status', $request->validated('status') === 'confirmed' ? 'Payment confirmed. The invoice balance has been updated.' : 'Payment rejected. The customer can submit a corrected payment.');

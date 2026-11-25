@@ -38,6 +38,7 @@ use App\Http\Controllers\Customer\MaintenanceReminderController;
 use App\Http\Controllers\Customer\MaintenanceScheduleController;
 use App\Http\Controllers\Customer\MessageController as CustomerMessageController;
 use App\Http\Controllers\Customer\NotificationController;
+use App\Http\Controllers\Customer\OpenWorkflowAlertController;
 use App\Http\Controllers\Customer\PayMongoPaymentStatusController;
 use App\Http\Controllers\Customer\PayMongoRefundRequestController;
 use App\Http\Controllers\Customer\ProfileController;
@@ -134,6 +135,8 @@ Route::get('/verify-email', EmailVerificationPromptController::class)->middlewar
 Route::get('/verify-email/{id}/{hash}', VerifyEmailController::class)->middleware(['auth', 'signed', 'throttle:6,1'])->name('verification.verify');
 Route::post('/email/verification-notification', [EmailVerificationPromptController::class, 'store'])->middleware(['auth', 'throttle:6,1'])->name('verification.send');
 Route::middleware(['auth', 'verified'])->group(function (): void {
+    Route::get('/n/{workflowAlert}', OpenWorkflowAlertController::class)
+        ->middleware('role:customer')->name('customer.workflow-alert.open');
     Route::post('/reviews/{review}/reports', [ReviewReportController::class, 'store'])->middleware('throttle:review-reports')->name('reviews.report');
     Route::get('/settings/notifications', [NotificationPreferencesController::class, 'edit'])->middleware('role:customer,shop_owner,mechanic,shop_staff')->name('preferences.notifications.edit');
     Route::put('/settings/notifications', [NotificationPreferencesController::class, 'update'])->middleware('role:customer,shop_owner,mechanic,shop_staff')->name('preferences.notifications.update');

@@ -254,13 +254,6 @@ class RepairJobController extends Controller
             if (in_array($repairJob->status, ['completed', 'released', 'cancelled'], true)) {
                 $repairJob->technicianAssignments()->whereNull('completed_at')->update(['completed_at' => now()]);
             }
-            if ($previousStatus !== $repairJob->status) {
-                $repairJob->customer->notifications()->create([
-                    'type' => 'repair_status', 'title' => 'Repair status updated',
-                    'message' => "{$repairJob->job_number}: ".str_replace('_', ' ', $repairJob->status),
-                    'data' => ['repair_job_id' => $repairJob->id, 'status' => $repairJob->status, 'number' => $repairJob->job_number],
-                ]);
-            }
 
             if ($repairJob->status === 'completed') {
                 if ($repairJob->actual_cost === null) {
