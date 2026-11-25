@@ -37,7 +37,7 @@ jobs:
           php-version: '8.2'
           extensions: mbstring, fileinfo, pdo_sqlite, pdo_mysql, gd, zip
           coverage: none
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: npm
