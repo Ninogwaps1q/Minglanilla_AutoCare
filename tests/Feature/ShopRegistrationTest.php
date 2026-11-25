@@ -16,6 +16,7 @@ it('adds selected services when a shop owner registers a shop', function () {
     $wheelAlignment = Service::query()->create(['category_id' => $category->id, 'name' => 'Wheel Alignment', 'default_price' => 700]);
 
     $response = $this->actingAs($owner)->post(route('shop.register.store'), [
+        'legal_consent' => 1,
         'name' => 'Registration Service Shop',
         'phone' => '09170000000',
         'email' => 'registration@example.test',
@@ -37,6 +38,7 @@ it('rejects service ids that are not in the catalog', function () {
 
     $response = $this->actingAs($owner)->from(route('shop.register'))
         ->post(route('shop.register.store'), [
+            'legal_consent' => 1,
             'name' => 'Invalid Service Shop',
             'phone' => '09170000000',
             'email' => 'invalid-service@example.test',
@@ -56,6 +58,7 @@ it('accepts a shop pin elsewhere in the Philippines', function () {
     $barangay = Barangay::factory()->create(['status' => 'active']);
 
     $this->actingAs($owner)->post(route('shop.register.store'), [
+        'legal_consent' => 1,
         'name' => 'Davao Service Shop', 'phone' => '09170000000', 'email' => 'davao@example.test',
         'address' => 'Sample Street', 'barangay_id' => $barangay->id, 'landmark' => 'Near the plaza',
         'latitude' => 7.0731, 'longitude' => 125.6128,

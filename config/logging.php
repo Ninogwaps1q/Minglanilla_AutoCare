@@ -1,6 +1,8 @@
 <?php
 
+use Monolog\Formatter\JsonFormatter;
 use Monolog\Handler\NullHandler;
+use Monolog\Handler\RotatingFileHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
 use Monolog\Processor\PsrLogMessageProcessor;
@@ -51,6 +53,13 @@ return [
     */
 
     'channels' => [
+        'operations' => [
+            'driver' => 'monolog',
+            'handler' => RotatingFileHandler::class,
+            'handler_with' => ['filename' => storage_path('logs/operations.log'), 'maxFiles' => 14],
+            'formatter' => JsonFormatter::class,
+            'level' => 'warning',
+        ],
 
         'stack' => [
             'driver' => 'stack',

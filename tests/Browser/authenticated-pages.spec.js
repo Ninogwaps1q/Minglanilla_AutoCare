@@ -500,10 +500,11 @@ test('customer creates a vehicle and sees it in the garage', async ({ page }, te
 
 
 test('booking shows the service price and checks the selected shop schedule', async ({ page }) => {
+    test.setTimeout(90000);
     const fixture = await signIn(page, 'customer');
     await page.goto('/customer/appointments/create');
     await page.locator('#shop_id').selectOption(String(fixture.shop));
-    await page.locator('#service_id').selectOption(String(fixture.service));
+    await page.locator(`#booking-services input[data-shop-id="${fixture.shop}"][value="${fixture.service}"]`).check();
     await expect(page.locator('#booking-service-summary')).toContainText('₱900.00');
     const availableDate = new Date(Date.now() + 4 * 86400000).toISOString().slice(0, 10);
     await page.locator('#appointment_date').fill(availableDate);

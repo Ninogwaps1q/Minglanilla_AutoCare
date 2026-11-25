@@ -1,0 +1,37 @@
+<?php
+
+return [
+    'privacy_title' => 'Privacy Policy',
+    'terms_title' => 'Terms of Service',
+    'draft' => 'Draft for legal review. A Philippine lawyer must review this before public launch.',
+    'version' => 'Version :version',
+    'agreement' => 'I agree to the Terms and Privacy Policy',
+    'finish_registration' => 'Finish creating your account',
+    'create_customer' => 'Create customer account',
+    'location_permission' => 'Share your location only if you want to use this feature. Map services may use these coordinates.',
+    'contact_heading' => 'Privacy contact',
+    'contact_pending' => 'The platform operator will publish a privacy contact before launch.',
+    'requests' => 'Privacy requests',
+    'request_help' => 'Ask for a copy of your data or ask us to close your account. We review requests and keep records needed for payments, disputes, or legal obligations.',
+    'confirm_delete' => 'Send a request to delete your account?',
+    'request_recorded' => 'We recorded your request for review.',
+    'download' => 'Download my data',
+    'delete' => 'Delete my account',
+    'status_pending' => 'Awaiting review',
+    'status_completed' => 'Completed',
+    'status_declined' => 'Declined',
+    'privacy_sections' => [
+        ['Account and contact details', 'We store names, email addresses, phone numbers, profile photos, and addresses to manage accounts and arrange service. We also keep sign-in identifiers, consent records, and security activity needed to protect accounts. Account holders, authorized staff, and relevant providers can see details needed for their task. Approved business contact details and published reviews can be seen by anyone. Some uploaded images can be opened by anyone with their link.'],
+        ['Location and vehicles', 'We use a location you choose to share for nearby results, directions, mobile bookings, or roadside dispatch. We save service and roadside locations with the request as needed. Exact roadside pickup coordinates are shared with the assigned responder. Vehicle records include plate numbers and details you enter. Customers and the shops working on their vehicles can see the records needed for service.'],
+        ['Repairs, documents, and messages', 'We store bookings, repairs, estimates, inspection notes and photos, reviews, and conversations to conduct work and resolve concerns. Messages are visible to participants and authorized shop staff. Private verification files are available to the uploading provider and authorized platform reviewers.'],
+        ['Payment and external services', 'We keep invoices, payment references, proof you submit, and refund or settlement records. PayMongo handles online checkout. Map providers receive coordinates or area searches when you use those features. An opted-in SMS provider receives your phone number and a brief alert. Hosts and email providers process data to run the platform. Optional AI requests are sent to the configured AI provider.'],
+        ['Retention', 'We keep account information while your account is in use and service records while needed for service, aftercare, safety, and disputes. We keep payment and legal records for required accounting, dispute, and legal periods. Removed data may remain in backups until rotation. The operator must publish reviewed retention periods before launch.'],
+        ['Your choices and requests', 'You can correct profile details in settings, request a copy or deletion, contact the privacy team about correction or objections, and withdraw optional permissions. We may need to verify your identity and explain any records we must retain. You may also contact the Philippine National Privacy Commission.'],
+    ],
+    'terms_sections' => [
+        ['Using AutoCare', 'Use accurate information, keep your account secure, and use the service for lawful vehicle care. Providers must keep service details and verification documents current.'],
+        ['Bookings and estimates', 'A booking request is pending until the provider confirms. Listed prices cover the described services. Agree to extra work before it begins.'],
+        ['Payments and reviews', 'Use the payment options on your invoice. Contact support about disputed payments. Review completed bookings and report abusive or misleading content.'],
+        ['Roadside assistance', 'AutoCare helps contact available providers. In immediate danger or a medical emergency, contact local emergency services.'],
+    ],
+];

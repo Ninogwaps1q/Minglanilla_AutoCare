@@ -41,7 +41,7 @@ it('leaves transient failures and amount mismatches pending and cancels only con
         'api.paymongo.com/v1/checkout_sessions/cs_expired' => Http::response(['data' => ['id' => 'cs_expired', 'attributes' => ['status' => 'expired', 'payments' => []]]]),
         'api.paymongo.com/v1/checkout_sessions/cs_wrong' => Http::response(['data' => reconciliationSession('cs_wrong', 'shop-plan-'.$wrong->id, 'pay_wrong', 100)]),
     ]);
-    $this->artisan('app:reconcile-paymongo-payments')->assertSuccessful();
+    $this->artisan('app:reconcile-paymongo-payments')->assertFailed();
     expect($expired->fresh()->status)->toBe('cancelled')->and($wrong->fresh()->status)->toBe('checkout_pending')
         ->and(Payment::query()->sole()->status)->toBe('checkout_pending')->and($shop->fresh()->activePlanSlug())->toBe('free');
 });
@@ -50,8 +50,8 @@ it('bounds background checks and rotates past recently checked records', functio
     [, $shop] = reconciliationInvoice();
     $subscription = $shop->planPayments()->create(['plan_slug' => 'basic', 'amount' => 499, 'status' => 'checkout_pending', 'paymongo_session_id' => 'cs_waiting']);
     Http::fake(['api.paymongo.com/*' => Http::response([], 503)]);
-    $this->artisan('app:reconcile-paymongo-payments', ['--limit' => 1])->assertSuccessful();
-    $this->artisan('app:reconcile-paymongo-payments', ['--limit' => 1])->assertSuccessful();
+    $this->artisan('app:reconcile-paymongo-payments', ['--limit' => 1])->assertFailed();
+    $this->artisan('app:reconcile-paymongo-payments', ['--limit' => 1])->assertFailed();
     $this->artisan('app:reconcile-paymongo-payments', ['--limit' => 1])->assertSuccessful();
     Http::assertSentCount(2);
     expect($subscription->fresh()->paymongo_checked_at)->not->toBeNull();

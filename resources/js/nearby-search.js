@@ -1,3 +1,5 @@
+import { rememberLocationConsent } from './location-consent';
+
 document.querySelectorAll('[data-nearby-search]').forEach(form => {
     const button = form.querySelector('[data-nearby-button]');
     const status = form.querySelector('[data-nearby-status]');
@@ -10,6 +12,7 @@ document.querySelectorAll('[data-nearby-search]').forEach(form => {
         button.disabled = true;
         status.textContent = 'Finding your location…';
         navigator.geolocation.getCurrentPosition(position => {
+            rememberLocationConsent(true);
             form.elements.namedItem('latitude').value = position.coords.latitude;
             form.elements.namedItem('longitude').value = position.coords.longitude;
             const sort = form.elements.namedItem('sort');
@@ -19,7 +22,8 @@ document.querySelectorAll('[data-nearby-search]').forEach(form => {
             sort.value = 'distance';
             button.disabled = false;
             form.requestSubmit();
-        }, () => {
+        }, error => {
+            if (error.code === 1) rememberLocationConsent(false);
             button.disabled = false;
             status.textContent = 'We could not access your location. You can still browse all providers.';
         }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 });

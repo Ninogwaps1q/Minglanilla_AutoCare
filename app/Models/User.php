@@ -47,7 +47,42 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'legal_accepted_at' => 'datetime',
+            'optional_consents' => 'array',
+            'communication_preferences' => 'array',
         ];
+    }
+
+    public function recordLegalAcceptance(): void
+    {
+        $this->forceFill(['legal_version' => config('privacy.version'), 'legal_accepted_at' => now()])->save();
+    }
+
+    public function hasConsentFor(string $channel): bool
+    {
+        $consent = $this->optional_consents[$channel] ?? [];
+
+        return ($consent['allowed'] ?? false) && ($consent['version'] ?? null) === config('privacy.version');
+    }
+
+    public function receivesEventVia(string $event, string $channel): bool
+    {
+        $enabled = $this->communication_preferences[$channel][$event] ?? true;
+
+        return $enabled && ($channel === 'email' || $this->hasConsentFor($channel));
+    }
+
+    public function recordOptionalConsent(string $channel, bool $allowed): void
+    {
+        $consents = $this->optional_consents ?? [];
+        $version = config('privacy.version');
+        $existing = $consents[$channel] ?? [];
+        if (($existing['allowed'] ?? null) === $allowed && ($existing['version'] ?? null) === $version) {
+            return;
+        }
+
+        $consents[$channel] = ['allowed' => $allowed, 'version' => $version, 'at' => now()->toISOString()];
+        $this->forceFill(['optional_consents' => $consents])->save();
     }
 
     public function barangay(): BelongsTo

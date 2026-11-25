@@ -1,6 +1,15 @@
 <?php
 
 return [
+    'semaphore' => [
+        'api_key' => env('SEMAPHORE_API_KEY'),
+        'sender_name' => env('SEMAPHORE_SENDER_NAME'),
+        'daily_limit' => (int) env('SMS_DAILY_LIMIT', 5),
+    ],
+
+    'web_push' => [
+        'public_key' => env('WEB_PUSH_PUBLIC_KEY'),
+    ],
 
     /*
     |--------------------------------------------------------------------------

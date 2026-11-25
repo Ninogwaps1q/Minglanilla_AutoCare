@@ -1,9 +1,9 @@
-<x-layouts.app title="My repairs">
+<x-layouts.app :title="__('ui.' . 'My repairs')">
     <div class="page-heading">
-        <h1>My repairs</h1>
+        <h1>{{ __('ui.' . 'My repairs') }}</h1>
         <p>Review estimates, approve work, and track your vehicle's repair status.</p>
     </div>
-    @if (request()->integer('appointment_id') > 0 || request()->integer('repair_job_id') > 0)<p><a href="{{ route('customer.repairs.index') }}">View all repairs</a></p>@endif
+    @if (request()->integer('appointment_id') > 0 || request()->integer('repair_job_id') > 0)<p><a href="{{ route('customer.repairs.index') }}">{{ __('ui.' . 'View all repairs') }}</a></p>@endif
     <x-form-errors />
     @forelse ($repairJobs as $repairJob)
         <article id="repair-{{ $repairJob->id }}" class="surface p-4 mb-3" aria-labelledby="repair-title-{{ $repairJob->id }}">
@@ -16,9 +16,9 @@
             </div>
             <p>{{ $repairJob->description }}</p>
             @php($nextAction = $repairJob->nextAction())
-            <p class="repair-next-step mb-3"><strong>{{ $nextAction['actor'] === 'None' ? 'Status' : 'Next step for '.$nextAction['actor'] }}:</strong> {{ $nextAction['action'] }}</p>
+            <p class="repair-next-step mb-3"><strong>{{ $nextAction['actor'] === 'None' ? __('ui.Status') : __('ui.Next step for :actor', ['actor' => __('ui.'.$nextAction['actor'])]) }}:</strong> {{ __('ui.'.$nextAction['action']) }}</p>
               @if($repairJob->pendingSupplementalQuotation)
-                  <a class="btn btn-primary btn-sm mb-3" href="{{ route('customer.quotations.index', ['focus' => $repairJob->pendingSupplementalQuotation->id]) }}">Review revised estimate</a>
+                  <a class="btn btn-primary btn-sm mb-3" href="{{ route('customer.quotations.index', ['focus' => $repairJob->pendingSupplementalQuotation->id]) }}">{{ __('ui.' . 'Review revised estimate') }}</a>
               @endif
             @if ($repairJob->appointment)
                 <p class="small text-secondary mb-3"><strong>Booked services:</strong> {{ $repairJob->appointment->bookedServices->isNotEmpty() ? $repairJob->appointment->bookedServices->pluck('service.name')->filter()->implode(', ') : ($repairJob->appointment->service?->name ?? 'Service') }} · {{ $repairJob->appointment->appointment_date->format('M j, Y') }} at {{ $repairJob->appointment->appointment_time->format('g:i A') }}</p>
@@ -34,8 +34,8 @@
                     <ul class="mb-3">@foreach ($repairJob->quotation->items as $item)<li>{{ $item->description }}: {{ $item->quantity }} × PHP {{ number_format($item->unit_price, 2) }}</li>@endforeach</ul>
                     <form method="POST" action="{{ route('customer.quotations.update', $repairJob->quotation) }}" class="d-flex flex-wrap gap-2">
                         @csrf @method('PATCH')
-                        <button class="btn btn-success" name="status" value="accepted">Approve estimate</button>
-                        <button class="btn btn-outline-danger" name="status" value="rejected">Decline estimate</button>
+                        <button class="btn btn-success" name="status" value="accepted">{{ __('ui.' . 'Approve estimate') }}</button>
+                        <button class="btn btn-outline-danger" name="status" value="rejected">{{ __('ui.' . 'Decline estimate') }}</button>
                     </form>
                 </div>
             @elseif ($repairJob->status === 'waiting_approval')
@@ -72,7 +72,7 @@
             @if (in_array($repairJob->status, ['completed', 'released'], true))
                 <x-repair-handover :repair-job="$repairJob" context="customer" />
                 @if ($repairJob->invoice && $repairJob->invoice->status !== 'paid')
-                    <p><a class="btn btn-outline-primary" href="{{ route('customer.invoices.index', ['focus' => $repairJob->invoice->id]) }}">Review bill and payment options</a></p>
+                    <p><a class="btn btn-outline-primary" href="{{ route('customer.invoices.index', ['focus' => $repairJob->invoice->id]) }}">{{ __('ui.' . 'Review bill and payment options') }}</a></p>
                 @endif
             @endif
             @if (in_array($repairJob->quotation?->status, ['accepted', 'approved'], true))
@@ -130,7 +130,7 @@
         <div class="surface p-4">
             <h2 class="h5">No repair jobs yet</h2>
             <p>Your shop's repair jobs will appear here once work is arranged.</p>
-            <a class="btn btn-outline-primary" href="{{ route('customer.appointments.index') }}">View appointments</a>
+            <a class="btn btn-outline-primary" href="{{ route('customer.appointments.index') }}">{{ __('ui.' . 'View appointments') }}</a>
         </div>
     @endforelse
     {{ $repairJobs->links() }}

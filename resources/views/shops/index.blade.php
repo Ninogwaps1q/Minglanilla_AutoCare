@@ -1,6 +1,6 @@
 <x-layouts.app title="Find vehicle care">
     <div class="page-heading">
-        <h1>Find shops &amp; mechanics</h1>
+        <h1>{{ __('ui.' . 'Find shops & mechanics') }}</h1>
         <p>Compare verified providers, check their service areas, and choose where to book.</p>
     </div>
 
@@ -12,7 +12,7 @@
             <div class="col-md-6 col-xl-3"><label class="form-label" for="shop-service">Service</label><select id="shop-service" class="form-select" name="service"><option value="">All services</option>@foreach ($services as $service)<option value="{{ $service->id }}" @selected(($filters['service'] ?? null) == $service->id)>{{ $service->name }}</option>@endforeach</select></div>
             <div class="col-md-6 col-xl-3"><label class="form-label" for="shop-sort">Sort by</label><select id="shop-sort" class="form-select" name="sort"><option value="name" @selected($filters['sort'] === 'name')>Name: A to Z</option><option value="rating" @selected($filters['sort'] === 'rating')>Highest rating</option><option value="distance" @selected($filters['sort'] === 'distance') @disabled(! isset($filters['latitude'], $filters['longitude']))>Nearest to me</option></select></div>
             <input id="latitude" type="hidden" name="latitude" value="{{ $filters['latitude'] ?? '' }}"><input id="longitude" type="hidden" name="longitude" value="{{ $filters['longitude'] ?? '' }}">
-            <div class="col-12 d-flex flex-wrap align-items-center gap-2"><button class="btn btn-primary" type="submit"><i class="bi bi-search me-2" aria-hidden="true"></i>Find providers</button><button id="nearby-button" class="btn btn-outline-primary" type="button" data-nearby-button><i class="bi bi-geo-alt me-2" aria-hidden="true"></i>Use my location</button><a class="btn btn-link" href="{{ route('shops.index') }}">Clear filters</a></div>
+            <div class="col-12 d-flex flex-wrap align-items-center gap-2"><button class="btn btn-primary" type="submit"><i class="bi bi-search me-2" aria-hidden="true"></i>{{ __('ui.' . 'Find providers') }}</button><button id="nearby-button" class="btn btn-outline-primary" type="button" data-nearby-button><i class="bi bi-geo-alt me-2" aria-hidden="true"></i>{{ __('ui.' . 'Use my location') }}</button><a class="btn btn-link" href="{{ route('shops.index') }}">Clear filters</a></div>
             <p id="location-status" class="col-12 small text-secondary mb-0" role="status" aria-live="polite" data-nearby-status>{{ isset($filters['latitude'], $filters['longitude']) ? 'Showing distances from your location.' : 'Location is optional. Use it to see the nearest providers.' }}</p>
         </form>
         <x-form-errors />

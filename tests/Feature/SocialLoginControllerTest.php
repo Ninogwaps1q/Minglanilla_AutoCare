@@ -172,7 +172,11 @@ it('registers a verified Google customer and signs them in', function () {
         'email_verified' => true,
     ]));
 
-    $this->get(route('social.callback', 'google'))->assertRedirect(route('dashboard'));
+    $this->get(route('social.callback', 'google'))->assertRedirect(route('social.registration'));
+    $this->assertGuest();
+    $this->assertDatabaseMissing('users', ['email' => 'jamie@example.test']);
+    $this->post(route('social.registration.store'))->assertSessionHasErrors('legal_consent');
+    $this->post(route('social.registration.store'), ['legal_consent' => 1])->assertRedirect(route('dashboard'));
 
     $user = User::query()->where('email', 'jamie@example.test')->firstOrFail();
     $this->assertAuthenticatedAs($user);
@@ -194,7 +198,8 @@ it('sends email verification to a new Facebook customer', function () {
         'email' => 'alex@example.test',
     ]));
 
-    $this->get(route('social.callback', 'facebook'))->assertRedirect(route('verification.notice'));
+    $this->get(route('social.callback', 'facebook'))->assertRedirect(route('social.registration'));
+    $this->post(route('social.registration.store'), ['legal_consent' => 1])->assertRedirect(route('verification.notice'));
 
     $user = User::query()->where('email', 'alex@example.test')->firstOrFail();
     $this->assertAuthenticatedAs($user);

@@ -7,7 +7,7 @@
                     <p class="hero-copy">Discover local automotive service providers, compare services, book
                         appointments, and manage your vehicle maintenance in one convenient platform.</p>
                     <div class="d-flex flex-wrap align-items-center gap-3">
-                        <a class="btn btn-accent btn-lg" href="#find-shops">Find shops &amp; mechanics <i
+                        <a class="btn btn-accent btn-lg" href="#find-shops">{{ __('ui.' . 'Find shops & mechanics') }} <i
                                 class="bi bi-arrow-down ms-2" aria-hidden="true"></i></a>
                         <a class="link-light fw-semibold" href="#about">How it works</a>
                     </div>
@@ -39,14 +39,14 @@
                         <label for="home-search" class="form-label fw-semibold">Shop, mechanic, or city</label>
                         <div class="input-group"><input id="home-search" class="form-control" name="search"
                                 type="search" maxlength="100" placeholder="Search by provider, city, or province"><button
-                                class="btn btn-primary" type="submit">Find providers</button></div>
+                                class="btn btn-primary" type="submit">{{ __('ui.' . 'Find providers') }}</button></div>
                         <details class="mt-3">
                             <summary>Filter by region, province, or city</summary>
                             <div class="mt-2"><x-address-picker prefix="home-area" area-only /></div>
                         </details>
                         <div class="mt-3">
                             <input type="hidden" name="latitude"><input type="hidden" name="longitude"><input type="hidden" name="sort" disabled>
-                            <button class="btn btn-outline-primary" type="button" data-nearby-button>Use my location</button>
+                            <button class="btn btn-outline-primary" type="button" data-nearby-button>{{ __('ui.' . 'Use my location') }}</button>
                             <p class="small text-secondary mb-0 mt-1" role="status" data-nearby-status></p>
                         </div>
                     </form>

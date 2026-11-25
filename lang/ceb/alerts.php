@@ -1,0 +1,32 @@
+<?php
+
+// Machine-translated draft. Native-speaker review pending.
+return [
+    'preferences' => 'Mga gusto sa pahibalo',
+    'email' => 'Email',
+    'sms' => 'SMS',
+    'phone' => 'Numero sa cellphone para sa SMS',
+    'invalid_phone' => 'Isulod ang numero sa Pilipinas nga magsugod sa 09 o +639 para sa SMS.',
+    'push' => 'Pahibalo sa browser',
+    'sms_consent' => 'Tugoti ang importanteng SMS sa akong gitipig nga numero sa Pilipinas.',
+    'event_booking' => 'Mga booking',
+    'event_estimate' => 'Mga banabana',
+    'event_repair' => 'Mga pag-ayo',
+    'event_payment' => 'Problema sa bayad',
+    'event_roadside' => 'Tabang sa dalan',
+    'event_plan' => 'Mga plano sa provider',
+    'saved' => 'Natipig ang mga gusto sa pahibalo.',
+    'save' => 'Itipig ang mga gusto',
+    'push_help' => 'Pilia ang Tugoti aron marehistro kini nga browser. Naghuwat pa ang pagpadala sa setup.',
+    'push_setup' => 'Wala pa ma-set up ang pagrehistro sa browser.',
+    'push_allow' => 'Tugoti ang pahibalo sa kini nga device',
+    'push_revoke' => 'I-off ang pahibalo sa tanang device',
+    'push_saved' => 'Narehistro na kini nga browser.',
+    'push_disabled' => 'Gi-off ang pahibalo sa browser.',
+    'push_error' => 'Wala mausab ang pahibalo. Susiha ang permiso sa browser ug sulayi pag-usab.',
+    'sms_booking' => 'AutoCare: Nausab ang booking. Ablihi ang AutoCare.',
+    'sms_estimate' => 'AutoCare: Naay banabana nga nanginahanglan og pagtugot. Ablihi ang AutoCare.',
+    'sms_repair' => 'AutoCare: Nahuman ang pag-ayo. Ablihi ang AutoCare.',
+    'sms_payment' => 'AutoCare: Naay bayad nga kinahanglan susihon. Ablihi ang AutoCare.',
+    'sms_roadside' => 'AutoCare: Naay update sa imong hangyo sa tabang sa dalan. Ablihi ang AutoCare.',
+];

@@ -51,6 +51,7 @@ class ReconcilePayMongoPayments extends Command
         }
         $started = microtime(true);
         $checked = 0;
+        $errors = 0;
         foreach ($candidates->sortBy(fn ($payment): int => $payment->paymongo_checked_at?->getTimestamp() ?? 0)->take($limit) as $payment) {
             if (microtime(true) - $started >= 45) {
                 break;
@@ -65,6 +66,8 @@ class ReconcilePayMongoPayments extends Command
             if ($payment->status === 'checkout_pending') {
                 $session = $checkout->retrieve($payment->paymongo_session_id);
                 if (! $session) {
+                    $errors++;
+
                     continue;
                 }
                 if (collect($session['attributes']['payments'] ?? [])->contains(fn ($paid): bool => ($paid['attributes']['status'] ?? null) === 'paid')) {
@@ -81,7 +84,9 @@ class ReconcilePayMongoPayments extends Command
                     });
                 }
             } elseif ($payment->paymongo_refund_id) {
-                $refunds->check($payment);
+                if (! $refunds->check($payment)) {
+                    $errors++;
+                }
             } elseif ($payment->refund_status === 'submitting' && $payment->refund_reviewed_at?->lt(now()->subMinutes(10))) {
                 DB::transaction(function () use ($payment): void {
                     $payment = $payment->newQuery()->lockForUpdate()->findOrFail($payment->id);
@@ -94,6 +99,10 @@ class ReconcilePayMongoPayments extends Command
         }
         $this->info("Checked {$checked} PayMongo payment(s).");
 
-        return self::SUCCESS;
+        if ($errors > 0) {
+            $this->error("Could not reconcile {$errors} PayMongo record(s).");
+        }
+
+        return $errors === 0 ? self::SUCCESS : self::FAILURE;
     }
 }

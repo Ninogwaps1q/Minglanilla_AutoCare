@@ -20,8 +20,12 @@ jobs:
             echo 'Do not commit .env; use deployment secrets.'
             exit 1
           fi
-          if git ls-files --error-unmatch .env.local.backup >/dev/null 2>&1; then
-            echo 'Do not commit .env.local.backup; use deployment secrets.'
+          if git ls-files -- '.env.*' ':!.env.example' | grep -q .; then
+            echo 'Do not commit local environment backups; use deployment secrets.'
+            exit 1
+          fi
+          if git grep -Il -E 'AKIA[0-9A-Z]{16}|(sk_(live|test)|whsk|rk_live)_[A-Za-z0-9_-]{16,}|AIza[A-Za-z0-9_-]{30,}|gh[pousr]_[A-Za-z0-9]{30,}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----|APP_KEY=base64:[A-Za-z0-9+/]{35,}' -- ':!*.lock' ':!package-lock.json' ':!public/build'; then
+            echo 'Review candidate credentials in the files listed above.'
             exit 1
           fi
           if git ls-files -- storage/app/private | grep -v '^storage/app/private/.gitignore$' | grep -q .; then
@@ -42,7 +46,7 @@ jobs:
       - name: Install JavaScript dependencies
         run: npm ci
       - name: Audit PHP dependencies
-        run: composer audit --no-interaction
+        run: composer audit --locked --no-interaction
       - name: Audit JavaScript dependencies
         run: npm audit --audit-level=high
       - name: Prepare application

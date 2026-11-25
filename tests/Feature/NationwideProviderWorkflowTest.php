@@ -38,7 +38,9 @@ it('registers and verifies a provider outside Cebu and takes a booking from anot
     ];
 
     $this->getJson(route('catalog.barangays', ['municipality_id' => $city->id]))->assertJsonFragment(['id' => $pickup->id]);
-    $this->actingAs($owner)->post(route('shop.register.store'), $payload)->assertSessionHasNoErrors()->assertRedirect();
+    $this->actingAs($owner)->post(route('shop.register.store'), $payload)->assertSessionHasErrors('legal_consent');
+    $this->post(route('shop.register.store'), $payload + ['legal_consent' => 1])->assertSessionHasNoErrors()->assertRedirect();
+    expect($owner->fresh()->legal_accepted_at)->not->toBeNull();
     $shop = $owner->shops()->sole();
     expect($shop->barangay_id)->toBe($pickup->id);
     $this->get(route('shop.profile.edit'))->assertOk()->assertSee('data-initial-barangay="'.$pickup->id.'"', false);

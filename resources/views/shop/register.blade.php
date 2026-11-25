@@ -44,6 +44,7 @@
                 @error('service_ids')<div class="text-danger small mt-2">{{ $message }}</div>@enderror
                 @error('service_ids.*')<div class="text-danger small mt-2">{{ $message }}</div>@enderror
             </fieldset>
+            <div class="col-12"><x-legal-consent /></div>
             <div class="col-12"><button class="btn btn-primary">Submit registration</button></div>
         </form>
     </div>

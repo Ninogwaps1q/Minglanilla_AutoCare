@@ -1,5 +1,6 @@
 <x-layouts.app title="Shop reviews">
     <div class="page-heading"><h1>Customer reviews</h1><p>Thank customers for their feedback and address concerns.</p></div>
+    <x-form-errors />
     <div class="row g-3">
         @forelse ($reviews as $review)
             <div class="col-12">
@@ -25,6 +26,7 @@
                             <div class="col-md-3"><button class="btn btn-primary w-100" type="submit">Publish response</button></div>
                         </form>
                     @endif
+                    <x-report-review :review="$review" />
                 </article>
             </div>
         @empty

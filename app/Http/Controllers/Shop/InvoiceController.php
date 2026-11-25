@@ -124,7 +124,7 @@ class InvoiceController extends Controller
                 'message' => $payment->status === 'rejected'
                     ? "Your payment was rejected. Reason: {$payment->review_note}"
                     : 'Your payment was confirmed by the shop.',
-                'data' => ['payment_id' => $payment->id],
+                'data' => ['payment_id' => $payment->id, 'status' => $payment->status],
             ]);
         });
 

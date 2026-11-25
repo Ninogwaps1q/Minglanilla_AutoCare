@@ -2,7 +2,7 @@
 @php($onLandingPage = request()->routeIs('home'))
 
 <!doctype html>
-<html lang="en">
+<html lang="{{ app()->getLocale() }}">
 
 <head>
     <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -11,13 +11,14 @@
     <x-theme-init />
     @unless(request()->routeIs('admin.two-factor.*'))
         <x-pwa-head />
+        <meta name="location-consent-url" content="{{ route('privacy.location') }}">
     @endunless
     <title>{{ $title ? $title.' · ' : '' }}{{ config('app.name', 'Minglanilla AutoCare Hub') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 
 <body class="public-shell d-flex flex-column{{ $onLandingPage ? ' has-fixed-public-nav' : '' }}">
-    <a class="skip-link" href="#main-content">Skip to content</a>
+    <a class="skip-link" href="#main-content">{{ request()->routeIs('admin.two-factor.*') ? 'Skip to content' : __('ui.Skip to content') }}</a>
     <nav class="navbar navbar-expand-lg public-navbar{{ $onLandingPage ? ' public-navbar-fixed' : '' }}" aria-label="Primary navigation">
         <div class="container">
             <a class="navbar-brand fw-semibold" href="{{ route('home') }}">
@@ -27,14 +28,14 @@
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#publicNavigation" aria-controls="publicNavigation" aria-expanded="false" aria-label="Toggle navigation"><i class="bi bi-list" aria-hidden="true"></i></button>
             <div id="publicNavigation" class="collapse navbar-collapse">
                 <ul class="navbar-nav ms-lg-auto align-items-lg-center gap-lg-2">
-                    <li class="nav-item public-nav-home d-flex align-items-center"><x-theme-toggle /><a class="nav-link" href="{{ $onLandingPage ? '#home' : route('home') }}">Home</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ $onLandingPage ? '#find-shops' : route('shops.index') }}">Find shops &amp; mechanics</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ $onLandingPage ? '#about' : route('home').'#about' }}">About</a></li>
+                    <li class="nav-item public-nav-home d-flex align-items-center"><x-theme-toggle /><a class="nav-link" href="{{ $onLandingPage ? '#home' : route('home') }}">{{ __('ui.' . 'Home') }}</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ $onLandingPage ? '#find-shops' : route('shops.index') }}">{{ __('ui.' . 'Find shops & mechanics') }}</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ $onLandingPage ? '#about' : route('home').'#about' }}">{{ __('ui.' . 'About') }}</a></li>
                     @auth
                         <li class="nav-item ms-lg-2"><a class="btn btn-primary" href="{{ auth()->user()->hasVerifiedEmail() ? route(auth()->user()->isShopOperator() ? 'shop.dashboard' : (auth()->user()->role === 'admin' ? 'admin.dashboard' : 'dashboard')) : route('verification.notice') }}">{{ auth()->user()->hasVerifiedEmail() ? 'Open dashboard' : 'Verify email' }}</a></li>
                     @else
-                        <li class="nav-item"><a class="nav-link" href="{{ route('login') }}">Sign in</a></li>
-                        <li class="nav-item ms-lg-2"><a class="btn btn-primary" href="{{ route('register') }}">Create account</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ route('login') }}">{{ __('ui.' . 'Sign in') }}</a></li>
+                        <li class="nav-item ms-lg-2"><a class="btn btn-primary" href="{{ route('register') }}">{{ __('ui.' . 'Create account') }}</a></li>
                     @endauth
                 </ul>
             </div>
@@ -56,6 +57,10 @@
                 <strong>Explore</strong>
                 <a href="{{ route('shops.index') }}">Provider directory &amp; map</a>
                 <a href="{{ route('home') }}#about">About the platform</a>
+                @unless(request()->routeIs('admin.two-factor.*'))
+                    <x-legal-links />
+                    <x-language-switcher prefix="public-language" />
+                @endunless
             </nav>
             <div class="public-footer-action">
                 <strong>Ready to get started?</strong>

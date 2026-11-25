@@ -12,7 +12,7 @@
                 </fieldset>
                 <div><label class="form-label" for="description">What happened?</label><textarea id="description" class="form-control" name="description" rows="3" maxlength="2000" placeholder="Describe your situation briefly">{{ old('description') }}</textarea></div>
                 <input id="latitude" type="hidden" name="latitude" value="{{ old('latitude') }}"><input id="longitude" type="hidden" name="longitude" value="{{ old('longitude') }}">
-                <div><button id="location-button" class="btn btn-outline-primary" type="button">Use my current location</button><p id="location-status" class="small text-secondary mt-2 mb-0" role="status" aria-live="polite">Location is needed to find the nearest eligible provider.</p></div>
+                <div><p id="pickup-location-permission" class="form-text">{{ __('privacy.location_permission') }}</p><button id="location-button" class="btn btn-outline-primary" type="button" aria-describedby="pickup-location-permission">Use my current location</button><p id="location-status" class="small text-secondary mt-2 mb-0" role="status" aria-live="polite">Location is needed to find the nearest eligible provider.</p></div>
                 <button class="btn btn-primary" type="submit">Send assistance request</button>
             </form>
         </section></div>
@@ -49,8 +49,8 @@
                 this.disabled = true;
                 status.textContent = 'Finding your location…';
                 navigator.geolocation.getCurrentPosition(
-                    (position) => { document.querySelector('#latitude').value = position.coords.latitude; document.querySelector('#longitude').value = position.coords.longitude; status.textContent = 'Location ready. You can send your request now.'; this.disabled = false; },
-                    () => { status.textContent = 'Location could not be shared. Allow location access in your browser and try again.'; this.disabled = false; },
+                    (position) => { document.dispatchEvent(new CustomEvent('autocare:location-consent', { detail: true })); document.querySelector('#latitude').value = position.coords.latitude; document.querySelector('#longitude').value = position.coords.longitude; status.textContent = 'Location ready. You can send your request now.'; this.disabled = false; },
+                    (error) => { if (error.code === 1) document.dispatchEvent(new CustomEvent('autocare:location-consent', { detail: false })); status.textContent = 'Location could not be shared. Allow location access in your browser and try again.'; this.disabled = false; },
                     { enableHighAccuracy: true, timeout: 15000 }
                 );
             });

@@ -1,0 +1,32 @@
+<?php
+
+// Machine-translated draft. Native-speaker review pending.
+return [
+    'preferences' => 'Mga pagpipilian sa abiso',
+    'email' => 'Email',
+    'sms' => 'SMS',
+    'phone' => 'Numero ng cellphone para sa SMS',
+    'invalid_phone' => 'Maglagay ng numero sa Pilipinas na nagsisimula sa 09 o +639 para sa SMS.',
+    'push' => 'Push sa browser',
+    'sms_consent' => 'Payagan ang mahahalagang SMS sa naka-save kong numero sa Pilipinas.',
+    'event_booking' => 'Mga booking',
+    'event_estimate' => 'Mga tantiya',
+    'event_repair' => 'Mga pagkukumpuni',
+    'event_payment' => 'Problema sa bayad',
+    'event_roadside' => 'Tulong sa kalsada',
+    'event_plan' => 'Mga plano ng provider',
+    'saved' => 'Na-save ang mga pagpipilian sa abiso.',
+    'save' => 'I-save ang mga pagpipilian',
+    'push_help' => 'Piliin ang Payagan para irehistro ang browser na ito. Naghihintay pa ng setup ang pagpapadala.',
+    'push_setup' => 'Hindi pa na-set up ang pagrehistro ng browser.',
+    'push_allow' => 'Payagan ang push sa device na ito',
+    'push_revoke' => 'I-off ang push sa lahat ng device',
+    'push_saved' => 'Nakarehistro na ang browser na ito.',
+    'push_disabled' => 'Na-off ang push sa browser.',
+    'push_error' => 'Hindi mabago ang push. Tingnan ang pahintulot ng browser at subukan ulit.',
+    'sms_booking' => 'AutoCare: Nagbago ang booking. Buksan ang AutoCare.',
+    'sms_estimate' => 'AutoCare: May tantiya na kailangan ng pag-apruba. Buksan ang AutoCare.',
+    'sms_repair' => 'AutoCare: Tapos na ang pagkukumpuni. Buksan ang AutoCare.',
+    'sms_payment' => 'AutoCare: May bayad na kailangang suriin. Buksan ang AutoCare.',
+    'sms_roadside' => 'AutoCare: May update sa kahilingan sa tulong sa kalsada. Buksan ang AutoCare.',
+];

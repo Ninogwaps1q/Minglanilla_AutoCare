@@ -23,6 +23,7 @@ class ShopRegistrationRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'legal_consent' => ['accepted'],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
             'business_permit_number' => $this->user()?->role === 'mechanic'

@@ -30,7 +30,7 @@ if (endpoint) {
                 const summary = document.querySelector('.notification-center .notification-summary');
                 if (summary) {
                     const previousCount = Number.parseInt(summary.textContent, 10) || 0;
-                    summary.textContent = `${notifications} unread`;
+                    summary.textContent = summary.dataset.countPattern?.replace('{count}', String(notifications)) ?? `${notifications} unread`;
                     if (notifications > previousCount && !document.querySelector('.notification-new-update')) {
                         const notice = document.createElement('div');
                         notice.className = 'notification-new-update';

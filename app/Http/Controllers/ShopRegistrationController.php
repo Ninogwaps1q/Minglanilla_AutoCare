@@ -22,7 +22,7 @@ class ShopRegistrationController extends Controller
 
     public function store(ShopRegistrationRequest $request): RedirectResponse
     {
-        $attributes = $request->safe()->except(['service_ids', 'logo', 'cover_photo']);
+        $attributes = $request->safe()->except(['service_ids', 'logo', 'cover_photo', 'legal_consent']);
         $services = Service::query()->whereKey($request->validated('service_ids', []))->get(['id', 'default_price']);
 
         foreach (['logo' => 'shop-logos', 'cover_photo' => 'shop-covers'] as $field => $directory) {
@@ -38,6 +38,7 @@ class ShopRegistrationController extends Controller
                     throw ValidationException::withMessages(['name' => 'You already have a provider profile. Update it from your dashboard.']);
                 }
                 $isMechanic = $owner->role === 'mechanic';
+                $owner->recordLegalAcceptance();
                 $shop = Shop::query()->create([
                     ...$attributes,
                     'owner_id' => $owner->id,

@@ -72,6 +72,19 @@ If images do not appear:
 
 Open the app over HTTPS (or localhost for development). When supported by the browser, choose **Install app** in the public footer or the signed-in account menu. On iPhone or iPad, open Share and choose **Add to Home Screen**. After the first successful online visit, the app can show an offline notice if a page fails to load. Bookings, accounts, and payments need a connection.
 
+
+## Privacy and notifications
+
+The public Privacy Policy and Terms are drafts. Set `PRIVACY_CONTACT_EMAIL` to the designated privacy inbox and have a Philippine lawyer review the text and retention periods before launch. Account holders can submit access and deletion requests from their profile. Use **Privacy requests** in the admin workspace to verify the requester, arrange secure fulfillment, and record the outcome. Retain required invoice, payment and dispute records. Marking a request complete records the decision after fulfillment.
+
+Set `SEMAPHORE_API_KEY` and `SEMAPHORE_SENDER_NAME` in the deployment environment for SMS. The queue worker sends only opted-in important alerts to saved Philippine mobile numbers. The default is five attempts per user per Philippine day, adjustable with `SMS_DAILY_LIMIT`. Review failures in the application logs. `WEB_PUSH_PUBLIC_KEY` enables subscription registration over HTTPS for supported browsers. Browser delivery still needs a push transport.
+
+## Uptime and scheduler monitoring
+
+Point an external uptime monitor at `/up` and alert on non-2xx responses. It checks the database and configured queue backend. On servers with an asynchronous worker, set `MONITOR_QUEUE_HEARTBEAT=true` after scheduling `schedule:run` every minute and starting the worker. Use a shared persistent cache so the worker and web server can see the last heartbeat. Allow up to five minutes for the first worker probe. Monitor queue backlog and failed jobs separately.
+
+Set `MONITOR_ALERT_EMAIL` for alerts when the PayMongo reconciliation, subscription activation, or reminder commands fail. Alerts are limited to one email per command per hour. Watch the rotating JSON `operations-*.log` files for `schedule.failed`, `schedule.alert_failed`, `health.check_failed`, and `application.exception`. Watch for stale PayMongo checkouts and failed notification deliveries as well.
+
 ## Tests
 
 ```powershell

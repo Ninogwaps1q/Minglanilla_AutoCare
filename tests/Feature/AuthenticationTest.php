@@ -12,6 +12,7 @@ it('registers a customer and sends a verification email', function () {
     Notification::fake();
 
     $response = $this->post('/register', [
+        'legal_consent' => 1,
         'name' => 'Jamie Cruz',
         'email' => 'jamie@example.test',
         'role' => 'customer',

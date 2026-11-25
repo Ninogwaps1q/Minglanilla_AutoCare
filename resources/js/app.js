@@ -4,6 +4,12 @@ import './ai-chat';
 import './activity-counts';
 import './message-updates';
 import './install-app';
+import { rememberLocationConsent } from './location-consent';
+
+document.addEventListener('autocare:location-consent', event => rememberLocationConsent(event.detail));
+if (document.querySelector('[data-push-preferences]')) {
+    import('./push-preferences.js');
+}
 
 document.querySelectorAll('.public-navbar a[href^="#"]').forEach((link) => {
     link.addEventListener('click', () => {

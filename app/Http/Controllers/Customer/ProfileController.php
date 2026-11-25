@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Customer;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateCustomerProfileRequest;
+use App\Models\PrivacyRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
@@ -14,6 +15,7 @@ class ProfileController extends Controller
     {
         return view('customer.profile.edit', [
             'user' => request()->user(),
+            'privacyRequests' => PrivacyRequest::query()->where('user_id', request()->user()->id)->latest()->limit(5)->get(),
         ]);
     }
 

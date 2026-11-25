@@ -25,7 +25,7 @@ class QuotationService
         $quotation->customer->notifications()->create([
             'type' => 'quotation_sent', 'title' => 'Quotation received',
             'message' => "Your estimate {$quotation->quotation_number} is ready to review.",
-            'data' => ['quotation_id' => $quotation->id],
+            'data' => ['quotation_id' => $quotation->id, 'number' => $quotation->quotation_number],
         ]);
     }
 }

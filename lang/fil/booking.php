@@ -1,0 +1,24 @@
+<?php
+
+// Machine-translated draft. Native-speaker review pending.
+return [
+    'slot_wait' => 'Piliin ang shop, serbisyo at petsa para makita ang mga bakanteng oras.',
+    'slot_check' => 'Sinusuri ang iskedyul ng shop…',
+    'slot_past' => 'Piliin ang oras na hindi pa lumilipas.',
+    'slot_blocked' => 'Sarado o nakaharang ang oras na ito. Maglaan ng :minutes minuto para sa serbisyo.',
+    'slot_closed' => 'Sarado ang shop sa araw na ito.',
+    'slot_full' => 'Puno ang iskedyul ng shop. Pumili ng ibang oras.',
+    'slot_clear' => 'Walang ibang booking sa oras na ito. Kukumpirmahin pa ng shop ang kahilingan.',
+    'slot_hours' => 'Oras ng shop: :open–:close.',
+    'slot_no_hours' => 'Walang nakalistang oras ng shop.',
+    'slot_duration' => 'Maglaan ng :minutes minuto. Hanggang :capacity appointment ang puwedeng magsabay.',
+    'slot_choose' => 'Piliin ang :time na oras ng pagsisimula',
+    'slot_unavailable' => 'Hindi makita ang iskedyul. Maaari ka pa ring humiling ng oras at kukumpirmahin ito ng shop.',
+    'slot_suggestions' => 'Mga mungkahing bakanteng oras',
+    'summary' => ':count na serbisyo: :names. Kabuuang nakalistang presyo :total.',
+    'summary_empty' => 'Pumili ng provider at kahit isang serbisyo para makita ang kabuuang presyo.',
+    'included' => 'kasama',
+    'separate' => 'hiwalay na tantiya',
+    'inclusions' => ':name: labor :labor, piyesa :parts',
+    'inclusions_empty' => 'Tanungin ang shop kung anong labor at piyesa ang kasama.',
+];

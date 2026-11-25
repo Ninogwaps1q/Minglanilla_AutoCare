@@ -62,7 +62,7 @@ class AppointmentController extends Controller
                 ]);
             }
             $appointment->statusHistories()->create(['from_status' => $previousStatus, 'to_status' => $nextStatus, 'changed_by' => $request->user()->id, 'changed_at' => now()]);
-            $appointment->customer->notifications()->create(['type' => 'appointment_status', 'title' => 'Appointment status updated', 'message' => "Your appointment is now {$nextStatus}.", 'data' => ['appointment_id' => $appointment->id]]);
+            $appointment->customer->notifications()->create(['type' => 'appointment_status', 'title' => 'Appointment status updated', 'message' => "Your appointment is now {$nextStatus}.", 'data' => ['appointment_id' => $appointment->id, 'status' => $nextStatus]]);
         });
 
         return back()->with('status', 'Appointment status updated.');
@@ -105,7 +105,7 @@ class AppointmentController extends Controller
                 'message' => $attributes['decision'] === 'approve'
                     ? 'Appointment #'.$appointment->id.' has been moved to the requested time.'
                     : 'Appointment #'.$appointment->id.' keeps its original confirmed time.',
-                'data' => ['appointment_id' => $appointment->id],
+                'data' => ['appointment_id' => $appointment->id, 'status' => $reschedule->status],
             ]);
         });
 

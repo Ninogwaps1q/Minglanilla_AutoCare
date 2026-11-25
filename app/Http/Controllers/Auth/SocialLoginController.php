@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\View\View;
 use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\InvalidStateException;
 use Throwable;
@@ -128,23 +129,53 @@ class SocialLoginController extends Controller
             ])->withInput(['email' => $email]);
         }
 
+        $request->session()->put('pending_social_registration', [
+            'provider' => $provider,
+            'provider_user_id' => $providerUserId,
+            'email' => $email,
+            'name' => Str::limit(trim((string) $providerUser->getName()) ?: Str::before($email, '@'), 255, ''),
+            'verified' => $provider === 'google' && ($providerUser->getRaw()['email_verified'] ?? false) === true,
+            'expires' => now()->addMinutes(15)->timestamp,
+        ]);
+
+        return to_route('social.registration');
+    }
+
+    public function registrationConsent(Request $request): View|RedirectResponse
+    {
+        if ($request->session()->get('pending_social_registration.expires', 0) <= now()->timestamp) {
+            return to_route('register');
+        }
+
+        return view('auth.social-registration');
+    }
+
+    public function completeRegistration(Request $request): RedirectResponse
+    {
+        $request->validate(['legal_consent' => ['accepted']]);
+        $pending = $request->session()->pull('pending_social_registration');
+        if (! $pending || $pending['expires'] <= now()->timestamp) {
+            return to_route('register');
+        }
+
         try {
-            $user = DB::transaction(function () use ($provider, $providerUser, $providerUserId, $email): User {
+            $user = DB::transaction(function () use ($pending): User {
                 $user = User::create([
-                    'name' => Str::limit(trim((string) $providerUser->getName()) ?: Str::before($email, '@'), 255, ''),
-                    'email' => $email,
+                    'name' => $pending['name'],
+                    'email' => $pending['email'],
                     'password' => Str::random(64),
                     'role' => 'customer',
                     'status' => 'active',
                 ]);
 
-                if ($provider === 'google' && ($providerUser->getRaw()['email_verified'] ?? false) === true) {
+                $user->recordLegalAcceptance();
+                if ($pending['verified']) {
                     $user->markEmailAsVerified();
                 }
 
                 $user->socialAccounts()->create([
-                    'provider' => $provider,
-                    'provider_user_id' => $providerUserId,
+                    'provider' => $pending['provider'],
+                    'provider_user_id' => $pending['provider_user_id'],
                 ]);
 
                 return $user;

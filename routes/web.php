@@ -49,9 +49,13 @@ use App\Http\Controllers\Customer\ServiceHistoryController;
 use App\Http\Controllers\Customer\ServiceOverviewController;
 use App\Http\Controllers\Customer\VehicleController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\LocaleController;
+use App\Http\Controllers\NotificationPreferencesController;
+use App\Http\Controllers\PrivacyController;
 use App\Http\Controllers\PublicImageController;
 use App\Http\Controllers\PublicShopController;
 use App\Http\Controllers\RepairPhotoViewController;
+use App\Http\Controllers\ReviewReportController;
 use App\Http\Controllers\Shop\AppointmentController as ShopAppointmentController;
 use App\Http\Controllers\Shop\EmergencyRequestController as ShopEmergencyRequestController;
 use App\Http\Controllers\Shop\InspectionController as ShopInspectionController;
@@ -84,6 +88,10 @@ use App\Http\Middleware\EnsureShopStaffPermission;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'index')->name('home');
+Route::view('/privacy', 'legal.policy', ['document' => 'privacy'])->name('privacy.policy');
+Route::view('/terms', 'legal.policy', ['document' => 'terms'])->name('privacy.terms');
+Route::post('/language', LocaleController::class)->middleware('throttle:15,1')->name('language.update');
+Route::post('/privacy/location', [PrivacyController::class, 'location'])->middleware('throttle:15,1')->name('privacy.location');
 Route::get('/catalog/regions', [AddressCatalogController::class, 'regions'])->name('catalog.regions');
 Route::get('/catalog/provinces', [AddressCatalogController::class, 'provinces'])->name('catalog.provinces');
 Route::get('/catalog/municipalities', [AddressCatalogController::class, 'municipalities'])->name('catalog.municipalities');
@@ -103,6 +111,8 @@ Route::get('/services/{service}/compare', [PublicShopController::class, 'compare
 Route::middleware('guest')->group(function (): void {
     Route::get('/register', [RegisteredUserController::class, 'create'])->name('register');
     Route::post('/register', [RegisteredUserController::class, 'store'])->middleware('throttle:6,1');
+    Route::get('/register/social/consent', [SocialLoginController::class, 'registrationConsent'])->name('social.registration');
+    Route::post('/register/social/consent', [SocialLoginController::class, 'completeRegistration'])->middleware('throttle:6,1')->name('social.registration.store');
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('/login', [AuthenticatedSessionController::class, 'store'])->middleware('throttle:6,1');
     Route::get('/auth/{provider}/redirect', [SocialLoginController::class, 'redirect'])
@@ -124,6 +134,13 @@ Route::get('/verify-email', EmailVerificationPromptController::class)->middlewar
 Route::get('/verify-email/{id}/{hash}', VerifyEmailController::class)->middleware(['auth', 'signed', 'throttle:6,1'])->name('verification.verify');
 Route::post('/email/verification-notification', [EmailVerificationPromptController::class, 'store'])->middleware(['auth', 'throttle:6,1'])->name('verification.send');
 Route::middleware(['auth', 'verified'])->group(function (): void {
+    Route::post('/reviews/{review}/reports', [ReviewReportController::class, 'store'])->middleware('throttle:review-reports')->name('reviews.report');
+    Route::get('/settings/notifications', [NotificationPreferencesController::class, 'edit'])->middleware('role:customer,shop_owner,mechanic,shop_staff')->name('preferences.notifications.edit');
+    Route::put('/settings/notifications', [NotificationPreferencesController::class, 'update'])->middleware('role:customer,shop_owner,mechanic,shop_staff')->name('preferences.notifications.update');
+    Route::post('/settings/push-subscription', [NotificationPreferencesController::class, 'subscribe'])->middleware(['role:customer,shop_owner,mechanic,shop_staff', 'throttle:6,1'])->name('preferences.push.store');
+    Route::delete('/settings/push-subscription', [NotificationPreferencesController::class, 'unsubscribe'])->middleware(['role:customer,shop_owner,mechanic,shop_staff', 'throttle:6,1'])->name('preferences.push.destroy');
+    Route::get('/admin/privacy-requests', [PrivacyController::class, 'queue'])->middleware('role:admin')->name('admin.privacy-requests.index');
+    Route::patch('/admin/privacy-requests/{privacyRequest}', [PrivacyController::class, 'resolve'])->middleware('role:admin')->name('admin.privacy-requests.update');
     Route::get('/repair-photos/{repairPhoto}', RepairPhotoViewController::class)->name('repair-photos.show');
     Route::get('/dashboard', DashboardController::class)->middleware('auth')->name('dashboard');
     Route::get('/shop/register', [ShopRegistrationController::class, 'create'])->middleware(['auth', 'role:shop_owner,mechanic'])->name('shop.register');
@@ -257,6 +274,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::patch('/admin/users/{user}', [UserManagementController::class, 'update'])->middleware(['auth', 'role:admin'])->name('admin.users.update');
     Route::get('/admin/reviews', [ReviewModerationController::class, 'index'])->middleware(['auth', 'role:admin'])->name('admin.reviews.index');
     Route::patch('/admin/reviews/{review}', [ReviewModerationController::class, 'update'])->middleware(['auth', 'role:admin'])->name('admin.reviews.update');
+    Route::patch('/admin/review-reports/{reviewReport}', [ReviewReportController::class, 'dismiss'])->middleware('role:admin')->name('admin.review-reports.dismiss');
     Route::get('/admin/activity-logs', [ActivityLogController::class, 'index'])->middleware(['auth', 'role:admin'])->name('admin.activity-logs.index');
     Route::prefix('customer')->middleware(['auth', 'role:customer'])->name('customer.')->group(function (): void {
         Route::get('services', ServiceOverviewController::class)->name('services.index');
@@ -274,6 +292,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         Route::get('repairs', [CustomerRepairJobController::class, 'index'])->name('repairs.index');
         Route::get('profile', [ProfileController::class, 'edit'])->name('profile.edit');
         Route::put('profile', [ProfileController::class, 'update'])->name('profile.update');
+        Route::post('profile/privacy-requests', [PrivacyController::class, 'store'])->middleware('throttle:6,1')->name('privacy-requests.store');
         Route::resource('vehicles', VehicleController::class);
         Route::get('service-history', [ServiceHistoryController::class, 'index'])->name('service-history.index');
         Route::get('favorites', [FavoriteController::class, 'index'])->name('favorites.index');
@@ -307,7 +326,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         Route::delete('maintenance-schedules/{maintenanceSchedule}', [MaintenanceScheduleController::class, 'destroy'])->name('maintenance-schedules.destroy');
         Route::patch('maintenance-recommendations/{maintenanceRecommendation}', [MaintenanceRecommendationController::class, 'update'])->name('maintenance-recommendations.update');
         Route::get('reviews', [CustomerReviewController::class, 'index'])->name('reviews.index');
-        Route::post('reviews', [CustomerReviewController::class, 'store'])->name('reviews.store');
+        Route::post('reviews', [CustomerReviewController::class, 'store'])->middleware('throttle:review-posts')->name('reviews.store');
         Route::get('messages', [CustomerMessageController::class, 'index'])->name('messages.index');
         Route::get('messages/shop/{shop}', [CustomerMessageController::class, 'show'])->name('messages.show');
         Route::post('messages/{thread}', [CustomerMessageController::class, 'store'])->middleware('throttle:20,1')->name('messages.store');

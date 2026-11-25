@@ -258,7 +258,7 @@ class RepairJobController extends Controller
                 $repairJob->customer->notifications()->create([
                     'type' => 'repair_status', 'title' => 'Repair status updated',
                     'message' => "{$repairJob->job_number}: ".str_replace('_', ' ', $repairJob->status),
-                    'data' => ['repair_job_id' => $repairJob->id],
+                    'data' => ['repair_job_id' => $repairJob->id, 'status' => $repairJob->status, 'number' => $repairJob->job_number],
                 ]);
             }
 

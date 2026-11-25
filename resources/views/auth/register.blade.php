@@ -20,6 +20,7 @@
                 <div><label class="form-label" for="password_confirmation">Confirm password</label><input
                         id="password_confirmation" class="form-control" name="password_confirmation" type="password"
                         autocomplete="new-password" required></div>
+                <x-legal-consent />
                 <button class="btn btn-primary w-100">Create account</button>
             </form>
             <x-social-login-buttons mode="register" />

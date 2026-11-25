@@ -1,15 +1,19 @@
 <?php
 
+use App\Http\Controllers\OperationsHealthController;
 use App\Http\Middleware\EnsureShopAcceptingWork;
 use App\Http\Middleware\EnsureShopPlan;
 use App\Http\Middleware\EnsureUserHasRole;
 use App\Http\Middleware\EnsureUserIsActive;
+use App\Http\Middleware\SetLocale;
 use App\Services\Messaging\MessageStorage;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Route;
 use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -17,7 +21,9 @@ return Application::configure(basePath: dirname(__DIR__))
         web: __DIR__.'/../routes/web.php',
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
-        health: '/up',
+        then: function (): void {
+            Route::get('/up', OperationsHealthController::class)->name('operations.health');
+        },
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(
@@ -27,7 +33,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 | Request::HEADER_X_FORWARDED_PORT
                 | Request::HEADER_X_FORWARDED_PROTO,
         );
-        $middleware->web(append: [EnsureUserIsActive::class]);
+        $middleware->web(append: [EnsureUserIsActive::class, SetLocale::class]);
         $middleware->alias([
             'role' => EnsureUserHasRole::class,
             'shop.accepting' => EnsureShopAcceptingWork::class,
@@ -35,6 +41,15 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->report(function (Throwable $exception): void {
+            $route = app()->bound('request') ? request()->route() : null;
+            if (! $route?->named('admin.two-factor.*')) {
+                Log::channel('operations')->error('application.exception', [
+                    'exception_type' => $exception::class,
+                    'route' => $route?->getName(),
+                ]);
+            }
+        });
         $exceptions->render(function (QueryException $exception, Request $request): ?Response {
             if (MessageStorage::isUnavailable($exception)
                 && ($request->routeIs('customer.messages.*') || $request->routeIs('shop.messages.*'))) {

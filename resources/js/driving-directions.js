@@ -1,7 +1,14 @@
 import { loadGoogleMaps, onGoogleMapsAuthenticationFailure } from './google-maps';
+import { rememberLocationConsent } from './location-consent';
 
 const getCurrentLocation = () => new Promise((resolve, reject) => {
-    navigator.geolocation.getCurrentPosition(resolve, reject, {
+    navigator.geolocation.getCurrentPosition(position => {
+        rememberLocationConsent(true);
+        resolve(position);
+    }, error => {
+        if (error.code === 1) rememberLocationConsent(false);
+        reject(error);
+    }, {
         enableHighAccuracy: true,
         timeout: 15000,
         maximumAge: 0,

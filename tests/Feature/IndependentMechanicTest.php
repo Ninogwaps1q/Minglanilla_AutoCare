@@ -17,6 +17,7 @@ uses(RefreshDatabase::class);
 
 it('registers a separate mechanic account and creates one private-base provider profile', function () {
     $this->post(route('register'), [
+        'legal_consent' => 1,
         'name' => 'Mara Santos', 'email' => 'mara@example.test', 'role' => 'mechanic',
         'password' => 'password', 'password_confirmation' => 'password',
     ])->assertRedirect(route('verification.notice'));
@@ -28,6 +29,7 @@ it('registers a separate mechanic account and creates one private-base provider 
     $payload = [
         'name' => 'Mara Mobile Repairs', 'phone' => '09170000000', 'email' => $mechanic->email,
         'address' => 'Private base, Poblacion', 'barangay_id' => $barangay->id,
+        'legal_consent' => 1,
         'latitude' => 10.25, 'longitude' => 123.79,
     ];
 

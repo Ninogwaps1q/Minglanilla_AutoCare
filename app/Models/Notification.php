@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Jobs\SendEventSms;
 use App\Notifications\ImportantEventMail;
+use App\Notifications\ServiceAlert;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -13,16 +15,29 @@ class Notification extends Model
     protected static function booted(): void
     {
         static::created(function (self $notification): void {
+            $user = $notification->user;
+            if ($user?->status !== 'active') {
+                return;
+            }
+            $alert = ServiceAlert::forNotification($notification);
+            if ($alert && $user->phone && $user->receivesEventVia($alert->value, 'sms') && config('services.semaphore.api_key')) {
+                SendEventSms::dispatch($notification->id)->afterCommit();
+            }
             if (! in_array($notification->type, [
                 'appointment_requested', 'appointment_status', 'appointment_reschedule_requested', 'appointment_reschedule_decided', 'appointment_cancelled',
                 'quotation_sent', 'quotation_requested', 'quotation_response', 'quotation_expired', 'repair_status', 'shop_plan_reminder',
                 'shop_plan_payment', 'emergency_request', 'emergency_status',
-            ], true)) {
+                'payment_verification',
+            ], true) || ($notification->type === 'payment_verification' && $alert !== ServiceAlert::Payment)) {
                 return;
             }
-            $user = $notification->user;
-            if ($user?->status === 'active' && $user->email) {
-                $user->notify(new ImportantEventMail($notification->title, $notification->message, $notification->destinationFor($user)));
+            if ($user->email && $user->receivesEventVia(($alert ?? ServiceAlert::forEmailType($notification->type))->value, 'email')) {
+                $locale = $user->locale ?? 'en';
+                $user->notify((new ImportantEventMail(
+                    $notification->localizedTitle($locale),
+                    $notification->localizedMessage($locale),
+                    $notification->destinationFor($user),
+                ))->locale($locale));
             }
         });
     }
@@ -35,6 +50,33 @@ class Notification extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function localizedTitle(?string $locale = null): string
+    {
+        $key = 'ui.'.$this->title;
+
+        return app('translator')->has($key, $locale) ? __($key, [], $locale) : $this->title;
+    }
+
+    public function localizedMessage(?string $locale = null): string
+    {
+        $locale ??= app()->getLocale();
+        if ($locale === 'en') {
+            return $this->message;
+        }
+
+        $data = $this->data ?? [];
+        $status = $data['status'] ?? '';
+        $statusKey = 'notice.'.$status;
+        $status = app('translator')->has($statusKey, $locale) ? __($statusKey, [], $locale) : $status;
+
+        return match (true) {
+            $this->type === 'appointment_status' && $status !== '' => __('notice.appointment_status', ['status' => $status], $locale),
+            $this->type === 'quotation_sent' && isset($data['number']) => __('notice.estimate', ['number' => $data['number']], $locale),
+            $this->type === 'repair_status' && $status !== '' && isset($data['number']) => __('notice.repair_status', ['status' => $status, 'number' => $data['number']], $locale),
+            default => $this->message,
+        };
     }
 
     public function destinationFor(User $user): string

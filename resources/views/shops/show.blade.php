@@ -35,6 +35,7 @@
             </section>
 
             <section class="surface p-4" aria-labelledby="shop-reviews-heading">
+                <x-form-errors />
                 <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-3">
                     <h2 id="shop-reviews-heading" class="h4 mb-0">Customer reviews</h2>
                     <span class="text-secondary small">Most recent published reviews</span>
@@ -49,6 +50,9 @@
                         @if ($review->response)
                             <div class="mt-3 ps-3 border-start"><strong>Provider response</strong><p class="mb-0">{{ $review->response }}</p></div>
                         @endif
+                        @auth
+                            <x-report-review :review="$review" />
+                        @endauth
                     </article>
                 @empty
                     <p class="text-secondary mb-0">No published reviews yet. Be the first to share your experience after a completed repair.</p>

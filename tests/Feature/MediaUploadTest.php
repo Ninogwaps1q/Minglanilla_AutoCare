@@ -34,6 +34,7 @@ it('stores shop branding during registration and replaces it from the profile', 
     $barangay = Barangay::factory()->create(['status' => 'active']);
 
     $this->actingAs($owner)->post(route('shop.register.store'), [
+        'legal_consent' => 1,
         'name' => 'Image Ready AutoCare',
         'phone' => '09170000000',
         'email' => 'images@example.test',
@@ -88,7 +89,7 @@ it('shows usable fallbacks and reupload guidance when saved shop images are miss
         ->assertViewHas('mapShops', fn ($shops): bool => $shops->first()['logo_url'] === null);
     $this->actingAs($owner)->get(route('shop.profile.edit'))
         ->assertOk()
-        ->assertSee('Choose a new shop logo below')
+        ->assertSee('Choose a new profile photo below')
         ->assertSee('Choose a new cover photo below');
 });
 

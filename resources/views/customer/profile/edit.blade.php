@@ -15,4 +15,21 @@
         </div>
         <aside class="col-lg-4"><div class="surface p-4 h-100"><x-uploaded-image id="profile-photo-preview" class="profile-photo-preview mb-4" :path="$user->profile_photo" :alt="$user->name.' profile photo'" fallback-icon="person" /><h2 class="h5">Account email</h2><p class="mb-0 text-secondary text-break">{{ $user->email }}</p><p class="small text-secondary mt-3 mb-0">Your email is managed through the account security flow and is not changed here.</p></div></aside>
     </div>
+    <section class="surface p-4 mt-4" aria-labelledby="privacy-requests-heading">
+        <h2 id="privacy-requests-heading" class="h5">{{ __('privacy.requests') }}</h2>
+        <p>{{ __('privacy.request_help') }}</p>
+        <div class="d-flex flex-wrap gap-2">
+            <form method="POST" action="{{ route('customer.privacy-requests.store') }}">@csrf
+                <button class="btn btn-outline-primary" name="type" value="download">{{ __('privacy.download') }}</button>
+            </form>
+            <form method="POST" action="{{ route('customer.privacy-requests.store') }}">@csrf
+                <button class="btn btn-outline-danger" name="type" value="delete" data-confirm="{{ __('privacy.confirm_delete') }}">{{ __('privacy.delete') }}</button>
+            </form>
+        </div>
+        @if ($privacyRequests->isNotEmpty())
+            <ul class="mt-3 mb-0">@foreach ($privacyRequests as $item)
+                <li>{{ __('privacy.'.$item->type) }} · {{ __('privacy.status_'.$item->status) }} · {{ $item->created_at->toDateString() }}</li>
+            @endforeach</ul>
+        @endif
+    </section>
 </x-layouts.app>
