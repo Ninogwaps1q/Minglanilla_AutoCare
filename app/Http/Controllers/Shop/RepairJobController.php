@@ -30,7 +30,7 @@ class RepairJobController extends Controller
         }
         DB::transaction(function () use ($quotation, $request): void {
             $quotation = Quotation::query()->lockForUpdate()->findOrFail($quotation->id);
-            abort_unless(in_array($quotation->status, ['accepted', 'approved'], true), 409);
+            abort_unless(in_array($quotation->status, ['accepted', 'approved'], true) && ! $quotation->superseded_by_id, 409);
             if (RepairJob::query()->where('quotation_id', $quotation->id)->exists()) {
                 return;
             }
@@ -42,7 +42,7 @@ class RepairJobController extends Controller
                 'customer_notes' => $quotation->notes,
             ]);
             $repairJob->items()->createMany($quotation->items->map(fn ($item): array => [
-                'type' => $item->service_id ? 'service' : 'other',
+                'type' => $item->type ?? ($item->service_id ? 'service' : 'other'),
                 'description' => $item->description,
                 'quantity' => $item->quantity,
                 'unit_price' => $item->unit_price,
@@ -213,7 +213,7 @@ class RepairJobController extends Controller
                 throw ValidationException::withMessages(['status' => 'This status change is not allowed for the current repair stage.']);
             }
             if ($nextStatus === 'completed' && in_array($repairJob->quotation?->status, ['accepted', 'approved'], true) && $repairJob->items()->exists()
-                && (int) round((float) $repairJob->items()->sum('subtotal') * 100) !== (int) round((float) $repairJob->quotation->total * 100)) {
+                && (int) round((float) $repairJob->items()->sum('subtotal') * 100) !== (int) round($repairJob->quotation->workSubtotal() * 100)) {
                 throw ValidationException::withMessages(['status' => 'The repair items no longer match the approved estimate. Resolve the price difference before completing the job.']);
             }
             if (in_array($nextStatus, ['approved', 'repairing', 'in_progress', 'completed'], true) && ! in_array($repairJob->quotation?->status, ['accepted', 'approved'], true)) {

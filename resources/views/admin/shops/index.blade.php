@@ -4,6 +4,7 @@
         <p>Review shop permits and mechanic documents before approving a public profile.</p>
     </div>
     <x-form-errors />
+    <a class="btn btn-outline-primary mb-3" href="{{ route('admin.promotions.index') }}">{{ __('extensions.promo.title') }}</a>
 
     <form method="GET" action="{{ route('admin.shops.index') }}" class="surface p-3 mb-3 d-flex flex-wrap align-items-end gap-2">
         <div class="w-100"><x-address-picker prefix="verification-area" area-only :area="$area" /></div>

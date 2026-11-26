@@ -8,6 +8,7 @@ use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\RepairJob;
 use App\Models\Shop;
+use App\Services\BookingPromotion;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -47,11 +48,11 @@ class InvoiceController extends Controller
         ]);
     }
 
-    public function store(Request $request, RepairJob $repairJob): RedirectResponse
+    public function store(Request $request, RepairJob $repairJob, BookingPromotion $promotions): RedirectResponse
     {
         abort_unless($repairJob->shop_id === $this->shop($request)->id && in_array($repairJob->status, ['completed', 'released'], true), 404);
 
-        $invoice = DB::transaction(function () use ($repairJob, $request): Invoice {
+        $invoice = DB::transaction(function () use ($repairJob, $request, $promotions): Invoice {
             $repairJob = RepairJob::query()->lockForUpdate()->findOrFail($repairJob->id);
             abort_unless(in_array($repairJob->status, ['completed', 'released'], true), 404);
             $existingInvoice = $repairJob->invoice()->first();
@@ -62,12 +63,15 @@ class InvoiceController extends Controller
             $total = $repairItems->isNotEmpty()
                 ? number_format($repairItems->sum(fn ($item): int => (int) round((float) $item->subtotal * 100)) / 100, 2, '.', '')
                 : ($repairJob->actual_cost ?? $repairJob->estimated_cost ?? 0);
-            if (in_array($repairJob->quotation?->status, ['accepted', 'approved'], true)
-                && (int) round((float) $repairJob->quotation->total * 100) !== (int) round((float) $total * 100)) {
+            $approved = in_array($repairJob->quotation?->status, ['accepted', 'approved'], true);
+            $subtotalCents = (int) round((float) $total * 100);
+            if ($approved && (int) round($repairJob->quotation->workSubtotal() * 100) !== $subtotalCents) {
                 throw ValidationException::withMessages(['invoice' => 'The repair items do not match the customer-approved estimate. Review the repair before issuing an invoice.']);
             }
-            if ($repairItems->isNotEmpty() && (int) round((float) $repairJob->actual_cost * 100) !== (int) round((float) $total * 100)) {
-                $repairJob->update(['actual_cost' => $total]);
+            $discount = $approved ? (int) round((float) $repairJob->quotation->discount * 100) : $promotions->discountCents($repairJob->appointment, $subtotalCents);
+            $amountDue = max(0, $subtotalCents - $discount);
+            if ($repairItems->isNotEmpty() && (int) round((float) $repairJob->actual_cost * 100) !== $amountDue) {
+                $repairJob->update(['actual_cost' => $amountDue / 100]);
             }
             $invoice = Invoice::query()->create([
                 'customer_id' => $repairJob->customer_id,
@@ -76,8 +80,9 @@ class InvoiceController extends Controller
                 'created_by' => $request->user()->id,
                 'invoice_number' => 'INV-'.Str::upper(Str::random(10)),
                 'subtotal' => $total,
-                'total' => $total,
-                'status' => 'unpaid',
+                'discount' => $discount / 100,
+                'total' => $amountDue / 100,
+                'status' => $amountDue === 0 && $discount > 0 ? 'paid' : 'unpaid',
             ]);
 
             if ($repairItems->isNotEmpty()) {

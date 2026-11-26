@@ -1,21 +1,24 @@
 <x-layouts.app title="Dashboard">
     @if ($user->role === 'customer')
+        @php
+            $localNow = now(\App\Models\Appointment::TIMEZONE);
+        @endphp
         <section class="customer-welcome mb-4" aria-labelledby="customer-welcome-title">
             <div>
-                <p class="customer-welcome-date mb-2">{{ now()->format('l, F j') }}</p>
+                <p class="customer-welcome-date mb-2">{{ $localNow->translatedFormat('l, F j') }}</p>
                 <h1 id="customer-welcome-title">Good
-                    {{ now()->hour < 12 ? 'morning' : (now()->hour < 18 ? 'afternoon' : 'evening') }},
+                    {{ $localNow->hour < 12 ? 'morning' : ($localNow->hour < 18 ? 'afternoon' : 'evening') }},
                     {{ str($user->name)->before(' ') }}.</h1>
-                <p>@if (! $primaryVehicle) Add your vehicle first so you can book a service and keep its repair history together.
+                <p>@if ($pendingEstimateCount > 0) {{ __('ui.Review your estimate before work starts') }}
                     @elseif ($unpaidInvoiceCount > 0) You have a payment to review. Open your invoices to see the amount and next step.
                     @elseif ($activeRepair) Your repair is underway. Check its progress and any estimate awaiting your decision.
                     @elseif ($nextAppointment) Your next visit is scheduled. Open your appointments for the date, time, and shop.
+                    @elseif (! $primaryVehicle) Add your vehicle first so you can book a service and keep its repair history together.
                     @else Ready for your next service? Find a shop or mechanic near you, or choose a booking time.
                     @endif</p>
                 <div class="d-flex flex-wrap gap-2 mt-4">
-                    @if (! $primaryVehicle)
-                        <a class="btn btn-accent" href="{{ route('customer.vehicles.create') }}"><i class="bi bi-car-front me-2" aria-hidden="true"></i>Add my vehicle</a>
-                        <a class="btn btn-light" href="{{ route('shops.index') }}">Browse providers</a>
+                    @if ($pendingEstimateCount > 0)
+                        <a class="btn btn-accent" href="{{ route('customer.quotations.index') }}">{{ __('ui.Review estimates') }}</a>
                     @elseif ($unpaidInvoiceCount > 0)
                         <a class="btn btn-accent" href="{{ route('customer.invoices.index') }}"><i class="bi bi-receipt me-2" aria-hidden="true"></i>Review payments</a>
                         <a class="btn btn-light" href="{{ route('customer.appointments.create') }}">Book a service</a>
@@ -25,14 +28,15 @@
                     @elseif ($nextAppointment)
                         <a class="btn btn-accent" href="{{ route('customer.appointments.index') }}"><i class="bi bi-calendar-check me-2" aria-hidden="true"></i>View appointment</a>
                         <a class="btn btn-light" href="{{ route('shops.index') }}">Browse providers</a>
+                    @elseif (! $primaryVehicle)
+                        <a class="btn btn-accent" href="{{ route('customer.vehicles.create') }}"><i class="bi bi-car-front me-2" aria-hidden="true"></i>Add my vehicle</a>
+                        <a class="btn btn-light" href="{{ route('shops.index') }}">Browse providers</a>
                     @else
                         <a class="btn btn-accent" href="{{ route('shops.index') }}"><i class="bi bi-geo-alt me-2" aria-hidden="true"></i>Find a provider</a>
                         <a class="btn btn-light" href="{{ route('customer.appointments.create') }}">Book a service</a>
                     @endif
                 </div>
             </div>
-            <div class="customer-welcome-mark" aria-hidden="true"><i class="bi bi-car-front-fill"></i><span>Ready for the
-                    road</span></div>
         </section>
 
         <x-action-queue :items="[
@@ -160,6 +164,8 @@
         <x-action-queue :items="[
             ['count' => $metrics['Pending verifications'], 'label' => 'Shop registrations', 'detail' => 'Review businesses waiting to join.', 'href' => route('admin.shops.index', ['status' => 'pending'])],
             ['count' => $openComplaintCount, 'label' => 'Customer complaints', 'detail' => 'Read evidence and record a resolution.', 'href' => route('admin.service-cases.index')],
+            ['count' => $pendingPaymentCount, 'label' => __('ui.Payments under review'), 'detail' => __('ui.Check payments that need confirmation'), 'href' => route('admin.monitoring.index', ['module' => 'payments', 'status' => 'pending'])],
+            ['count' => $pendingSettlementCount, 'label' => __('ui.Shop settlements'), 'detail' => __('ui.Review collected payments awaiting transfer'), 'href' => route('admin.paymongo-settlements.index')],
         ]" :empty-route="route('admin.monitoring.index')" empty-label="Open operations monitor" />
         <section class="workspace-stats mb-4" aria-label="Platform totals">
             @foreach ($metrics as $label => $value)@php $icon = match ($label) { 'Users' => 'people', 'Shops' => 'shop', 'Pending verifications' => 'hourglass-split', default => 'car-front'};

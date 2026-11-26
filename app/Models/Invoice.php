@@ -23,17 +23,17 @@ class Invoice extends Model
 
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'customer_id');
+        return $this->belongsTo(User::class, 'customer_id')->withTrashed();
     }
 
     public function issuedBy(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'created_by');
+        return $this->belongsTo(User::class, 'created_by')->withTrashed();
     }
 
     public function shop(): BelongsTo
     {
-        return $this->belongsTo(Shop::class);
+        return $this->belongsTo(Shop::class)->withTrashed();
     }
 
     public function repairJob(): BelongsTo

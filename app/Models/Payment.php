@@ -21,26 +21,26 @@ class Payment extends Model
 
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'customer_id');
+        return $this->belongsTo(User::class, 'customer_id')->withTrashed();
     }
 
     public function shop(): BelongsTo
     {
-        return $this->belongsTo(Shop::class);
+        return $this->belongsTo(Shop::class)->withTrashed();
     }
 
     public function reviewedBy(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'reviewed_by');
+        return $this->belongsTo(User::class, 'reviewed_by')->withTrashed();
     }
 
     public function refundReviewer(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'refund_reviewed_by');
+        return $this->belongsTo(User::class, 'refund_reviewed_by')->withTrashed();
     }
 
     public function settlementReservedBy(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'settlement_reserved_by');
+        return $this->belongsTo(User::class, 'settlement_reserved_by')->withTrashed();
     }
 }

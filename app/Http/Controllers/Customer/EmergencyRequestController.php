@@ -19,7 +19,8 @@ class EmergencyRequestController extends Controller
     public function index(Request $request): View
     {
         $requests = $request->user()->emergencyRequests()
-            ->when($request->integer('focus') > 0, fn ($query) => $query->whereKey($request->integer('focus')))
+            ->when($request->integer('focus') > 0, fn ($query) => $query->where(fn ($requests) => $requests
+                ->whereIn('status', ['pending', 'accepted', 'en_route'])->orWhereKey($request->integer('focus'))))
             ->with(['vehicle', 'assignedShop', 'barangay.municipality.province.region'])->latest('requested_at')->get();
         $dispatchAttempts = DB::table('emergency_dispatch_attempts')
             ->join('shops', 'shops.id', '=', 'emergency_dispatch_attempts.shop_id')
@@ -30,6 +31,7 @@ class EmergencyRequestController extends Controller
 
         return view('customer.emergency-requests.index', [
             'requests' => $requests,
+            'activeRequest' => $requests->first(fn (EmergencyRequest $item): bool => in_array($item->status, ['pending', 'accepted', 'en_route'], true)),
             'vehicles' => $request->user()->vehicles()->orderBy('plate_number')->get(),
             'dispatchAttempts' => $dispatchAttempts,
         ]);

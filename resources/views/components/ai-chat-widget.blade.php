@@ -26,7 +26,7 @@
                 <div class="ai-widget-empty">
                     <i class="bi bi-chat-heart" aria-hidden="true"></i>
                     <h3>How can I help?</h3>
-                    <p>Ask about bookings, repair updates, or caring for your vehicle.</p>
+                    <p>{{ __('assistant.topics') }}</p>
                 </div>
             @endforelse
             <article class="ai-widget-message is-assistant ai-widget-typing" role="status" aria-label="AutoCare AI is typing" hidden>
@@ -50,7 +50,6 @@
                 <textarea id="ai-widget-message" name="message" rows="1" maxlength="2000" placeholder="Type a message" required>{{ old('message') }}</textarea>
                 <button type="submit" aria-label="Send question"><i class="bi bi-send-fill" aria-hidden="true"></i></button>
             </div>
-            <small>Guidance only. Consult a technician for mechanical concerns.</small>
         </form>
     </section>
 

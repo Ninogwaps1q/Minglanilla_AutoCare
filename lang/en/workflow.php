@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'appointment_reminder' => ['title' => 'Appointment reminder', 'next' => 'Your appointment is on :when. Open the booking for details.', 'sms' => 'Appointment :when.'],
     'inspection_started' => ['title' => 'Inspection started', 'next' => 'The shop has started checking your vehicle. Watch for the results.', 'sms' => 'Inspection started.'],
     'inspection_results' => ['title' => 'Inspection results ready', 'next' => 'Open your repair to review the checklist and available photos.', 'sms' => 'Inspection ready. See findings.'],
     'estimate_ready' => ['title' => 'Estimate needs your approval', 'next' => 'Review the estimate and approve or decline it before work proceeds.', 'sms' => 'Review and approve estimate.'],

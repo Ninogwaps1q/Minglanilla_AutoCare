@@ -18,6 +18,16 @@
 
     <div class="row g-4">
         <div class="col-lg-8 d-grid gap-4">
+            @if ($promotions->isNotEmpty())
+                <section class="surface p-4" aria-labelledby="shop-promotions-heading">
+                    <h2 class="h4" id="shop-promotions-heading">{{ __('extensions.promo.title') }}</h2>
+                    <ul class="mb-0">
+                        @foreach ($promotions as $promotion)
+                            <li>{{ $promotion->name }} · {{ $promotion->discountLabel() }} · {{ $promotion->code ? __('extensions.promo.use_code', ['code' => $promotion->code]) : __('extensions.promo.automatic') }}</li>
+                        @endforeach
+                    </ul>
+                </section>
+            @endif
             <section class="surface p-4" aria-labelledby="shop-about-heading">
                 <h2 id="shop-about-heading" class="h4">About this {{ $shop->isIndependentMechanic() ? 'mechanic' : 'shop' }}</h2>
                 <p>{{ $shop->description ?: 'No description provided.' }}</p>
@@ -75,7 +85,12 @@
                             <a class="btn btn-outline-primary" href="{{ route('customer.messages.show', $shop) }}">Message {{ $shop->isIndependentMechanic() ? 'mechanic' : 'shop' }}</a>
                         @endif
                     @else
-                        <a class="btn btn-primary" href="{{ route('login') }}">{{ $shop->hasPlanAtLeast('basic') ? 'Sign in to book or message' : 'Sign in to message this provider' }}</a>
+                        @if ($shop->services->contains('availability', true) && $shop->hasPlanAtLeast('basic'))
+                            <a class="btn btn-primary" href="{{ route('customer.appointments.create', ['shop_id' => $shop->id]) }}">{{ __('booking.sign_in_to_book') }}</a>
+                            <a class="btn btn-outline-primary" href="{{ route('customer.messages.show', $shop) }}">{{ __('booking.sign_in_to_message') }}</a>
+                        @else
+                            <a class="btn btn-primary" href="{{ route('customer.messages.show', $shop) }}">{{ __('booking.sign_in_to_message') }}</a>
+                        @endif
                     @endauth
                     @if (! $shop->isIndependentMechanic() && ($shop->latitude === null || $shop->longitude === null))
                         <span class="text-secondary small">Map location is not available for this provider yet.</span>

@@ -74,6 +74,7 @@ class QuotationController extends Controller
             $estimateItems = $workItems->isNotEmpty()
                 ? $workItems->map(fn ($item): array => [
                     'description' => $item->description,
+                    'type' => $item->type,
                     'quantity' => $item->quantity,
                     'unit_price' => $item->unit_price,
                 ])->all()
@@ -136,7 +137,7 @@ class QuotationController extends Controller
                 throw ValidationException::withMessages(['items' => 'This repair is no longer ready for an additional estimate.']);
             }
             $baseItems = $job->items()->orderBy('id')->get();
-            if ((int) round((float) $baseItems->sum('subtotal') * 100) !== (int) round((float) $job->quotation->total * 100)) {
+            if ((int) round((float) $baseItems->sum('subtotal') * 100) !== (int) round($job->quotation->workSubtotal() * 100)) {
                 throw ValidationException::withMessages(['items' => 'The existing work items must match the approved price before proposing additional work.']);
             }
             $extraItems = [];
@@ -155,9 +156,9 @@ class QuotationController extends Controller
                 $extraItems[] = $item;
             }
             $quotedItems = $baseItems->map(fn ($item): array => [
-                'description' => $item->description, 'quantity' => $item->quantity, 'unit_price' => $item->unit_price,
+                'description' => $item->description, 'quantity' => $item->quantity, 'unit_price' => $item->unit_price, 'type' => $item->type,
             ])->concat(collect($extraItems)->map(fn (array $item): array => [
-                'description' => $item['description'], 'quantity' => $item['quantity'], 'unit_price' => $item['unit_price'],
+                'description' => $item['description'], 'quantity' => $item['quantity'], 'unit_price' => $item['unit_price'], 'type' => $item['type'],
             ]))->all();
             $quotation = Quotation::query()->create([
                 'repair_job_id' => $job->id, 'is_supplemental' => true,

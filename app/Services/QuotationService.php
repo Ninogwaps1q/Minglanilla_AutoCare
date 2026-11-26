@@ -7,6 +7,8 @@ use Illuminate\Validation\ValidationException;
 
 class QuotationService
 {
+    public function __construct(private BookingPromotion $promotions) {}
+
     /** @param array<int, array{description: string, quantity: int, unit_price: numeric-string|float|int}> $items */
     public function send(Quotation $quotation, array $items, ?string $validUntil, ?string $notes): void
     {
@@ -20,7 +22,8 @@ class QuotationService
         if ($totalCents > 999999999999) {
             throw ValidationException::withMessages(['items' => 'The quotation total exceeds the supported amount.']);
         }
-        $quotation->update(['subtotal' => $totalCents / 100, 'total' => $totalCents / 100, 'status' => 'sent', 'valid_until' => $validUntil, 'notes' => $notes]);
+        $discount = $this->promotions->discountCents($quotation->appointment, $totalCents);
+        $quotation->update(['subtotal' => $totalCents / 100, 'discount' => $discount / 100, 'total' => ($totalCents - $discount) / 100, 'status' => 'sent', 'valid_until' => $validUntil, 'notes' => $notes]);
         $quotation->items()->createMany($pricedItems);
     }
 }

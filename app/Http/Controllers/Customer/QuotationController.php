@@ -83,7 +83,7 @@ class QuotationController extends Controller
                 foreach ($repairJobs as $repairJob) {
                     if (! $repairJob->items()->exists()) {
                         $repairJob->items()->createMany($quotation->items->map(fn ($item): array => [
-                            'type' => $item->service_id ? 'service' : 'other',
+                            'type' => $item->type ?? ($item->service_id ? 'service' : 'other'),
                             'description' => $item->description,
                             'quantity' => $item->quantity,
                             'unit_price' => $item->unit_price,
@@ -125,10 +125,11 @@ class QuotationController extends Controller
                     'subtotal' => round((int) $item['quantity'] * (float) $item['unit_price'], 2),
                 ]);
             }
-            if ((int) round((float) $job->items()->sum('subtotal') * 100) !== (int) round((float) $quotation->total * 100)) {
+            if ((int) round((float) $job->items()->sum('subtotal') * 100) !== (int) round($quotation->workSubtotal() * 100)) {
                 throw ValidationException::withMessages(['status' => 'The revised work items do not match the approved price. Contact the shop before continuing.']);
             }
             $nextStatus = $inventory->reserveAvailableForJob($job) ? 'approved' : 'waiting_parts';
+            Quotation::query()->whereKey($job->quotation_id)->update(['superseded_by_id' => $quotation->id]);
             $job->update(['quotation_id' => $quotation->id, 'estimated_cost' => $quotation->total,
                 'actual_cost' => $quotation->total, 'status' => $nextStatus]);
             $note = 'Customer approved revised estimate '.$quotation->quotation_number;

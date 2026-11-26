@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Workflow\AppointmentReminder;
 use App\Notifications\Workflow\EstimateReady;
 use App\Notifications\Workflow\EstimateReminder;
 use App\Notifications\Workflow\InspectionResults;
@@ -20,6 +21,7 @@ use App\Notifications\Workflow\VehicleReleased;
 
 enum WorkflowEvent: string
 {
+    case AppointmentReminder = 'appointment_reminder';
     case InspectionStarted = 'inspection_started';
     case InspectionResults = 'inspection_results';
     case EstimateReady = 'estimate_ready';
@@ -39,6 +41,7 @@ enum WorkflowEvent: string
     public function stage(): ServiceAlert
     {
         return match ($this) {
+            self::AppointmentReminder => ServiceAlert::Booking,
             self::InspectionStarted, self::InspectionResults => ServiceAlert::Inspection,
             self::EstimateReady, self::EstimateReminder => ServiceAlert::Estimate,
             self::RepairApproved, self::RepairStarted, self::RepairResumed, self::RepairDelayed, self::RepairCompleted => ServiceAlert::Repair,
@@ -50,6 +53,7 @@ enum WorkflowEvent: string
     public function notificationClass(): string
     {
         return match ($this) {
+            self::AppointmentReminder => AppointmentReminder::class,
             self::InspectionStarted => InspectionStarted::class,
             self::InspectionResults => InspectionResults::class,
             self::EstimateReady => EstimateReady::class,

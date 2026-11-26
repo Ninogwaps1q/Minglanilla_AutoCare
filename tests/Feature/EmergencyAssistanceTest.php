@@ -62,6 +62,19 @@ it('shows in-page pickup directions only to the assigned responder', function ()
         ->assertDontSee('origin=10.24,123.78');
 });
 
+it('opens the manual pickup option after missing coordinates and keeps the request details', function () {
+    $fixture = emergencyFixture();
+    $url = route('customer.emergency-requests.index');
+    $this->actingAs($fixture['customer'])->from($url)
+        ->post(route('customer.emergency-requests.store'), ['emergency_type' => 'flat_tire', 'description' => 'Near the entrance'])
+        ->assertRedirect($url)->assertSessionHasErrors(['latitude', 'longitude']);
+
+    $this->get($url)->assertOk()
+        ->assertSee('id="pickup-pin" class="workspace-disclosure"  open', false)
+        ->assertSee('Near the entrance');
+    $this->assertDatabaseCount('emergency_requests', 0);
+});
+
 it('does not expose an independent mechanic service-area origin in customer directions', function () {
     $fixture = emergencyFixture();
     $mechanic = User::factory()->create(['role' => 'mechanic']);

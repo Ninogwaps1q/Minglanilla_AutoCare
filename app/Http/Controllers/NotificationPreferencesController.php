@@ -30,8 +30,9 @@ class NotificationPreferencesController extends Controller
         $smsKeys = implode(',', array_map(fn (ServiceAlert $event): string => $event->value,
             array_filter(ServiceAlert::cases(), fn (ServiceAlert $event): bool => $event->supportsSms())));
         $attributes = $request->validate([
-            'sms_consent' => ['nullable', 'accepted'],
+            'sms_consent' => ['sometimes', 'accepted'],
             'sms_phone' => ['nullable', 'string', 'max:30'],
+            'message_preview' => ['sometimes', 'accepted'],
             'email' => ['sometimes', "array:{$keys}"], 'email.*' => ['accepted'],
             'sms' => ['sometimes', "array:{$smsKeys}"], 'sms.*' => ['accepted'],
             'push' => ['sometimes', "array:{$keys}"], 'push.*' => ['accepted'],
@@ -45,7 +46,7 @@ class NotificationPreferencesController extends Controller
                 throw ValidationException::withMessages(['sms_phone' => __('alerts.invalid_phone')]);
             }
 
-            $preferences = [];
+            $preferences = ['message_preview' => isset($attributes['message_preview'])];
             foreach (['email', 'sms', 'push'] as $channel) {
                 foreach (ServiceAlert::cases() as $event) {
                     $preferences[$channel][$event->value] = isset($attributes[$channel][$event->value]);

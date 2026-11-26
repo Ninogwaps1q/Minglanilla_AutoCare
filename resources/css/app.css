@@ -1,6 +1,19 @@
 @import 'bootstrap/dist/css/bootstrap.min.css';
 @import 'bootstrap-icons/font/bootstrap-icons.css';
 
+.location-picker-map {
+    min-height: 22.5rem;
+}
+
+#pickup-pin .location-picker-map {
+    min-height: 16rem;
+}
+
+.location-picker-map.is-unavailable {
+    min-height: 0;
+    box-shadow: none;
+}
+
 .repair-evidence-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr));
@@ -56,10 +69,12 @@ html[data-theme="dark"] .rating-stars {
     padding: .75rem 1rem;
     background: white;
     color: #111827;
+    clip-path: inset(50%);
 }
 
 .skip-link:focus {
     top: 1rem;
+    clip-path: none;
 }
 
 .portal-shell {
@@ -1258,15 +1273,10 @@ html[data-theme="dark"] :is(#shop-map, #landing-shop-map) .gm-ui-hover-effect sp
 }
 
 .customer-welcome {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 2rem;
-    align-items: center;
     padding: clamp(1.5rem, 4vw, 2.75rem);
     color: white;
     background: #101d35;
     border-radius: 1rem;
-    box-shadow: 0 1rem 2.5rem rgb(16 29 53 / 18%);
     overflow: hidden;
 }
 
@@ -1291,29 +1301,6 @@ html[data-theme="dark"] :is(#shop-map, #landing-shop-map) .gm-ui-hover-effect sp
     font-weight: 700;
     letter-spacing: .04em;
     text-transform: uppercase;
-}
-
-.customer-welcome-mark {
-    display: grid;
-    width: 9rem;
-    aspect-ratio: 1;
-    place-items: center;
-    color: #ffd5b8;
-    background: #192b4b;
-    border-radius: 1rem;
-    text-align: center;
-}
-
-.customer-welcome-mark i {
-    align-self: end;
-    color: #ff7a1a;
-    font-size: 3rem;
-}
-
-.customer-welcome-mark span {
-    align-self: start;
-    font-size: .75rem;
-    font-weight: 700;
 }
 
 .section-heading {
@@ -1553,7 +1540,6 @@ html[data-theme="dark"] :is(#shop-map, #landing-shop-map) .gm-ui-hover-effect sp
     color: white;
     background: #101d35;
     border-radius: 1rem;
-    box-shadow: 0 1rem 2.5rem rgb(16 29 53 / 18%);
 }
 
 .workspace-welcome h1 {
@@ -2427,6 +2413,13 @@ html[data-theme="dark"] :is(#shop-map, #landing-shop-map) .gm-ui-hover-effect sp
     padding-right: 5rem;
 }
 
+[data-password-hints] + .password-toggle {
+    top: 50%;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    transform: translateY(-50%);
+}
+
 .password-toggle {
     position: absolute;
     right: .25rem;
@@ -2612,9 +2605,11 @@ html[data-theme="dark"] :is(#shop-map, #landing-shop-map) .gm-ui-hover-effect sp
 
     .customer-mobile-nav .customer-mobile-book {
         margin-top: -1.15rem;
-        color: white;
-        background: #f97316;
-        box-shadow: 0 .5rem 1rem rgb(249 115 22 / 30%);
+    }
+
+    .customer-mobile-nav .customer-mobile-book:not(.active) {
+        color: var(--ink-on-accent);
+        background: var(--accent);
     }
 
     .customer-mobile-nav .customer-mobile-book i {
@@ -3001,10 +2996,6 @@ html[data-theme=dark] .ai-suggestions button:focus-visible {
         grid-template-columns: 1fr;
     }
 
-    .customer-welcome-mark {
-        display: none;
-    }
-
     .workspace-welcome {
         grid-template-columns: 1fr;
     }
@@ -3102,6 +3093,7 @@ html[data-theme=dark] .ai-suggestions button:focus-visible {
     --surface: #ffffff;
     --canvas: #f5f7fb;
     --accent: #f97316;
+    --ink-on-accent: #0b1220;
     --accent-dark: #d85c0b;
     --surface-subtle: #eef3f8;
     --border-color: #d6dee9;
@@ -3226,10 +3218,73 @@ body {
     border-radius: .75rem;
 }
 
-.booking-form-section-head:not(:first-of-type) {
-    border-top: 1px solid var(--border-color);
-    padding-top: 1.5rem;
-    margin-top: .5rem;
+[data-booking-step][hidden] {
+    display: none;
+}
+
+.booking-form fieldset .form-check {
+    min-height: 2.75rem;
+    box-shadow: none;
+}
+
+.provider-availability-toggle {
+    min-height: 2.75rem;
+}
+
+[data-directory-view].btn-outline-primary:focus-visible {
+    color: var(--bs-link-color);
+    background: var(--surface);
+}
+
+.repair-approved-prices {
+    padding: .75rem 1rem;
+    background: var(--surface-subtle);
+    border-radius: .5rem;
+}
+
+.repair-approved-prices > div {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: .25rem .75rem;
+}
+
+.repair-approved-prices dd {
+    margin: 0;
+}
+
+.alert-preferences .form-check-label {
+    display: flex;
+    align-items: center;
+    min-height: 2.75rem;
+}
+
+.alert-preferences .form-check-input {
+    margin-top: .875rem;
+}
+
+.booking-sticky-summary {
+    position: sticky;
+    top: 5rem;
+    z-index: 2;
+    overflow-wrap: anywhere;
+    border: 1px solid var(--border-color);
+}
+
+.booking-sticky-summary p {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+}
+
+[data-booking-step] :is(h2, input, select, button, textarea) {
+    scroll-margin-block-start: 12rem;
+    scroll-margin-block-end: 6rem;
+}
+
+[data-roadside-pickup] :is(input, select, button, summary) {
+    scroll-margin-block-end: 6rem;
 }
 
 .booking-form-section-head h2 {
@@ -3250,17 +3305,6 @@ body {
 .booking-time-suggestions .btn {
     min-height: 2.75rem;
     min-width: 4.75rem;
-}
-
-.booking-form-actions {
-    border-top: 1px solid var(--border-color);
-    padding-top: 1.25rem;
-}
-
-@media (max-width: 575.98px) {
-    .booking-form-actions .btn-primary {
-        width: 100%;
-    }
 }
 
 .payment-instructions-preline {
@@ -3877,16 +3921,14 @@ html:not([data-theme="dark"]) .report-date-presets .btn.active {
     padding: clamp(2rem, 7vw, 4rem);
     background: var(--surface);
     border-radius: 1rem;
-    box-shadow: 0 1rem 3rem rgb(27 46 72 / 12%);
+    border: 1px solid var(--border-color);
 }
 
 .error-code {
     margin-bottom: .5rem;
     color: var(--bs-primary);
-    font-size: clamp(3rem, 12vw, 6rem);
-    font-weight: 800;
-    letter-spacing: -.04em;
-    line-height: .9;
+    font-size: 1rem;
+    font-weight: 700;
 }
 
 .error-panel h1 {
@@ -4192,10 +4234,10 @@ html:not([data-theme="dark"]) .report-date-presets .btn.active {
 }
 
 .btn-accent {
-    --bs-btn-color: #0b1220;
+    --bs-btn-color: var(--ink-on-accent);
     --bs-btn-bg: var(--accent);
     --bs-btn-border-color: var(--accent);
-    --bs-btn-hover-color: #0b1220;
+    --bs-btn-hover-color: var(--ink-on-accent);
     --bs-btn-hover-bg: var(--accent-dark);
     --bs-btn-hover-border-color: var(--accent-dark);
 }
@@ -4302,7 +4344,7 @@ html:not([data-theme="dark"]) .report-date-presets .btn.active {
     transition: border-color .18s ease, background-color .18s ease;
 }
 
-.auth-social-button:hover,
+.auth-social-button:not(:disabled):hover,
 .auth-social-button:focus-visible {
     border-color: var(--bs-primary);
     background: var(--surface-subtle);

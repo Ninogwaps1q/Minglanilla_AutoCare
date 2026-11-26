@@ -5,11 +5,15 @@ namespace App\Http\Controllers\Customer;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreVehicleRequest;
 use App\Http\Requests\UpdateVehicleRequest;
+use App\Models\Appointment;
+use App\Models\RepairJob;
 use App\Models\Vehicle;
 use App\Models\VehicleMake;
 use App\Models\VehicleModel;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class VehicleController extends Controller
@@ -45,7 +49,9 @@ class VehicleController extends Controller
         $vehicle = $request->user()->vehicles()->create($attributes);
 
         if ($request->boolean('return_to_booking')) {
-            return redirect()->route('customer.appointments.create', ['vehicle_id' => $vehicle->id])->with('status', 'Vehicle added. Choose a provider and services to book.');
+            return redirect()->route('customer.appointments.create', ['vehicle_id' => $vehicle->id])
+                ->withInput(['booking_draft' => $request->validated('booking_draft', [])])
+                ->with('status', __('booking.vehicle_added'));
         }
 
         return redirect()->route('customer.vehicles.index')->with('status', 'Vehicle added successfully.');
@@ -97,10 +103,14 @@ class VehicleController extends Controller
     public function destroy(Vehicle $vehicle): RedirectResponse
     {
         $this->authorize('delete', $vehicle);
-        $vehicle->delete();
-        if ($vehicle->photo) {
-            Storage::disk('public')->delete($vehicle->photo);
-        }
+        DB::transaction(function () use ($vehicle): void {
+            $vehicle = Vehicle::query()->lockForUpdate()->findOrFail($vehicle->id);
+            if (Appointment::query()->where('vehicle_id', $vehicle->id)->whereIn('status', ['pending', 'confirmed', 'in_progress'])->exists()
+                || RepairJob::query()->where('vehicle_id', $vehicle->id)->whereNotIn('status', ['released', 'cancelled'])->exists()) {
+                throw ValidationException::withMessages(['vehicle' => __('extensions.archive.active_work')]);
+            }
+            $vehicle->delete();
+        });
 
         return redirect()->route('customer.vehicles.index')->with('status', 'Vehicle removed successfully.');
     }
@@ -108,7 +118,7 @@ class VehicleController extends Controller
     /** @return array<string, mixed> */
     private function vehicleAttributes(StoreVehicleRequest $request): array
     {
-        $attributes = $request->safe()->except(['photo', 'variant_other']);
+        $attributes = $request->safe()->except(['photo', 'variant_other', 'booking_draft']);
         $attributes['make'] = $request->filled('vehicle_make_id')
             ? VehicleMake::query()->findOrFail($request->integer('vehicle_make_id'))->name
             : $request->validated('make');

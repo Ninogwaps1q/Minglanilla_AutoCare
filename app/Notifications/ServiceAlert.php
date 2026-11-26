@@ -7,6 +7,7 @@ use App\Models\Notification;
 enum ServiceAlert: string
 {
     case Booking = 'booking';
+    case Messages = 'messages';
     case Inspection = 'inspection';
     case Estimate = 'estimate';
     case Repair = 'repair';
@@ -17,7 +18,7 @@ enum ServiceAlert: string
 
     public function supportsSms(): bool
     {
-        return in_array($this, [self::Inspection, self::Estimate, self::Repair, self::Payment, self::Release], true);
+        return in_array($this, [self::Booking, self::Messages, self::Inspection, self::Estimate, self::Repair, self::Payment, self::Release], true);
     }
 
     public static function forNotification(Notification $notification): ?self
@@ -28,6 +29,7 @@ enum ServiceAlert: string
             'appointment_status' => $status === 'confirmed' ? self::Booking : null,
             'appointment_reschedule_decided' => $status === 'approved' ? self::Booking : null,
             'appointment_cancelled' => self::Booking,
+            'message_received' => self::Messages,
             'quotation_sent' => self::Estimate,
             'repair_status' => $status === 'completed' ? self::Repair : null,
             'payment_verification' => in_array($status, ['failed', 'rejected'], true) ? self::Payment : null,
@@ -40,6 +42,7 @@ enum ServiceAlert: string
     {
         return match (true) {
             str_starts_with($type, 'appointment_') => self::Booking,
+            $type === 'message_received' => self::Messages,
             str_starts_with($type, 'quotation_') => self::Estimate,
             str_starts_with($type, 'repair_') => self::Repair,
             str_starts_with($type, 'emergency_') => self::Roadside,

@@ -103,6 +103,10 @@ class SocialLoginController extends Controller
             ->first();
 
         if ($socialAccount) {
+            if (! $socialAccount->user) {
+                return to_route('login')->withErrors(['email' => __('extensions.archive.unavailable_account')]);
+            }
+
             return $this->signIn($request, $socialAccount->user);
         }
 
@@ -116,6 +120,9 @@ class SocialLoginController extends Controller
 
         $email = Str::lower($email);
 
+        if (User::onlyTrashed()->where('email', $email)->exists()) {
+            return to_route('login')->withErrors(['email' => __('extensions.archive.unavailable_account')]);
+        }
         if (User::query()->where('email', $email)->exists()) {
             $request->session()->put('pending_social_link', [
                 'provider' => $provider,

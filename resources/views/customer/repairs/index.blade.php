@@ -15,7 +15,10 @@
                 <div><span class="badge {{ in_array($repairJob->status, ['completed', 'released'], true) ? 'text-bg-success' : 'text-bg-secondary' }} text-capitalize">{{ str_replace('_', ' ', $repairJob->status) }}</span></div>
             </div>
             <p>{{ $repairJob->description }}</p>
-            @php($nextAction = $repairJob->nextAction())
+            @php
+                $nextAction = $repairJob->nextAction();
+                $approvedEstimate = in_array($repairJob->quotation?->status, ['accepted', 'approved'], true) ? $repairJob->quotation : null;
+            @endphp
             <p class="repair-next-step mb-3"><strong>{{ $nextAction['actor'] === 'None' ? __('ui.Status') : __('ui.Next step for :actor', ['actor' => __('ui.'.$nextAction['actor'])]) }}:</strong> {{ __('ui.'.$nextAction['action']) }}</p>
               @if($repairJob->pendingSupplementalQuotation)
                   <a class="btn btn-primary btn-sm mb-3" href="{{ route('customer.quotations.index', ['focus' => $repairJob->pendingSupplementalQuotation->id]) }}">{{ __('ui.' . 'Review revised estimate') }}</a>
@@ -31,10 +34,11 @@
                 <div class="alert alert-info mb-3">
                     <strong>Your approval is needed before work starts.</strong>
                     <p class="mb-2">Review the estimate of PHP {{ number_format($repairJob->quotation->total, 2) }}@if ($repairJob->quotation->valid_until) (valid until {{ $repairJob->quotation->valid_until->format('M j, Y') }})@endif.</p>
+                    @if ($repairJob->quotation->discount > 0)<p class="small">{{ __('extensions.promo.savings', ['amount' => number_format($repairJob->quotation->discount, 2)]) }}</p>@endif
                     <ul class="mb-3">@foreach ($repairJob->quotation->items as $item)<li>{{ $item->description }}: {{ $item->quantity }} × PHP {{ number_format($item->unit_price, 2) }}</li>@endforeach</ul>
                     <form method="POST" action="{{ route('customer.quotations.update', $repairJob->quotation) }}" class="d-flex flex-wrap gap-2">
                         @csrf @method('PATCH')
-                        <button class="btn btn-success" name="status" value="accepted">{{ __('ui.' . 'Approve estimate') }}</button>
+                        <button class="btn btn-primary" name="status" value="accepted">{{ __('ui.' . 'Approve estimate') }}</button>
                         <button class="btn btn-outline-danger" name="status" value="rejected">{{ __('ui.' . 'Decline estimate') }}</button>
                     </form>
                 </div>
@@ -43,6 +47,10 @@
             @elseif ($repairJob->status === 'approved')
                 <p class="text-secondary">You approved the estimate. The shop will start the repair next; no work has been marked as started yet.</p>
             @endif
+            @if ($repairJob->invoice && $repairJob->status === 'completed' && $repairJob->invoice->status !== 'paid')
+                <p><a class="btn btn-primary" href="{{ route('customer.invoices.show', $repairJob->invoice) }}">{{ __('ui.' . 'Review bill and payment options') }}</a></p>
+            @endif
+            <x-service-journey :repair-job="$repairJob" />
             @if ($repairJob->diagnosis)
                 <p><strong>Diagnosis:</strong> {{ $repairJob->diagnosis }}</p>
             @endif
@@ -51,17 +59,30 @@
                     <ul class="mt-3 mb-0">@foreach ($inspection->items as $item)<li><strong>{{ $item->category }}: {{ $item->item_name }}</strong> — {{ $item->condition }}@if ($item->recommendation) · {{ $item->recommendation }}@endif</li>@endforeach</ul>
                 </details>
             @endforeach
+            @if ($approvedEstimate)
+                <dl class="repair-approved-prices mb-3" aria-label="{{ __('repair_display.approved_total') }}">
+                    @if ($approvedEstimate->discount > 0)
+                        <div><dt>{{ __('repair_display.work_subtotal') }}</dt><dd>PHP {{ number_format($approvedEstimate->workSubtotal(), 2) }}</dd></div>
+                        <div><dt>{{ __('repair_display.discount') }}</dt><dd>−PHP {{ number_format($approvedEstimate->discount, 2) }}</dd></div>
+                    @endif
+                    <div><dt>{{ __('repair_display.approved_total') }}</dt><dd class="fw-semibold">PHP {{ number_format($approvedEstimate->total, 2) }}</dd></div>
+                </dl>
+            @endif
             @if ($repairJob->items->isNotEmpty())
-                <div class="table-responsive mb-2">
+                <div class="table-responsive mb-2" tabindex="0" role="region" aria-label="{{ __('repair_display.breakdown') }}">
                     <table class="table table-sm align-middle">
-                        <caption>Repair price breakdown</caption>
+                        <caption class="caption-top">{{ __('repair_display.breakdown') }}</caption>
                         <thead><tr><th>Charge</th><th>Category</th><th class="text-end">Qty</th><th class="text-end">Unit price</th><th class="text-end">Amount</th></tr></thead>
                         <tbody>
                             @foreach ($repairJob->items as $item)
                                 <tr><td>{{ $item->description }}</td><td>{{ $item->service_id !== null ? 'Booked service' : ucfirst($item->type) }}</td><td class="text-end">{{ $item->quantity }}</td><td class="text-end">PHP {{ number_format($item->unit_price, 2) }}</td><td class="text-end">PHP {{ number_format($item->subtotal, 2) }}</td></tr>
                             @endforeach
                         </tbody>
-                        <tfoot><tr><th colspan="4">{{ in_array($repairJob->quotation?->status, ['accepted', 'approved'], true) ? 'Approved total' : 'Proposed total' }}</th><th class="text-end">PHP {{ number_format($repairJob->items->sum('subtotal'), 2) }}</th></tr></tfoot>
+                        @unless ($approvedEstimate)
+                            <tfoot>
+                            <tr><th colspan="4">{{ __('repair_display.work_subtotal') }}</th><td class="text-end">PHP {{ number_format($repairJob->items->sum('subtotal'), 2) }}</td></tr>
+                            </tfoot>
+                        @endunless
                     </table>
                 </div>
                 <p class="small text-secondary mb-3">The booked service has its own price. Additional parts or labor appear as separate charges and need your approval in the estimate.</p>
@@ -71,15 +92,9 @@
             @endif
             @if (in_array($repairJob->status, ['completed', 'released'], true))
                 <x-repair-handover :repair-job="$repairJob" context="customer" />
-                @if ($repairJob->invoice && $repairJob->invoice->status !== 'paid')
-                    <p><a class="btn btn-outline-primary" href="{{ route('customer.invoices.index', ['focus' => $repairJob->invoice->id]) }}">{{ __('ui.' . 'Review bill and payment options') }}</a></p>
-                @endif
             @endif
-            @if (in_array($repairJob->quotation?->status, ['accepted', 'approved'], true))
-                <p class="price-agreement mb-3"><strong>Approved price: PHP {{ number_format($repairJob->quotation->total, 2) }}</strong><span>The shop's invoice must match this estimate. Additional work needs a separate estimate and your approval.</span></p>
-            @endif
-            <x-service-journey :repair-job="$repairJob" />
             <x-repair-timeline :repair-job="$repairJob" />
+            <a class="btn btn-sm btn-outline-primary mb-3" href="{{ route('customer.repairs.shares.index', $repairJob) }}">{{ __('extensions.share.manage') }}</a>
             @if(! in_array($repairJob->status, ['completed', 'released', 'cancelled'], true))
                 <details class="repair-details mb-3">
                     <summary>Report a concern about this repair</summary>

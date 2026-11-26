@@ -33,4 +33,12 @@ class StoreEmergencyRequest extends FormRequest
             'landmark' => ['nullable', 'string', 'max:255'],
         ];
     }
+
+    public function messages(): array
+    {
+        return [
+            'latitude.required' => __('roadside.location_required'),
+            'longitude.required' => __('roadside.location_required'),
+        ];
+    }
 }

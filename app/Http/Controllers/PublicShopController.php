@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Appointment;
 use App\Models\Barangay;
 use App\Models\Service;
 use App\Models\Shop;
+use App\Models\ShopPromotion;
 use App\Models\ShopService;
+use App\Services\AppointmentSchedule;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -13,7 +16,7 @@ use Illuminate\View\View;
 
 class PublicShopController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, AppointmentSchedule $schedule): View
     {
         $filters = $request->validate([
             ...Barangay::AREA_FILTER_RULES,
@@ -22,6 +25,9 @@ class PublicShopController extends Controller
             'service' => ['nullable', 'integer', 'exists:services,id'],
             'provider' => ['nullable', 'in:shop,independent_mechanic'],
             'sort' => ['nullable', 'in:name,rating,distance'],
+            'rating' => ['nullable', 'in:3,4,4.5'],
+            'open_now' => ['nullable', 'boolean'],
+            'view' => ['nullable', 'in:list,map'],
             'selected' => ['nullable', 'integer', 'min:1'],
             'latitude' => ['nullable', 'required_with:longitude', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'required_with:latitude', 'numeric', 'between:-180,180'],
@@ -30,17 +36,26 @@ class PublicShopController extends Controller
             ? ['latitude' => (float) $filters['latitude'], 'longitude' => (float) $filters['longitude']]
             : null;
         $filters['sort'] = $filters['sort'] ?? ($location ? 'distance' : 'name');
+        $filters['view'] ??= isset($filters['selected']) ? 'map' : 'list';
         if ($filters['sort'] === 'distance' && $location === null) {
             $filters['sort'] = 'name';
         }
 
+        $now = now(Appointment::TIMEZONE);
         $shops = Shop::query()->publicListing()->with(['barangay.municipality.province.region', 'services.service:id,name'])
             ->inArea($filters)
             ->when($filters['search'] ?? null, fn (Builder $query, string $search): Builder => $query->matchingPlace($search))
             ->when($filters['provider'] ?? null, fn ($query, $provider) => $query->where('provider_type', $provider))
             ->when($filters['barangay'] ?? null, fn ($query, $barangay) => $query->where('barangay_id', $barangay))
             ->when($filters['service'] ?? null, fn ($query, $service) => $query->whereHas('services', fn ($query) => $query->where('service_id', $service)->where('availability', true)))
+            ->when($filters['rating'] ?? null, fn ($query, $rating) => $query->where('total_reviews', '>', 0)->where('average_rating', '>=', $rating))
             ->when($filters['sort'] === 'rating', fn ($query) => $query->orderByDesc('average_rating'), fn ($query) => $query->orderBy('name'))->get();
+        $openShopIds = $shops->filter(fn (Shop $shop): bool => $shop->opening_time && $shop->closing_time
+            && $schedule->isAvailable($shop, $now->toDateString(), $now->format('H:i'), 1))->modelKeys();
+
+        if ($filters['open_now'] ?? false) {
+            $shops = $shops->whereIn('id', $openShopIds)->values();
+        }
 
         if ($filters['sort'] === 'name') {
             $shops = $shops->sortBy(fn (Shop $shop): string => match ($shop->activePlanSlug()) {
@@ -81,6 +96,7 @@ class PublicShopController extends Controller
             'distances' => $distances,
             'services' => Service::query()->orderBy('name')->get(['id', 'name']),
             'filters' => $filters,
+            'openShopIds' => array_flip($openShopIds),
         ]);
     }
 
@@ -88,7 +104,9 @@ class PublicShopController extends Controller
     {
         abort_unless($shop->verification_status === 'approved' && $shop->shop_status === 'active' && $shop->owner->status === 'active', 404);
 
-        return view('shops.show', ['shop' => $shop->load(['barangay.municipality.province.region', 'services.service.category', 'reviews' => fn ($query) => $query->where('status', 'published')->with('customer:id,name')->latest()->limit(5)])]);
+        return view('shops.show', [
+            'promotions' => $shop->hasPlanAtLeast('premium') ? ShopPromotion::query()->where('shop_id', $shop->id)->available()->latest()->limit(10)->get() : collect(),
+            'shop' => $shop->load(['barangay.municipality.province.region', 'services.service.category', 'reviews' => fn ($query) => $query->where('status', 'published')->with('customer:id,name')->latest()->limit(5)])]);
     }
 
     public function compare(Service $service): View

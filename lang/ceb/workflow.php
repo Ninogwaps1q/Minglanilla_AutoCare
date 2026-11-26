@@ -2,6 +2,7 @@
 
 // Translation draft for native-speaker review.
 return [
+    'appointment_reminder' => ['title' => 'Pahinumdom sa appointment', 'next' => 'Ang imong appointment kay :when. Ablihi ang booking para sa detalye.', 'sms' => 'Appointment :when.'],
     'inspection_started' => ['title' => 'Gisugdan ang inspeksyon', 'next' => 'Gisusi na sa shop ang imong sakyanan. Hulata ang resulta.', 'sms' => 'Nagsugod ang inspeksyon.'],
     'inspection_results' => ['title' => 'Andam na ang resulta', 'next' => 'Ablihi ang repair para sa checklist ug mga litrato.', 'sms' => 'Andam na ang resulta.'],
     'estimate_ready' => ['title' => 'Kinahanglan ang imong pagtugot', 'next' => 'Susiha ang banabana. Uyoni o balibari kini una mopadayon ang trabaho.', 'sms' => 'Susiha ang banabana.'],

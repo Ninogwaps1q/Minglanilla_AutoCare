@@ -2,7 +2,7 @@
     <div class="page-heading ai-page-heading">
         <div>
             <h1>Ask AutoCare AI</h1>
-            <p>Get clear guidance about bookings, repairs, and caring for your vehicle.</p>
+            <p>{{ __('assistant.topics') }}</p>
         </div>
         <span class="ai-availability"><span aria-hidden="true"></span>Ready to help</span>
     </div>
@@ -38,8 +38,7 @@
                 <div class="ai-empty-state">
                     <span class="ai-avatar ai-avatar-assistant"><i class="bi bi-stars" aria-hidden="true"></i></span>
                     <div>
-                        <h3>How can I help with your vehicle today?</h3>
-                        <p>Try asking how to book a service, understand a repair status, or prepare for maintenance.</p>
+                        <h3>{{ __('assistant.prompt_title') }}</h3>
                     </div>
                 </div>
             @endforelse
@@ -66,12 +65,11 @@
             <p class="ai-composer-error" role="alert" hidden></p>
             <label class="form-label" for="message">Your question for AutoCare AI</label>
             <div class="ai-composer-control">
-                <textarea class="form-control" id="message" name="message" rows="2" maxlength="2000" placeholder="Ask about your booking, repair, or vehicle care…" required>{{ old('message') }}</textarea>
+                <textarea class="form-control" id="message" name="message" rows="2" maxlength="2000" placeholder="{{ __('assistant.placeholder') }}" required>{{ old('message') }}</textarea>
                 <button class="btn btn-accent" type="submit" aria-label="Send question">
                     <i class="bi bi-send-fill" aria-hidden="true"></i><span>Send</span>
                 </button>
             </div>
-            <p class="ai-disclaimer"><i class="bi bi-info-circle" aria-hidden="true"></i>For guidance only. A qualified technician should inspect safety or mechanical concerns.</p>
         </form>
     </section>
 

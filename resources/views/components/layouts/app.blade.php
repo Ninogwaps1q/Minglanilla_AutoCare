@@ -238,7 +238,7 @@
                     @if (request()->routeIs('customer.services.*', 'customer.appointments.index', 'customer.repairs.*', 'customer.quotations.*', 'customer.invoices.*', 'customer.service-cases.*')) aria-current="page" @endif><i
                         class="bi bi-tools" aria-hidden="true"></i><span>{{ __('ui.' . 'My services') }}</span></a>
             </nav>
-            @unless (request()->routeIs('customer.ai-assistant.*') || request()->routeIs('customer.messages.show'))
+            @unless (request()->routeIs('customer.ai-assistant.*', 'customer.messages.show', 'customer.emergency-requests.*', 'customer.appointments.create', 'customer.repairs.*', 'preferences.notifications.edit'))
                 <x-ai-chat-widget />
             @endunless
         @elseif (in_array($role, ['shop_owner', 'mechanic'], true))

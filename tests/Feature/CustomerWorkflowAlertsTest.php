@@ -62,7 +62,7 @@ it('sends each verified workflow transition through the four chosen channels onc
     $payment->update(['refund_status' => 'succeeded']);
     workflowTransition($job, 'completed', 'released');
 
-    $events = array_filter(WorkflowEvent::cases(), fn (WorkflowEvent $event) => $event !== WorkflowEvent::EstimateReminder);
+    $events = array_filter(WorkflowEvent::cases(), fn (WorkflowEvent $event) => ! in_array($event, [WorkflowEvent::EstimateReminder, WorkflowEvent::AppointmentReminder], true));
     foreach ($events as $event) {
         $record = WorkflowAlert::query()->where('event', $event->value)->sole();
         (new DeliverWorkflowAlert($record->id))->handle();

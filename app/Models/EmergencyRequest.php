@@ -27,12 +27,12 @@ class EmergencyRequest extends Model
 
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'customer_id');
+        return $this->belongsTo(User::class, 'customer_id')->withTrashed();
     }
 
     public function vehicle(): BelongsTo
     {
-        return $this->belongsTo(Vehicle::class);
+        return $this->belongsTo(Vehicle::class)->withTrashed();
     }
 
     public function barangay(): BelongsTo
@@ -47,6 +47,6 @@ class EmergencyRequest extends Model
 
     public function assignedShop(): BelongsTo
     {
-        return $this->belongsTo(Shop::class, 'assigned_shop_id');
+        return $this->belongsTo(Shop::class, 'assigned_shop_id')->withTrashed();
     }
 }

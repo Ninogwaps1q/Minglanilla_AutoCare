@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Jobs\DeliverWorkflowAlert;
+use App\Models\Appointment;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Quotation;
@@ -21,6 +22,27 @@ use Throwable;
 
 class CustomerWorkflowAlerts
 {
+    public function appointmentReminders(): void
+    {
+        $now = now(Appointment::TIMEZONE)->toImmutable();
+        $tomorrow = $now->addHours(24);
+        Appointment::query()->where('status', 'confirmed')
+            ->where('appointment_date', '>=', $now->toDateString())
+            ->where('appointment_date', '<', $tomorrow->addDay()->toDateString())
+            ->whereDoesntHave('rescheduleRequests', fn ($query) => $query->where('status', 'pending'))
+            ->with(['shop', 'vehicle'])->lazyById()->each(function (Appointment $appointment) use ($now, $tomorrow): void {
+                $start = $appointment->startsAt();
+                if ($start <= $now || $start > $tomorrow) {
+                    return;
+                }
+                $hours = $start <= $now->addHours(2) ? 2 : 24;
+                $this->record(WorkflowEvent::AppointmentReminder, "appointment:{$appointment->id}:reminder:{$hours}",
+                    $appointment->customer_id, $appointment->shop, $appointment->vehicle, [
+                        'appointment_id' => $appointment->id, 'starts_at' => $start->toIso8601String(),
+                    ]);
+            });
+    }
+
     public function created(Model $model): void
     {
         match (true) {

@@ -19,6 +19,6 @@ class Report extends Model
 
     public function generatedBy(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'generated_by');
+        return $this->belongsTo(User::class, 'generated_by')->withTrashed();
     }
 }

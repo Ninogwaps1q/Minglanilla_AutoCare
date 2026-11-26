@@ -18,11 +18,11 @@ class AppointmentStatusHistory extends Model
 
     public function appointment(): BelongsTo
     {
-        return $this->belongsTo(Appointment::class);
+        return $this->belongsTo(Appointment::class)->withTrashed();
     }
 
     public function changedBy(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'changed_by');
+        return $this->belongsTo(User::class, 'changed_by')->withTrashed();
     }
 }

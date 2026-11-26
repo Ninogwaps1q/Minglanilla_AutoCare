@@ -2,6 +2,15 @@
 
 // Machine-translated draft. Native-speaker review pending.
 return [
+    'progress' => 'Hakbang :step sa :total',
+    'continue' => 'Magpatuloy',
+    'back' => 'Bumalik',
+    'manila_time' => 'Pumili ng petsa at oras ng pagsisimula. Oras sa Pilipinas (Asia/Manila) ang ginagamit.',
+    'service_required' => 'Pumili ng kahit isang serbisyo.',
+    'confirmation' => 'Kukumpirmahin ng provider ang oras. Kailangan ng hiwalay na tantiya at pahintulot mo para sa dagdag na pagkukumpuni.',
+    'vehicle_added' => 'Na-save na ang sasakyan. Maaari ka nang magpatuloy sa pag-book.',
+    'sign_in_to_book' => 'Mag-sign in para mag-book dito',
+    'sign_in_to_message' => 'Mag-sign in para mag-message sa provider',
     'slot_wait' => 'Piliin ang shop, serbisyo at petsa para makita ang mga bakanteng oras.',
     'slot_check' => 'Sinusuri ang iskedyul ng shop…',
     'slot_past' => 'Piliin ang oras na hindi pa lumilipas.',
@@ -15,7 +24,7 @@ return [
     'slot_choose' => 'Piliin ang :time na oras ng pagsisimula',
     'slot_unavailable' => 'Hindi makita ang iskedyul. Maaari ka pa ring humiling ng oras at kukumpirmahin ito ng shop.',
     'slot_suggestions' => 'Mga mungkahing bakanteng oras',
-    'summary' => ':count na serbisyo: :names. Kabuuang nakalistang presyo :total.',
+    'summary' => 'Kabuuang nakalistang presyo :total · :count na serbisyo: :names',
     'summary_empty' => 'Pumili ng provider at kahit isang serbisyo para makita ang kabuuang presyo.',
     'included' => 'kasama',
     'separate' => 'hiwalay na tantiya',

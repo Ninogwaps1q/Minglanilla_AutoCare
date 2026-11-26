@@ -1,4 +1,4 @@
-@props(['from', 'to', 'indexRoute', 'downloadRoute'])
+@props(['from', 'to', 'indexRoute', 'downloadRoute' => null])
 
 @php
     $today = now()->toImmutable()->startOfDay();
@@ -31,11 +31,13 @@
         <div class="col-sm-auto d-grid">
             <button class="btn btn-primary" type="submit">Apply range</button>
         </div>
-        <div class="col-sm-auto ms-lg-auto d-grid">
-            <a class="btn btn-outline-primary" href="{{ route($downloadRoute, ['from' => $from->toDateString(), 'to' => $to->toDateString()]) }}">
-                <i class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></i>Download PDF
-            </a>
-        </div>
+        @if ($downloadRoute)
+            <div class="col-sm-auto ms-lg-auto d-grid">
+                <a class="btn btn-outline-primary" href="{{ route($downloadRoute, ['from' => $from->toDateString(), 'to' => $to->toDateString()]) }}">
+                    <i class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></i>Download PDF
+                </a>
+            </div>
+        @endif
     </form>
     <x-form-errors />
 </div>

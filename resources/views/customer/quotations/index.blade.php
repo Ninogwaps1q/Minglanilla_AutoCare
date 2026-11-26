@@ -5,9 +5,11 @@
         <article class="surface p-4 mb-3">
             <h2 class="h5">{{ $quotation->is_supplemental ? 'Revised estimate' : 'Estimate' }} · {{ $quotation->shop->name }} · {{ $quotation->quotation_number }}</h2>
             @if($quotation->is_supplemental)<p class="small text-secondary">Includes all previously approved items plus proposed extra work. The new total replaces the old total if you approve.</p>@endif
-            <p>{{ $quotation->vehicle->plate_number }} · <strong>{{ $quotation->status === 'draft' ? 'Awaiting shop estimate' : ($quotation->status === 'sent' && $quotation->valid_until?->isBefore(today()) ? 'Expired' : ucfirst($quotation->status)) }}</strong></p>
+            <p>{{ $quotation->vehicle->plate_number }} · <strong>{{ __('extensions.estimate.status.'.$quotation->documentStatus()) }}</strong></p>
             <p class="text-break">{{ $quotation->notes }}</p>
             @if ($quotation->status !== 'draft')
+                @if ($quotation->discount > 0)<p class="small mb-1">{{ __('extensions.promo.savings', ['amount' => number_format($quotation->discount, 2)]) }}</p>@endif
+                <a class="btn btn-outline-primary mb-3" href="{{ route('customer.quotations.pdf', $quotation) }}">{{ __('extensions.estimate.download') }}</a>
                 <ul>@foreach ($quotation->items as $item)<li>{{ $item->description }} · {{ $item->quantity }} × PHP {{ number_format($item->unit_price, 2) }}</li>@endforeach</ul>
                 <p><strong>Total: PHP {{ number_format($quotation->total, 2) }}</strong>@if ($quotation->valid_until) · Valid until {{ $quotation->valid_until->format('M j, Y') }}@endif</p>
             @endif

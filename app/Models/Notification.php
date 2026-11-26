@@ -18,7 +18,7 @@ class Notification extends Model
     protected static function booted(): void
     {
         static::created(function (self $notification): void {
-            if ($notification->workflow_alert_id) {
+            if ($notification->workflow_alert_id || $notification->type === 'message_received') {
                 return;
             }
             $connection = $notification->getConnection();
@@ -93,7 +93,7 @@ class Notification extends Model
         $status = app('translator')->has($statusKey, $locale) ? __($statusKey, [], $locale) : $status;
 
         return match (true) {
-            $this->type === 'appointment_status' && $status !== '' => __('notice.appointment_status', ['status' => $status], $locale),
+            $this->type === 'appointment_status' && $status !== '' && $status !== 'no_show' => __('notice.appointment_status', ['status' => $status], $locale),
             $this->type === 'quotation_sent' && isset($data['number']) => __('notice.estimate', ['number' => $data['number']], $locale),
             $this->type === 'repair_status' && $status !== '' && isset($data['number']) => __('notice.repair_status', ['status' => $status, 'number' => $data['number']], $locale),
             default => $this->message,

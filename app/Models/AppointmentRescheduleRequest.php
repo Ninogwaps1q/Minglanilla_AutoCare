@@ -19,11 +19,11 @@ class AppointmentRescheduleRequest extends Model
 
     public function appointment(): BelongsTo
     {
-        return $this->belongsTo(Appointment::class);
+        return $this->belongsTo(Appointment::class)->withTrashed();
     }
 
     public function decidedBy(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'decided_by');
+        return $this->belongsTo(User::class, 'decided_by')->withTrashed();
     }
 }

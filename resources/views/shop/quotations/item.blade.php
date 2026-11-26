@@ -1,5 +1,12 @@
 <fieldset class="row g-3 mb-3">
     <legend class="h6">Estimate item</legend>
+    <div class="col-md-6"><label class="form-label" for="type-{{ $index }}">{{ __('extensions.estimate.category') }}</label>
+        <select class="form-select" id="type-{{ $index }}" name="items[{{ $index }}][type]">
+            @foreach (['other', 'service', 'part', 'labor'] as $type)
+                <option value="{{ $type }}" @selected(($item['type'] ?? 'other') === $type)>{{ __('extensions.estimate.type.'.$type) }}</option>
+            @endforeach
+        </select>
+    </div>
     <div class="col-md-6"><label class="form-label" for="description-{{ $index }}">Description</label><input
             id="description-{{ $index }}" name="items[{{ $index }}][description]" class="form-control"
             value="{{ $item['description'] ?? '' }}" maxlength="1000" required></div>

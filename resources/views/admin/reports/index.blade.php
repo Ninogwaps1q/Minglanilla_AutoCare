@@ -2,9 +2,11 @@
     <div class="page-heading report-page-heading">
         <h1>System reports</h1>
         <p>Business activity and payment performance · {{ $from->format('M j, Y') }} to {{ $to->format('M j, Y') }}</p>
+        <a class="btn btn-outline-primary" href="{{ route('admin.quotations.downloads') }}">{{ __('extensions.estimate.library') }}</a>
     </div>
     <x-report-filters :from="$from" :to="$to" index-route="admin.reports.index"
         download-route="admin.reports.download" />
+    <x-report-csv-links :from="$from" :to="$to" route-name="admin.reports.csv" :datasets="['shops', 'users', 'payments', 'reports']" />
     @php
         $primaryMetrics = [
             'Confirmed payments' => ['icon' => 'bi-cash-stack', 'scope' => 'Selected period', 'currency' => true],

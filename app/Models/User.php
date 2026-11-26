@@ -7,13 +7,14 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -67,7 +68,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function receivesEventVia(string $event, string $channel): bool
     {
-        $enabled = $this->communication_preferences[$channel][$event] ?? true;
+        $enabled = $this->communication_preferences[$channel][$event] ?? ($event !== 'messages' || $channel === 'push');
 
         return $enabled && ($channel === 'email' || $this->hasConsentFor($channel));
     }

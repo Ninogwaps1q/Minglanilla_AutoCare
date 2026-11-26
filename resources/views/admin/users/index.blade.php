@@ -2,6 +2,7 @@
     <div class="page-heading">
         <h1>User management</h1>
         <p>Search accounts and manage customer, shop, and mechanic access.</p>
+        <a class="btn btn-outline-primary" href="{{ route('admin.archived-records.index') }}">{{ __('extensions.archive.title') }}</a>
     </div>
     <x-form-errors />
     <div class="surface p-4 mb-4">

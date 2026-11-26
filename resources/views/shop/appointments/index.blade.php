@@ -2,6 +2,9 @@
     <div class="page-heading">
         <h1>Shop appointments</h1>
         <p>Confirm requests, then start the repair from the same appointment.</p>
+        @if (auth()->user()->isProviderOwner())
+            <a class="btn btn-outline-primary" href="{{ route('shop.exports.index') }}">{{ __('extensions.export.title') }}</a>
+        @endif
     </div>
     <x-form-errors />
 
@@ -9,12 +12,12 @@
         <div>
             <label class="form-label" for="shop-appointment-status">Show appointments</label>
             <div class="appointment-filter-fields">
-                <select id="shop-appointment-status" class="form-select" name="status"><option value="">All statuses</option>@foreach (['pending' => 'Needs decision', 'confirmed' => 'Ready for repair', 'in_progress' => 'In repair', 'completed' => 'Completed', 'cancelled' => 'Cancelled'] as $value => $label)<option value="{{ $value }}" @selected($selectedStatus === $value)>{{ $label }}</option>@endforeach</select>
+                <select id="shop-appointment-status" class="form-select" name="status"><option value="">All statuses</option>@foreach (['pending' => 'Needs decision', 'confirmed' => 'Ready for repair', 'in_progress' => 'In repair', 'completed' => 'Completed', 'cancelled' => 'Cancelled', 'no_show' => __('extensions.appointments.no_show')] as $value => $label)<option value="{{ $value }}" @selected($selectedStatus === $value)>{{ $label }}</option>@endforeach</select>
                 <button class="btn btn-outline-primary">Apply filter</button>
                 @if ($selectedStatus)<a class="btn btn-link" href="{{ route('shop.appointments.index') }}">Clear</a>@endif
             </div>
         </div>
-        <p class="appointment-filter-count">{{ $appointments->total() }} {{ str('appointment')->plural($appointments->total()) }}</p>
+        <p class="appointment-filter-count">{{ $appointments->total() }} {{ str('appointment')->plural($appointments->total()) }} · {{ trans_choice('extensions.appointments.no_show_count', $noShowCount) }}</p>
     </form>
 
     <div class="surface overflow-hidden">
@@ -29,7 +32,7 @@
                             <td data-label="Schedule"><strong>{{ $appointment->appointment_date->format('M j, Y') }}</strong><br><span class="text-secondary small">{{ $appointment->appointment_time->format('g:i A') }}</span></td>
                             <td data-label="Customer & vehicle">{{ $appointment->customer->name }}<br><span class="text-secondary small">{{ $appointment->vehicle->plate_number }}</span>@if ($appointment->service_address)<br><span class="small"><strong>Meet at:</strong> {{ $appointment->service_address }}</span>@endif</td>
                             <td data-label="Service">{{ $appointment->serviceCase ? 'Follow-up visit' : ($appointment->bookedServices->isNotEmpty() ? $appointment->bookedServices->pluck('service.name')->implode(', ') : ($appointment->service?->name ?? 'Vehicle service')) }}@if ($appointment->service_price !== null)<br><span class="small">Listed total: PHP {{ number_format($appointment->service_price, 2) }}</span>@endif @if ($appointment->reason)<br><span class="text-secondary small">{{ $appointment->reason }}</span>@endif @if ($appointment->serviceCase)<br><a class="small" href="{{ route('shop.service-cases.index', ['focus' => $appointment->serviceCase->id]) }}">View aftercare request</a>@endif</td>
-                            <td data-label="Status"><span class="badge text-bg-{{ $appointment->status === 'confirmed' ? 'success' : ($appointment->status === 'pending' ? 'warning' : 'secondary') }}">{{ match ($appointment->status) { 'pending' => 'Needs decision', 'confirmed' => 'Ready for repair', 'in_progress' => 'In repair', 'completed' => 'Completed', default => 'Cancelled' } }}</span></td>
+                            <td data-label="Status"><span class="badge text-bg-{{ $appointment->status === 'confirmed' ? 'success' : ($appointment->status === 'pending' ? 'warning' : 'secondary') }}">{{ match ($appointment->status) { 'pending' => 'Needs decision', 'confirmed' => 'Ready for repair', 'in_progress' => 'In repair', 'completed' => 'Completed', 'no_show' => __('extensions.appointments.no_show'), default => 'Cancelled' } }}</span></td>
                             <td data-label="Next action" class="appointment-action-cell">
                                 <div class="appointment-actions">
                                     @if ($appointment->repairJob)
@@ -48,11 +51,20 @@
                                             <select class="form-select form-select-sm" name="status" aria-label="Appointment status" required>
                                                 <option value="" selected disabled>Choose action</option>
                                                 @foreach ($appointment->availableStatusTransitions() as $status => $label)
+                                                    @continue($status === 'no_show')
                                                     <option value="{{ $status }}">{{ $label }}</option>
                                                 @endforeach
                                             </select>
                                             <button class="btn btn-sm btn-outline-primary" type="submit">Update status</button>
                                         </form>
+                                        @if (isset($appointment->availableStatusTransitions()['no_show']))
+                                            <form method="POST" action="{{ route('shop.appointments.update', $appointment) }}" class="mt-2 d-grid gap-2">
+                                                @csrf @method('PATCH')
+                                                <label for="no-show-{{ $appointment->id }}">{{ __('extensions.appointments.no_show_note') }}</label>
+                                                <textarea id="no-show-{{ $appointment->id }}" name="note" class="form-control" rows="2" maxlength="500" required></textarea>
+                                                <button name="status" value="no_show" class="btn btn-sm btn-outline-danger">{{ __('extensions.appointments.mark_no_show') }}</button>
+                                            </form>
+                                        @endif
                                         @if ($appointment->status === 'confirmed')
                                             </details>
                                         @endif

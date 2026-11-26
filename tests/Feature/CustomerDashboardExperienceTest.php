@@ -18,7 +18,7 @@ it('guides a new customer toward their first useful actions', function () {
         ->assertOk()
         ->assertSee('Jamie')
         ->assertSee('Add your vehicle first')
-        ->assertSee('Find nearby shops')
+        ->assertSee('Browse providers')
         ->assertSee('No upcoming service visit')
         ->assertSee('Add my vehicle');
 });

@@ -59,7 +59,7 @@
                         <h3 id="landing-map-title" class="h4">Explore providers on the map</h3>
                         <p class="text-secondary mb-0">See approved shops and mechanics across the Philippines. Select a marker to view a provider.</p>
                     </div>
-                    <a class="btn btn-outline-primary" href="{{ route('shops.index') }}#shop-map">Open full provider map</a>
+                    <a class="btn btn-outline-primary" href="{{ route('map.index') }}">Open full provider map</a>
                 </div>
                 <div id="landing-shop-map" class="landing-shop-map" role="region" aria-label="Map of approved shops and mechanics"
                     data-shops-url="{{ url('/api/shops') }}" data-google-key="{{ config('services.google.maps_api_key') }}"

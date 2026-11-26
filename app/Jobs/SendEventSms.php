@@ -28,7 +28,7 @@ class SendEventSms implements ShouldQueue
         $workflow = $workflowId ? WorkflowAlert::query()->find($workflowId) : null;
         $notification = $this->notificationId ? Notification::query()->find($this->notificationId) : null;
         $event = $workflow?->event->stage() ?? ($notification ? ServiceAlert::forNotification($notification) : null);
-        if (! $event?->supportsSms() || ! config('services.semaphore.api_key')) {
+        if (! $event?->supportsSms() || (! $workflow && $event === ServiceAlert::Booking) || ! config('services.semaphore.api_key')) {
             return;
         }
 
@@ -61,6 +61,8 @@ class SendEventSms implements ShouldQueue
                 /** @var CustomerWorkflowNotification $message */
                 $message = new $class($workflow);
                 $text = $message->smsText($recipient['user']);
+            } elseif ($event === ServiceAlert::Messages) {
+                $text = __('extensions.chat.sms', [], $recipient['user']->locale ?? 'en').' '.$notification->destinationFor($recipient['user']);
             } else {
                 $text = __('alerts.sms_'.$event->value, [], $recipient['user']->locale ?? 'en');
             }

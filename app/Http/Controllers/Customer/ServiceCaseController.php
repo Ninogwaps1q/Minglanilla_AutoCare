@@ -77,7 +77,7 @@ class ServiceCaseController extends Controller
             if ($data['decision'] === 'confirm') {
                 $date = $case->scheduled_at->toDateString();
                 $time = $case->scheduled_at->format('H:i');
-                if ($case->scheduled_at->isPast() || $shop->verification_status !== 'approved' || $shop->shop_status !== 'active') {
+                if (! $schedule->isUpcoming($date, $time) || $shop->verification_status !== 'approved' || $shop->shop_status !== 'active') {
                     throw ValidationException::withMessages(['decision' => 'This visit time is no longer available. Ask the shop for a new proposal.']);
                 }
                 $intervals = $schedule->bookedIntervals($shop, $date, null, $case->id);
@@ -86,6 +86,7 @@ class ServiceCaseController extends Controller
                     throw ValidationException::withMessages(['decision' => 'This time has filled up. Ask the shop for a new visit time.']);
                 }
                 $appointment = $shop->appointments()->create([
+                    'cancellation_notice_hours' => $shop->cancellation_notice_hours,
                     'customer_id' => $case->customer_id,
                     'vehicle_id' => $case->repairJob->vehicle_id,
                     'service_id' => null,

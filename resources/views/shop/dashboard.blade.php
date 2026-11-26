@@ -12,19 +12,14 @@
             </div>
         </div>
     @else
-        @if ($shop->verification_status === 'approved' && $shop->shop_status === 'active' && $shop->activePlanSlug() === 'free')
-            <div class="alert alert-info d-flex flex-wrap align-items-center justify-content-between gap-2" role="status"><span>Your Free listing is visible to customers. Choose Basic or Premium to accept new online bookings.</span><a class="btn btn-outline-primary" href="{{ route('shop.pricing') }}">View plans</a></div>
-        @elseif ($shop->activePlanEndsAt())
-            <div class="alert alert-info d-flex flex-wrap align-items-center justify-content-between gap-2" role="status"><span>{{ ucfirst($shop->activePlanSlug()) }} access ends {{ $shop->activePlanEndsAt()->format('M j, Y') }} ({{ $shop->daysUntilAccessEnds() }} {{ $shop->daysUntilAccessEnds() === 1 ? 'day' : 'days' }} left).</span><a class="btn btn-outline-primary" href="{{ route('shop.pricing') }}">Manage plan</a></div>
-        @endif
         <section class="workspace-welcome mb-4" aria-labelledby="shop-welcome-title">
             <div>
                 <div class="d-flex flex-wrap align-items-center gap-2 mb-2"><span
-                        class="workspace-date">{{ now()->format('l, F j') }}</span><span
+                        class="workspace-date">{{ now(\App\Models\Appointment::TIMEZONE)->translatedFormat('l, F j') }}</span><span
                         class="badge text-bg-{{ $shop->verification_status === 'approved' ? 'success' : 'warning' }} text-capitalize">{{ $shop->verification_status }}</span>
                 </div>
                 <h1 id="shop-welcome-title">{{ $shop->name }}</h1>
-                <p>@if ($shop->verification_status !== 'approved') Your profile is not approved yet. Check your details and verification documents.
+                <p>@if ($shop->verification_status !== 'approved') {{ $shop->isIndependentMechanic() ? 'Your mechanic profile is not approved yet.' : 'Your shop is not approved yet.' }} Check your details and verification documents.
                     @elseif ($metrics['Waiting approval'] > 0) You have {{ $metrics['Waiting approval'] }} {{ str('booking')->plural($metrics['Waiting approval']) }} waiting for a decision.
                     @elseif ($pendingPaymentCount > 0) {{ $pendingPaymentCount }} {{ str('payment')->plural($pendingPaymentCount) }} need your confirmation.
                     @else Review today's visits and keep each repair moving.
@@ -54,6 +49,12 @@
             ['count' => $approvedRepairCount, 'label' => 'Approved repairs', 'detail' => 'Start work at the customer-approved price.', 'href' => route('shop.repair-jobs.index', ['status' => 'approved'])],
             ['count' => $pendingPaymentCount, 'label' => 'Payments to confirm', 'detail' => 'Verify money received before approving.', 'href' => route('shop.invoices.index', ['status' => 'pending'])],
         ]" :empty-route="route('shop.today-work.index')" empty-label="Open work list" />
+
+        @if ($shop->verification_status === 'approved' && $shop->shop_status === 'active' && $shop->activePlanSlug() === 'free')
+            <div class="alert alert-info d-flex flex-wrap align-items-center justify-content-between gap-2" role="status"><span>Your Free listing is visible to customers. Choose Basic or Premium to accept new online bookings.</span><a class="btn btn-outline-primary" href="{{ route('shop.pricing') }}">View plans</a></div>
+        @elseif ($shop->activePlanEndsAt())
+            <div class="alert alert-info d-flex flex-wrap align-items-center justify-content-between gap-2" role="status"><span>{{ ucfirst($shop->activePlanSlug()) }} access ends {{ $shop->activePlanEndsAt()->setTimezone(\App\Models\Appointment::TIMEZONE)->translatedFormat('M j, Y') }} ({{ $shop->daysUntilAccessEnds() }} {{ $shop->daysUntilAccessEnds() === 1 ? 'day' : 'days' }} left).</span><a class="btn btn-outline-primary" href="{{ route('shop.pricing') }}">Manage plan</a></div>
+        @endif
 
         <section class="mb-4" aria-labelledby="shop-summary-title">
             <div class="section-heading">

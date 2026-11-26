@@ -90,7 +90,7 @@ class ReportMetricsService
     /** @return Builder<Appointment> */
     private function appointments(CarbonImmutable $from, CarbonImmutable $to, ?Shop $shop = null): Builder
     {
-        $query = Appointment::query()
+        $query = Appointment::withTrashed()
             ->where('appointment_date', '>=', $from->toDateString())
             ->where('appointment_date', '<', $to->addDay()->toDateString());
 

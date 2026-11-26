@@ -19,10 +19,30 @@ beforeEach(function (): void {
 });
 
 it('shows Google and Facebook sign-in on the login and registration pages', function () {
+    config()->set([
+        'services.google.client_id' => 'test-google', 'services.google.client_secret' => 'test-google-secret',
+        'services.facebook.client_id' => 'test-facebook', 'services.facebook.client_secret' => 'test-facebook-secret',
+    ]);
     $this->get(route('login'))->assertSee(route('social.redirect', 'google'))
-        ->assertSee(route('social.redirect', 'facebook'));
+        ->assertSee(route('social.redirect', 'facebook'))->assertDontSee('facebook-sign-in-status');
     $this->get(route('register'))->assertSee(route('social.redirect', 'google'))
-        ->assertSee(route('social.redirect', 'facebook'));
+        ->assertSee(route('social.redirect', 'facebook'))->assertDontSee('facebook-sign-in-status');
+});
+
+it('shows an unavailable Facebook option when credentials are incomplete and keeps email sign-in', function () {
+    config()->set([
+        'services.google.client_id' => null, 'services.google.client_secret' => null,
+        'services.facebook.client_id' => 'test-facebook', 'services.facebook.client_secret' => null,
+    ]);
+
+    foreach (['login', 'register'] as $page) {
+        $this->get(route($page))->assertOk()
+            ->assertDontSee(route('social.redirect', 'google'))
+            ->assertDontSee(route('social.redirect', 'facebook'))
+            ->assertSee('aria-describedby="facebook-sign-in-status" disabled', false)
+            ->assertSee('Facebook sign-in is unavailable until setup is complete.')
+            ->assertSee('Email address');
+    }
 });
 
 it('redirects to a configured provider', function (string $provider) {

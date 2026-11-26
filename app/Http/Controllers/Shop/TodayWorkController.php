@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Shop;
 
 use App\Http\Controllers\Controller;
+use App\Models\Appointment;
 use App\Models\ServiceCase;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -14,7 +15,7 @@ class TodayWorkController extends Controller
         $shop = $request->user()->managedShopOrFail();
 
         return view('shop.today-work.index', [
-            'appointments' => $shop->appointments()->whereDate('appointment_date', today())
+            'appointments' => $shop->appointments()->whereDate('appointment_date', today(Appointment::TIMEZONE))
                 ->with(['customer', 'vehicle', 'service', 'serviceCase', 'repairJob'])
                 ->orderBy('appointment_time')->get(),
             'repairs' => $shop->repairJobs()->whereNotIn('status', ['completed', 'released', 'cancelled'])

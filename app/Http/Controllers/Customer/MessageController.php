@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreMessageRequest;
 use App\Models\MessageThread;
 use App\Models\Shop;
+use App\Services\Messaging\MessageAlerts;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -32,6 +33,7 @@ class MessageController extends Controller
         $messages = $thread->messages()->latest('id')->limit(50)->get()->reverse()->values();
         $thread->messages()->whereKey($messages->pluck('id'))->where('sender_id', '!=', $request->user()->id)
             ->whereNull('read_at')->update(['read_at' => now()]);
+        app(MessageAlerts::class)->viewed($thread, $request->user());
         $thread->setRelation('messages', $messages)->load('shop:id,name,logo');
 
         return view('customer.messages.show', [
@@ -43,14 +45,9 @@ class MessageController extends Controller
 
     public function store(StoreMessageRequest $request, MessageThread $thread): RedirectResponse|JsonResponse
     {
-        abort_unless($thread->customer_id === $request->user()->id, 404);
+        abort_unless($thread->customer_id === $request->user()->id && $thread->shop && ! $thread->shop->trashed(), 404);
         $message = $thread->messages()->create(['sender_id' => $request->user()->id, 'message' => $request->validated('message')]);
-        $thread->shop->owner->notifications()->create([
-            'type' => 'message_received',
-            'title' => 'New customer message',
-            'message' => "{$request->user()->name}: {$message->message}",
-            'data' => ['thread_id' => $thread->id],
-        ]);
+        app(MessageAlerts::class)->sent($message);
 
         if ($request->expectsJson()) {
             return response()->json(['message' => [
@@ -77,6 +74,7 @@ class MessageController extends Controller
         if ($incomingIds->isNotEmpty()) {
             $thread->messages()->whereKey($incomingIds)->whereNull('read_at')->update(['read_at' => now()]);
         }
+        app(MessageAlerts::class)->viewed($thread, $request->user());
 
         return response()->json(['messages' => $messages->map(fn ($message): array => [
             'id' => $message->id, 'body' => $message->message,

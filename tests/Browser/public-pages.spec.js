@@ -86,7 +86,7 @@ test('landing map shows the shop logo only after its pin is clicked', async ({ p
 test('live directory popup uses the saved shop logo', async ({ page }, testInfo) => {
     test.skip(process.env.LIVE_GOOGLE_MAPS !== '1', 'Live map check is opt-in');
     test.setTimeout(60000);
-    await page.goto('/shops');
+    await page.goto('/shops?view=map');
     const providers = JSON.parse(await page.locator('#shop-map').getAttribute('data-shops'));
     const shop = providers.find(provider => provider.provider_type === 'shop');
     await expect.poll(async () => {
@@ -116,7 +116,7 @@ test('live fallback map renders OpenStreetMap tiles when Google Maps is blocked'
     test.setTimeout(60000);
     const tileLoaded = page.waitForResponse(response => /openstreetmap\.org\/\d+\/\d+\/\d+\.png/.test(response.url()) && response.status() === 200, { timeout: 20000 });
     await page.route('https://maps.googleapis.com/maps/api/js*', route => route.abort());
-    await page.goto('/shops');
+    await page.goto('/shops?view=map');
     const iframe = page.locator('#shop-map iframe');
     await expect(iframe).toBeVisible({ timeout: 15000 });
     await iframe.scrollIntoViewIfNeeded();
@@ -195,7 +195,7 @@ test('landing and directory show provider map previews when Google Maps rejects 
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
     await expect(page.locator('#maps').getByRole('link', { name: 'Open full provider map' })).toBeVisible();
 
-    await page.goto('/shops');
+    await page.goto('/shops?view=map');
     await expect(page.locator('#shop-map iframe')).toBeVisible();
     await expect(page.locator('#shop-map .provider-map-fallback-details')).toContainText('Browser Test AutoCare');
     await expect(page.locator('#shop-results')).toContainText('Browser Test AutoCare');
@@ -280,13 +280,34 @@ test('social sign-in choices stay readable on login and registration', async ({ 
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
 });
 
-test('password visibility control works', async ({ page }) => {
+test('password visibility control and error recovery work in both themes', async ({ page }, testInfo) => {
+    test.setTimeout(90000);
     await page.goto('/login');
-    await page.locator('#password').fill('test-value-not-submitted');
-    await page.getByRole('button', { name: 'Show password', exact: true }).click();
-    await expect(page.locator('#password')).toHaveAttribute('type', 'text');
-    await page.getByRole('button', { name: 'Hide password', exact: true }).click();
-    await expect(page.locator('#password')).toHaveAttribute('type', 'password');
+    for (const width of [360, 768, 1440]) {
+        await page.setViewportSize({ width, height: 850 });
+        for (const theme of ['light', 'dark']) {
+            await page.evaluate(value => localStorage.setItem('autocare-theme', value), theme);
+            await page.goto('/login');
+            await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+            await page.locator('#password').fill('test-value-not-submitted');
+            const toggle = page.getByRole('button', { name: 'Show password', exact: true });
+            await toggle.focus();
+            await expect(toggle).toBeFocused();
+            await page.keyboard.press('Space');
+            await expect(page.locator('#password')).toHaveAttribute('type', 'text');
+            await page.getByRole('button', { name: 'Hide password', exact: true }).click();
+            await expect(page.locator('#password')).toHaveAttribute('type', 'password');
+            expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+            await page.screenshot({ path: testInfo.outputPath('sign-in-' + width + '-' + theme + '.png') });
+
+            expect((await page.goto('/browser-test-missing-page')).status()).toBe(404);
+            await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+            const home = page.getByRole('link', { name: 'Return home' });
+            await home.focus();
+            await expect(home).toBeFocused();
+            await page.screenshot({ path: testInfo.outputPath('recovery-' + width + '-' + theme + '.png') });
+        }
+    }
 });
 
 test('color theme can be changed and remains selected across pages', async ({ page }, testInfo) => {
@@ -325,7 +346,7 @@ test('nearby map uses permitted browser coordinates', async ({ page, context }) 
     await context.grantPermissions(['geolocation']);
     await context.setGeolocation({ latitude: 6.7493, longitude: 125.3552 });
     await page.goto('/map');
-    await expect(page).toHaveURL(/\/shops#shop-map$/);
+    await expect(page).toHaveURL(/\/shops\?view=map#shop-map$/);
     await expect(page.locator('#shop-map .test-google-marker-icon')).toHaveCount(1);
     await page.getByRole('button', { name: 'Use my location', exact: true }).click();
     await expect(page.locator('#location-status')).toHaveText('Showing distances from your location.');
@@ -339,7 +360,7 @@ test('nearby shop search filters the verified shop and shows its distance on the
     const fixture = JSON.parse(process.env.BROWSER_FIXTURE);
     await context.grantPermissions(['geolocation']);
     await context.setGeolocation({ latitude: 6.7493, longitude: 125.3552 });
-    await page.goto('/map');
+    await page.goto('/shops');
     await page.getByLabel('Service', { exact: true }).selectOption(String(fixture.service));
     await page.getByRole('button', { name: 'Find providers' }).click();
     await expect(page).toHaveURL(new RegExp(`service=${fixture.service}`));
@@ -347,6 +368,7 @@ test('nearby shop search filters the verified shop and shows its distance on the
     await expect(page.locator('#shop-results')).toContainText('Browser Test AutoCare');
     await page.getByRole('button', { name: 'Use my location', exact: true }).click();
     await expect(page.locator('#shop-results')).toContainText('0.0 km away');
+    await page.getByRole('link', { name: 'Map', exact: true }).click();
     await expect(page.locator('#shop-map .test-google-marker-icon')).toHaveCount(2);
 });
 
@@ -358,7 +380,7 @@ test('a shop pin opens its matching logo only after clicking', async ({ page }) 
 
     await page.goto(`/shops/${fixture.shop}`);
     const currentLogo = await page.locator('.shop-public-logo').getAttribute('src');
-    await page.goto('/shops');
+    await page.goto('/shops?view=map');
 
     const popup = page.locator('#shop-map .gm-style-iw');
     const marker = page.locator('#shop-map .test-google-marker-icon');
@@ -390,14 +412,29 @@ test('nearby map explains denied location access', async ({ page }) => {
     await expect(page.getByRole('button', { name: 'Use my location', exact: true })).toBeEnabled();
 });
 
-test('shop directory remains usable when the map provider is unavailable', async ({ page }) => {
+test('shop directory remains usable when the map provider is unavailable', async ({ page }, testInfo) => {
     test.skip(process.env.BROWSER_ISOLATED !== '1', 'Requires the disposable browser fixture');
+    test.setTimeout(90000);
     await stubOpenStreetMap(page);
     await page.route('https://maps.googleapis.com/maps/api/js*', route => route.abort());
     await page.goto('/shops');
+    await expect(page.locator('#shop-map')).toBeHidden();
+    await page.getByRole('link', { name: 'Map', exact: true }).click();
     await expect(page.locator('#shop-map iframe')).toBeVisible();
+    await page.getByRole('link', { name: 'List', exact: true }).click();
     await expect(page.locator('#shop-results')).toContainText('Browser Test AutoCare');
     await expect(page.locator('#shop-results').getByRole('link', { name: 'View shop' })).toBeVisible();
+    for (const [width, theme] of [[360, 'light'], [360, 'dark'], [768, 'light'], [768, 'dark'], [1440, 'light'], [1440, 'dark']]) {
+        await page.setViewportSize({ width, height: 850 });
+        await page.evaluate(value => localStorage.setItem('autocare-theme', value), theme);
+        await page.reload();
+        await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+        const mapLink = page.getByRole('link', { name: 'Map', exact: true });
+        await mapLink.focus();
+        await expect(mapLink).toBeFocused();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+        await page.screenshot({ path: testInfo.outputPath('directory-' + width + '-' + theme + '.png'), fullPage: true });
+    }
 });
 
 test('directory filter submits and can be cleared', async ({ page }) => {
@@ -419,7 +456,7 @@ test('public shop profile guides customers to booking and messaging', async ({ p
     const response = await page.goto('/shops/' + fixture.shop);
     expect(response.status()).toBe(200);
     await expect(page.getByRole('heading', { name: 'Customer reviews' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Sign in to book or message' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Sign in to book this provider' })).toBeVisible();
     await page.getByRole('button', { name: 'Get directions' }).click();
     await expect(page.getByText('Turn right onto Test Road')).toBeVisible();
     await expect(page.locator('.driving-directions-summary')).toContainText('2.5 km');
@@ -430,10 +467,12 @@ test('public shop profile guides customers to booking and messaging', async ({ p
     await page.getByRole('button', { name: 'Get directions' }).click();
     await expect(page.getByText('Turn right onto Test Road')).toBeVisible();
 
-    await page.goto('/login');
+    await page.getByRole('link', { name: 'Sign in to book this provider' }).click();
+    await expect(page).toHaveURL(/\/login$/);
     await page.getByLabel('Email address').fill('customer@browser.example.test');
     await page.getByLabel('Password', { exact: true }).fill(fixture.password);
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await expect(page.locator('#shop_id')).toHaveValue(String(fixture.shop));
     await page.goto('/shops/' + fixture.shop);
     await expect(page.locator('#main-content').getByRole('link', { name: 'Book a service' })).toBeVisible();
     await expect(page.locator('#main-content').getByRole('link', { name: 'Message shop' })).toBeVisible();

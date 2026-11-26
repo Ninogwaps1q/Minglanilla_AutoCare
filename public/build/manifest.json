@@ -16,7 +16,7 @@
     "src": "node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff2"
   },
   "resources/css/app.css": {
-    "file": "assets/app-CzUIFZF3.css",
+    "file": "assets/app-COiAmUo6.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "app",
@@ -40,7 +40,7 @@
     "isDynamicEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-Dhcp_pkJ.js",
+    "file": "assets/app-CEo_MMRp.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -48,7 +48,9 @@
       "resources/js/push-preferences.js",
       "resources/js/landing-map.js",
       "resources/js/shop-directory-map.js",
+      "resources/js/shop-directory-map.js",
       "resources/js/location-picker.js",
+      "resources/js/roadside-pickup.js",
       "resources/js/driving-directions.js",
       "resources/js/vehicle-picker.js",
       "resources/js/address-picker.js",
@@ -56,7 +58,7 @@
     ]
   },
   "resources/js/driving-directions.js": {
-    "file": "assets/driving-directions-BRMz-hVE.js",
+    "file": "assets/driving-directions-CLhLas2z.js",
     "name": "driving-directions",
     "src": "resources/js/driving-directions.js",
     "isDynamicEntry": true,
@@ -76,7 +78,7 @@
     ]
   },
   "resources/js/location-picker.js": {
-    "file": "assets/location-picker-Cd2Tmucl.js",
+    "file": "assets/location-picker-BlFKaMYX.js",
     "name": "location-picker",
     "src": "resources/js/location-picker.js",
     "isDynamicEntry": true,
@@ -85,7 +87,7 @@
     ]
   },
   "resources/js/nearby-search.js": {
-    "file": "assets/nearby-search-XeUUzdO6.js",
+    "file": "assets/nearby-search-CVVm8Urq.js",
     "name": "nearby-search",
     "src": "resources/js/nearby-search.js",
     "isDynamicEntry": true,
@@ -105,8 +107,14 @@
     "src": "resources/js/reports.js",
     "isEntry": true
   },
+  "resources/js/roadside-pickup.js": {
+    "file": "assets/roadside-pickup-CzLBPlw5.js",
+    "name": "roadside-pickup",
+    "src": "resources/js/roadside-pickup.js",
+    "isDynamicEntry": true
+  },
   "resources/js/shop-directory-map.js": {
-    "file": "assets/shop-directory-map-Q4fGL1aQ.js",
+    "file": "assets/shop-directory-map-BZp6uPrI.js",
     "name": "shop-directory-map",
     "src": "resources/js/shop-directory-map.js",
     "isDynamicEntry": true,

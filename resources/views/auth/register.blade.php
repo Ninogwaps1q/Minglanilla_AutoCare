@@ -16,10 +16,10 @@
                         <option value="mechanic" @selected(old('role') === 'mechanic')>Independent mechanic</option>
                     </select></div>
                 <div><label class="form-label" for="password">Password</label><input id="password" class="form-control"
-                        name="password" type="password" autocomplete="new-password" required></div>
+                        name="password" type="password" autocomplete="new-password" data-password-hints="{{ json_encode(__('account_ui.password')) }}" required></div>
                 <div><label class="form-label" for="password_confirmation">Confirm password</label><input
                         id="password_confirmation" class="form-control" name="password_confirmation" type="password"
-                        autocomplete="new-password" required></div>
+                        autocomplete="new-password" data-password-hints="{{ json_encode(__('account_ui.password')) }}" required></div>
                 <x-legal-consent />
                 <button class="btn btn-primary w-100">Create account</button>
             </form>

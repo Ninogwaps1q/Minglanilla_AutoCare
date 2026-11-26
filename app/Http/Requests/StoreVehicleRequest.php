@@ -39,6 +39,17 @@ class StoreVehicleRequest extends FormRequest
             'color' => ['nullable', 'string', 'max:50'],
             'current_mileage' => ['nullable', 'integer', 'min:0'],
             'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048', 'dimensions:max_width=8000,max_height=8000'],
+            'booking_draft' => ['nullable', 'array:shop_id,service_ids,appointment_date,appointment_time,service_barangay_id,service_street,service_landmark,reason,promo_code'],
+            'booking_draft.shop_id' => ['nullable', 'integer'],
+            'booking_draft.service_ids' => ['nullable', 'array', 'max:10'],
+            'booking_draft.service_ids.*' => ['integer'],
+            'booking_draft.appointment_date' => ['nullable', 'string', 'max:20'],
+            'booking_draft.appointment_time' => ['nullable', 'string', 'max:20'],
+            'booking_draft.service_barangay_id' => ['nullable', 'integer'],
+            'booking_draft.service_street' => ['nullable', 'string', 'max:255'],
+            'booking_draft.service_landmark' => ['nullable', 'string', 'max:255'],
+            'booking_draft.reason' => ['nullable', 'string', 'max:2000'],
+            'booking_draft.promo_code' => ['nullable', 'string', 'max:32'],
         ];
     }
 

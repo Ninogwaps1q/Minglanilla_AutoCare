@@ -12,6 +12,9 @@
             <p class='mb-0'>Choose a new cover photo below, then save your profile.</p>@endif
         </div>
     @endif
+    @if ($shop->hasPlanAtLeast('premium'))
+        <a class="btn btn-outline-primary mb-3" href="{{ route('shop.promotions.index') }}">{{ __('extensions.promo.title') }}</a>
+    @endif
     <div class="page-heading">
         <h1>{{ $shop->isIndependentMechanic() ? 'Independent mechanic profile' : 'Shop profile' }}</h1>
         <p>Update the information shown to customers after verification.{{ $shop->isIndependentMechanic() ? ' Your base address stays private; customers see your service area.' : '' }}</p>
@@ -52,6 +55,11 @@
         </fieldset>
         <div class="col-md-6"><input type="hidden" name="roadside_available" value="0"><label class="form-check-label"><input class="form-check-input me-1" type="checkbox" name="roadside_available" value="1" @checked(old('roadside_available', $shop->roadside_available ?? true))>Accept roadside requests now</label><div class="form-text">Turn off when you are unavailable.</div></div>
         <div class="col-md-6"><label class="form-label" for="roadside-radius">Roadside service radius (km)</label><input class="form-control" id="roadside-radius" type="number" name="roadside_radius_km" min="1" max="200" value="{{ old('roadside_radius_km', $shop->roadside_radius_km) }}"><div class="form-text">{{ $shop->isIndependentMechanic() ? 'Required when you accept roadside requests. Set how far you can travel from your service-area center.' : 'Leave blank for no distance limit.' }}</div></div>
+        <div class="col-md-6">
+            <label class="form-label" for="cancellation-notice">{{ __('extensions.appointments.notice_hours') }}</label>
+            <input id="cancellation-notice" class="form-control" type="number" name="cancellation_notice_hours" min="0" max="168" value="{{ old('cancellation_notice_hours', $shop->cancellation_notice_hours) }}" aria-describedby="cancellation-notice-help">
+            <p class="form-text" id="cancellation-notice-help">{{ __('extensions.appointments.notice_help') }}</p>
+        </div>
         @unless ($shop->isIndependentMechanic())
         <div class="col-md-6"><label class="form-label" for="booking_capacity">Appointments at the same
                 time</label><input id="booking_capacity"

@@ -7,11 +7,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Vehicle extends Model
 {
     /** @use HasFactory<VehicleFactory> */
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = ['plate_number', 'make', 'model', 'year', 'variant', 'vehicle_make_id', 'vehicle_model_id', 'color', 'vehicle_type', 'engine_type', 'current_mileage', 'vin', 'photo'];
 
@@ -32,7 +33,7 @@ class Vehicle extends Model
 
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'customer_id');
+        return $this->belongsTo(User::class, 'customer_id')->withTrashed();
     }
 
     public function maintenanceReminders(): HasMany

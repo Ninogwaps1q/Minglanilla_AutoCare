@@ -35,6 +35,7 @@ class UpdateShopProfileRequest extends FormRequest
             'opening_time' => ['nullable', 'date_format:H:i'],
             'closing_time' => ['nullable', 'date_format:H:i', 'after:opening_time'],
             'booking_capacity' => ['sometimes', 'integer', 'min:1', 'max:'.($this->user()?->role === 'mechanic' ? '1' : '10')],
+            'cancellation_notice_hours' => ['sometimes', 'integer', 'between:0,168'],
             'operating_days' => ['sometimes', 'array'],
             'operating_days.*' => ['integer', 'between:1,7', 'distinct'],
             'roadside_available' => ['sometimes', 'boolean'],

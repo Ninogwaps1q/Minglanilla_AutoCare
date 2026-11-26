@@ -21,13 +21,15 @@ class DispatchWorkflowAlerts extends Command
      *
      * @var string
      */
-    protected $description = 'Send estimate reminders and queue outstanding customer workflow alerts';
+    protected $description = 'Send appointment and estimate reminders and queue outstanding customer workflow alerts';
 
     /**
      * Execute the console command.
      */
     public function handle(CustomerWorkflowAlerts $alerts): int
     {
+        $alerts->appointmentReminders();
+
         WorkflowAlert::query()->where('next_reminder_at', '<=', now())
             ->lazyById()->each(fn (WorkflowAlert $source) => $alerts->reminder($source));
 

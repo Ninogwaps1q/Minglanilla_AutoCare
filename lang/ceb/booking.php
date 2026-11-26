@@ -2,6 +2,15 @@
 
 // Machine-translated draft. Native-speaker review pending.
 return [
+    'progress' => 'Lakang :step sa :total',
+    'continue' => 'Padayon',
+    'back' => 'Balik',
+    'manila_time' => 'Pili og petsa ug oras sa pagsugod. Oras sa Pilipinas (Asia/Manila) ang gigamit.',
+    'service_required' => 'Pili og bisan usa ka serbisyo.',
+    'confirmation' => 'Kumpirmahon pa sa provider ang oras. Ang dugang nga ayo kinahanglan og laing banabana ug imong pagtugot.',
+    'vehicle_added' => 'Na-save na ang sakyanan. Makapadayon na ka sa booking.',
+    'sign_in_to_book' => 'Sign in aron mag-book dinhi',
+    'sign_in_to_message' => 'Sign in aron mag-message sa provider',
     'slot_wait' => 'Pilia ang shop, serbisyo ug petsa aron makita ang bakanteng oras.',
     'slot_check' => 'Gisusi ang iskedyul sa shop…',
     'slot_past' => 'Pilia ang oras nga umaabot pa.',
@@ -15,7 +24,7 @@ return [
     'slot_choose' => 'Pilia ang :time nga oras sa pagsugod',
     'slot_unavailable' => 'Dili makita ang iskedyul. Mahimo gihapon kang mohangyo og oras ug kumpirmahon kini sa shop.',
     'slot_suggestions' => 'Mga gisugyot nga bakanteng oras',
-    'summary' => ':count ka serbisyo: :names. Kinatibuk-ang presyo :total.',
+    'summary' => 'Kinatibuk-ang presyo :total · :count ka serbisyo: :names',
     'summary_empty' => 'Pilia ang provider ug usa o daghang serbisyo aron makita ang presyo.',
     'included' => 'apil',
     'separate' => 'lahi ang banabana',

@@ -12,6 +12,9 @@
         </div>
     @else
         <x-report-filters :from="$from" :to="$to" index-route="shop.reports.index" download-route="shop.reports.download" />
+        @if (in_array(auth()->user()->role, ['shop_owner', 'mechanic'], true))
+            <x-report-csv-links :from="$from" :to="$to" route-name="shop.reports.csv" :datasets="['bookings', 'repairs', 'invoices', 'payments']" />
+        @endif
 
         @php
             $metricDisplay = [

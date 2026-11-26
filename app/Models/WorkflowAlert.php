@@ -23,6 +23,9 @@ class WorkflowAlert extends Model
     public function destination(): string
     {
         $data = $this->data;
+        if (isset($data['appointment_id'])) {
+            return route('customer.appointments.index', ['focus' => $data['appointment_id']]);
+        }
         if (isset($data['quotation_id'])) {
             return route('customer.quotations.index', ['focus' => $data['quotation_id']]);
         }

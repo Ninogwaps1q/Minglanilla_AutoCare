@@ -1,6 +1,15 @@
 <?php
 
 return [
+    'progress' => 'Step :step of :total',
+    'continue' => 'Continue',
+    'back' => 'Back',
+    'manila_time' => 'Choose a date and start time. All times are in Philippine time (Asia/Manila).',
+    'service_required' => 'Choose at least one service.',
+    'confirmation' => 'The provider will confirm your time. Extra repair work needs a separate estimate and your approval.',
+    'vehicle_added' => 'Vehicle saved. You can continue booking.',
+    'sign_in_to_book' => 'Sign in to book this provider',
+    'sign_in_to_message' => 'Sign in to message this provider',
     'slot_wait' => 'Choose a shop, service, and date to check available times.',
     'slot_check' => 'Checking the shop schedule…',
     'slot_past' => 'Choose a future appointment time.',
@@ -14,7 +23,7 @@ return [
     'slot_choose' => 'Choose :time as preferred start time',
     'slot_unavailable' => 'Schedule preview is unavailable. You can still request a time; the shop will confirm it.',
     'slot_suggestions' => 'Suggested available start times',
-    'summary' => 'Selected (:count): :names. Listed total :total.',
+    'summary' => 'Listed total :total · :count selected: :names',
     'summary_empty' => 'Choose a provider and at least one service to see the listed total.',
     'included' => 'included',
     'separate' => 'quoted separately',

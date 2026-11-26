@@ -24,12 +24,12 @@ class ShopPlanPayment extends Model
 
     public function shop(): BelongsTo
     {
-        return $this->belongsTo(Shop::class);
+        return $this->belongsTo(Shop::class)->withTrashed();
     }
 
     public function refundReviewer(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'refund_reviewed_by');
+        return $this->belongsTo(User::class, 'refund_reviewed_by')->withTrashed();
     }
 
     public function hasProof(): bool

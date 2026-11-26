@@ -9,6 +9,7 @@ use App\Models\Shop;
 use App\Models\ShopService;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
@@ -51,6 +52,24 @@ it('shows shops and independent mechanics together in one provider directory', f
         ->assertSee('Shared Directory Mechanic')
         ->assertSee('Shop and mechanic results')
         ->assertSee('Swipe or scroll sideways to compare shops and mechanics.');
+});
+
+it('applies the same rating and open hours filters to the list and map', function () {
+    $this->travelTo(Carbon::parse('2026-11-26 02:00:00', 'UTC'));
+    $open = ['verification_status' => 'approved', 'shop_status' => 'active', 'opening_time' => '08:00', 'closing_time' => '17:00',
+        'operating_days' => [4], 'latitude' => 6.75, 'longitude' => 125.35, 'total_reviews' => 3, 'average_rating' => 4.5];
+    $garage = Shop::factory()->create(['name' => 'Open High Rated Garage', ...$open]);
+    Shop::factory()->create([...$open, 'name' => 'Low Rated Garage', 'average_rating' => 3]);
+    Shop::factory()->create([...$open, 'name' => 'Closed Garage', 'opening_time' => '11:00']);
+    Shop::factory()->create([...$open, 'name' => 'Blocked Garage', 'schedule_blocks' => [['date' => '2026-11-26', 'start' => '10:00', 'end' => '11:00']]]);
+
+    foreach (['list', 'map'] as $view) {
+        $this->get(route('shops.index', ['view' => $view, 'open_now' => '1', 'rating' => '4']))
+            ->assertOk()
+            ->assertViewHas('shops', fn ($shops) => $shops->modelKeys() === [$garage->id])
+            ->assertViewHas('mapShops', fn ($shops) => $shops->pluck('id')->all() === [$garage->id])
+            ->assertSee('data-directory-view="'.$view.'"  aria-current="true"', false);
+    }
 });
 
 it('keeps an independent mechanic private base out of public maps and directions', function () {
@@ -245,7 +264,7 @@ it('connects the public shop profile to customer booking, messaging, and publish
     Review::query()->create(['customer_id' => $customer->id, 'shop_id' => $shop->id, 'repair_job_id' => $repairJob->id, 'rating' => 5, 'comment' => 'Helpful staff.', 'status' => 'published']);
     Review::query()->create(['customer_id' => $customer->id, 'shop_id' => $shop->id, 'repair_job_id' => $hiddenRepairJob->id, 'rating' => 1, 'comment' => 'Hidden comment.', 'status' => 'hidden']);
 
-    $this->get(route('shops.show', $shop))->assertOk()->assertSee('Sign in to book or message')->assertSee('Helpful staff.')->assertDontSee('Hidden comment.');
+    $this->get(route('shops.show', $shop))->assertOk()->assertSee('Sign in to book this provider')->assertSee('Helpful staff.')->assertDontSee('Hidden comment.');
     $this->actingAs($customer)->get(route('shops.show', $shop))->assertOk()
         ->assertSee(route('customer.appointments.create', ['shop_id' => $shop->id]), false)
         ->assertSee(route('customer.messages.show', $shop), false);

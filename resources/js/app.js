@@ -31,11 +31,32 @@ document.querySelectorAll('.public-navbar a[href^="#"]').forEach((link) => {
 if (document.querySelector('#landing-shop-map')) {
     import('./landing-map.js');
 }
-if (document.querySelector('#shop-map')) {
-    import('./shop-directory-map.js');
+const directoryMap = document.querySelector('#shop-map-panel');
+if (directoryMap) {
+    const showLegacyMap = () => {
+        directoryMap.hidden = false;
+        document.querySelector('#shop-results').hidden = true;
+        document.querySelector('#shop-filters [name="view"]').value = 'map';
+        document.querySelectorAll('[data-directory-view]').forEach(link => {
+            const selected = link.dataset.directoryView === 'map';
+            link.classList.toggle('btn-primary', selected);
+            link.classList.toggle('btn-outline-primary', !selected);
+            if (selected) link.setAttribute('aria-current', 'true');
+            else link.removeAttribute('aria-current');
+        });
+        import('./shop-directory-map.js');
+    };
+    if (!directoryMap.hidden) {
+        import('./shop-directory-map.js');
+    } else if (location.hash === '#shop-map') {
+        showLegacyMap();
+    }
 }
 if (document.querySelector('#location-picker-map')) {
     import('./location-picker.js');
+}
+if (document.querySelector('[data-roadside-pickup]')) {
+    import('./roadside-pickup.js');
 }
 if (document.querySelector('.driving-directions')) {
     import('./driving-directions.js');
@@ -91,6 +112,9 @@ systemTheme.addEventListener('change', (event) => {
 });
 
 document.querySelectorAll('input[type="password"]').forEach((input) => {
+    const hints = input.dataset.passwordHints
+        ? JSON.parse(input.dataset.passwordHints)
+        : { show: 'Show', hide: 'Hide', show_label: 'Show password', hide_label: 'Hide password' };
     const wrapper = document.createElement('div');
     wrapper.className = 'auth-password';
     input.before(wrapper);
@@ -98,14 +122,15 @@ document.querySelectorAll('input[type="password"]').forEach((input) => {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'password-toggle';
-    button.textContent = 'Show';
-    button.setAttribute('aria-label', 'Show password');
+    button.textContent = hints.show;
+    button.setAttribute('aria-label', hints.show_label);
+    if (input.dataset.passwordHints) button.setAttribute('aria-controls', input.id);
     button.setAttribute('aria-pressed', 'false');
     button.addEventListener('click', () => {
         const visible = input.type === 'password';
         input.type = visible ? 'text' : 'password';
-        button.textContent = visible ? 'Hide' : 'Show';
-        button.setAttribute('aria-label', visible ? 'Hide password' : 'Show password');
+        button.textContent = visible ? hints.hide : hints.show;
+        button.setAttribute('aria-label', visible ? hints.hide_label : hints.show_label);
         button.setAttribute('aria-pressed', String(visible));
     });
     wrapper.append(button);

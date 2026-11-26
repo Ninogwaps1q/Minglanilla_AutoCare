@@ -10,6 +10,11 @@ use Illuminate\Validation\ValidationException;
 
 class AppointmentSchedule
 {
+    public function isUpcoming(string $date, string $time): bool
+    {
+        return $date.' '.$time > now(Appointment::TIMEZONE)->format('Y-m-d H:i');
+    }
+
     /** @return array<int, array{start: int, end: int}> */
     public function bookedIntervals(Shop $shop, string $date, ?int $exceptAppointmentId = null, ?int $exceptServiceCaseId = null): array
     {
@@ -75,7 +80,7 @@ class AppointmentSchedule
         if ($shop->shop_status !== 'active' || $shop->verification_status !== 'approved') {
             throw ValidationException::withMessages(['requested_time' => 'This shop is not accepting appointment changes.']);
         }
-        if ($date.' '.$time <= now()->format('Y-m-d H:i')) {
+        if (! $this->isUpcoming($date, $time)) {
             throw ValidationException::withMessages(['requested_time' => 'Choose a future appointment time.']);
         }
         $duration = (int) ($appointment->duration_minutes ?: $appointment->service?->estimated_duration ?: 60);

@@ -32,12 +32,12 @@ class DashboardController extends Controller
         $viewData = ['user' => $user, 'metrics' => match ($user->role) {
             'admin' => ['Users' => User::query()->count(), 'Shops' => Shop::query()->count(), 'Pending verifications' => Shop::query()->where('verification_status', 'pending')->count(), 'Vehicles' => Vehicle::query()->count()],
             'shop_owner', 'mechanic' => ['Registered providers' => $user->shops()->count(), 'Pending verification' => $user->shops()->where('verification_status', 'pending')->count()],
-            default => ['My vehicles' => $user->vehicles()->count(), 'Upcoming visits' => $user->appointments()->whereIn('status', ['pending', 'confirmed'])->whereDate('appointment_date', '>=', today())->count(), 'Active repairs' => $user->repairJobs()->whereNotIn('status', ['completed', 'released', 'cancelled'])->count(), 'Saved shops' => $user->favorites()->count()],
+            default => ['My vehicles' => $user->vehicles()->count(), 'Upcoming visits' => $user->appointments()->whereIn('status', ['pending', 'confirmed'])->whereDate('appointment_date', '>=', today(Appointment::TIMEZONE))->count(), 'Active repairs' => $user->repairJobs()->whereNotIn('status', ['completed', 'released', 'cancelled'])->count(), 'Saved shops' => $user->favorites()->count()],
         }];
 
         if ($user->role === 'customer') {
             $viewData += [
-                'nextAppointment' => $user->appointments()->with(['shop:id,name', 'service:id,name', 'serviceCase:id,appointment_id', 'vehicle:id,plate_number'])->whereIn('status', ['pending', 'confirmed'])->whereDate('appointment_date', '>=', today())->orderBy('appointment_date')->orderBy('appointment_time')->first(),
+                'nextAppointment' => $user->appointments()->with(['shop:id,name', 'service:id,name', 'serviceCase:id,appointment_id', 'vehicle:id,plate_number'])->whereIn('status', ['pending', 'confirmed'])->whereDate('appointment_date', '>=', today(Appointment::TIMEZONE))->orderBy('appointment_date')->orderBy('appointment_time')->first(),
                 'activeRepair' => $user->repairJobs()->with(['shop:id,name', 'vehicle:id,plate_number'])->whereNotIn('status', ['completed', 'released', 'cancelled'])->latest()->first(),
                 'primaryVehicle' => $user->vehicles()->latest()->first(),
                 'unpaidInvoiceCount' => $user->invoices()->where('status', 'unpaid')->count(),
@@ -53,7 +53,7 @@ class DashboardController extends Controller
         if ($user->role === 'admin') {
             $viewData += [
                 'pendingShops' => Shop::query()->with('owner:id,name')->where('verification_status', 'pending')->latest()->limit(5)->get(),
-                'todayAppointmentCount' => Appointment::query()->whereDate('appointment_date', today())->count(),
+                'todayAppointmentCount' => Appointment::query()->whereDate('appointment_date', today(Appointment::TIMEZONE))->count(),
                 'activeRepairCount' => RepairJob::query()->whereNotIn('status', ['completed', 'released', 'cancelled'])->count(),
                 'pendingPaymentCount' => Payment::query()->where('status', 'pending')->count(),
                 'pendingSettlementCount' => Payment::query()->where('settlement_status', 'pending')->whereNotNull('paymongo_payment_id')->count(),

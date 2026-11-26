@@ -33,7 +33,7 @@ class ServiceCaseController extends Controller
         $data = $request->validate([
             'shop_response' => ['required', 'string', 'min:5', 'max:3000'],
             'status' => ['nullable', Rule::in(['reviewing', 'scheduled', 'resolved', 'declined'])],
-            'scheduled_at' => ['nullable', 'date', 'after:now', 'required_if:status,scheduled'],
+            'scheduled_at' => ['nullable', 'date', 'required_if:status,scheduled'],
         ]);
 
         DB::transaction(function () use ($serviceCase, $request, $data, $schedule): void {
@@ -57,9 +57,15 @@ class ServiceCaseController extends Controller
                 if ($shop->verification_status !== 'approved' || $shop->shop_status !== 'active') {
                     throw ValidationException::withMessages(['scheduled_at' => 'This shop is not accepting visits.']);
                 }
-                $scheduledAt = Carbon::parse($data['scheduled_at']);
+                $scheduledAt = isset($data['scheduled_at']) ? Carbon::parse($data['scheduled_at']) : $case->scheduled_at;
+                if (! $scheduledAt) {
+                    throw ValidationException::withMessages(['scheduled_at' => __('booking.slot_wait')]);
+                }
                 $date = $scheduledAt->toDateString();
                 $time = $scheduledAt->format('H:i');
+                if (! $schedule->isUpcoming($date, $time)) {
+                    throw ValidationException::withMessages(['scheduled_at' => __('booking.slot_past')]);
+                }
                 $intervals = $schedule->bookedIntervals($shop, $date, null, $case->id);
                 if (! $schedule->isAvailable($shop, $date, $time, 60)
                     || ! $schedule->hasCapacity($intervals, $time, 60, (int) $shop->booking_capacity)) {

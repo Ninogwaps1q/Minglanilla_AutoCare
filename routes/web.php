@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AddressCatalogController;
 use App\Http\Controllers\Admin\ActivityLogController;
+use App\Http\Controllers\Admin\ArchivedRecordsController;
 use App\Http\Controllers\Admin\BarangayController;
 use App\Http\Controllers\Admin\MonitoringController;
 use App\Http\Controllers\Admin\PayMongoRefundController;
@@ -50,12 +51,15 @@ use App\Http\Controllers\Customer\ServiceHistoryController;
 use App\Http\Controllers\Customer\ServiceOverviewController;
 use App\Http\Controllers\Customer\VehicleController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DownloadQuotationController;
+use App\Http\Controllers\ExportReportController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\NotificationPreferencesController;
 use App\Http\Controllers\PrivacyController;
 use App\Http\Controllers\PublicImageController;
 use App\Http\Controllers\PublicShopController;
 use App\Http\Controllers\RepairPhotoViewController;
+use App\Http\Controllers\RepairTimelineShareController;
 use App\Http\Controllers\ReviewReportController;
 use App\Http\Controllers\Shop\AppointmentController as ShopAppointmentController;
 use App\Http\Controllers\Shop\EmergencyRequestController as ShopEmergencyRequestController;
@@ -64,6 +68,7 @@ use App\Http\Controllers\Shop\InventoryController;
 use App\Http\Controllers\Shop\InvoiceController as ShopInvoiceController;
 use App\Http\Controllers\Shop\MessageController as ShopMessageController;
 use App\Http\Controllers\Shop\NotificationController as ShopNotificationController;
+use App\Http\Controllers\Shop\PromotionController;
 use App\Http\Controllers\Shop\QuotationController as ShopQuotationController;
 use App\Http\Controllers\Shop\RepairJobController;
 use App\Http\Controllers\Shop\RepairJobItemController;
@@ -129,6 +134,11 @@ Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->midd
 Route::get('/admin/verify-login', [AdminTwoFactorController::class, 'create'])->middleware('auth')->name('admin.two-factor.create');
 Route::post('/admin/verify-login', [AdminTwoFactorController::class, 'store'])->middleware(['auth', 'throttle:5,1'])->name('admin.two-factor.store');
 Route::post('/admin/verify-login/resend', [AdminTwoFactorController::class, 'resend'])->middleware(['auth', 'throttle:2,1'])->name('admin.two-factor.resend');
+
+Route::get('/repair-timeline/{token}', [RepairTimelineShareController::class, 'show'])
+    ->where('token', '[a-f0-9]{64}')->middleware('throttle:60,1')->name('repairs.shared.show');
+Route::get('/repair-timeline/{token}/photos/{photo}', [RepairTimelineShareController::class, 'photo'])
+    ->where('token', '[a-f0-9]{64}')->whereNumber('photo')->middleware('throttle:120,1')->name('repairs.shared.photo');
 Route::get('/admin/confirm-password', [ConfirmAdminPasswordController::class, 'create'])->middleware(['auth', 'role:admin'])->name('password.confirm');
 Route::post('/admin/confirm-password', [ConfirmAdminPasswordController::class, 'store'])->middleware(['auth', 'role:admin', 'throttle:5,1'])->name('password.confirm.store');
 Route::get('/verify-email', EmailVerificationPromptController::class)->middleware('auth')->name('verification.notice');
@@ -168,6 +178,12 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         Route::get('service-cases', [ShopServiceCaseController::class, 'index'])->name('service-cases.index');
         Route::patch('service-cases/{serviceCase}', [ShopServiceCaseController::class, 'update'])->name('service-cases.update');
         Route::get('quotations', [ShopQuotationController::class, 'index'])->name('quotations.index');
+        Route::middleware(['role:shop_owner,mechanic', 'shop.plan:premium'])->group(function (): void {
+            Route::get('promotions', [PromotionController::class, 'index'])->name('promotions.index');
+            Route::post('promotions', [PromotionController::class, 'store'])->name('promotions.store');
+            Route::patch('promotions/{promotion}/disable', [PromotionController::class, 'disable'])->name('promotions.disable');
+        });
+        Route::get('quotations/{quotation}/pdf', DownloadQuotationController::class)->name('quotations.pdf');
         Route::get('quotations/{quotation}/edit', [ShopQuotationController::class, 'edit'])->name('quotations.edit');
         Route::put('quotations/{quotation}', [ShopQuotationController::class, 'update'])->name('quotations.update');
         Route::post('quotations/{quotation}/repair', [RepairJobController::class, 'storeFromQuotation'])->name('quotations.repair');
@@ -184,6 +200,8 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         Route::post('services', [ShopManagementController::class, 'storeService'])->middleware('shop.accepting:free')->name('services.store');
         Route::delete('services/{shopService}', [ShopManagementController::class, 'destroyService'])->name('services.destroy');
         Route::get('appointments', [ShopAppointmentController::class, 'index'])->name('appointments.index');
+        Route::get('exports', [ExportReportController::class, 'index'])->middleware('role:shop_owner,mechanic')->name('exports.index');
+        Route::get('reports/csv/{dataset}', ExportReportController::class)->middleware('role:shop_owner,mechanic')->name('reports.csv');
         Route::patch('appointments/{appointment}/status', [ShopAppointmentController::class, 'update'])->name('appointments.update');
         Route::patch('appointments/{appointment}/reschedule', [ShopAppointmentController::class, 'decideReschedule'])->name('appointments.reschedule.decide');
         Route::get('repair-jobs', [RepairJobController::class, 'index'])->name('repair-jobs.index');
@@ -267,6 +285,13 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::get('/admin/shop-documents/{shopDocument}', [ShopDocumentVerificationController::class, 'download'])->middleware(['auth', 'role:admin'])->name('admin.shop-documents.download');
     Route::patch('/admin/shop-documents/{shopDocument}', [ShopDocumentVerificationController::class, 'update'])->middleware(['auth', 'role:admin'])->name('admin.shop-documents.update');
     Route::get('/admin/reports', [ReportController::class, 'index'])->middleware(['auth', 'role:admin'])->name('admin.reports.index');
+    Route::get('/admin/quotations/{quotation}/pdf', DownloadQuotationController::class)->middleware('role:admin')->name('admin.quotations.pdf');
+    Route::get('/admin/quotation-downloads', [DownloadQuotationController::class, 'index'])->middleware('role:admin')->name('admin.quotations.downloads');
+    Route::get('/admin/reports/csv/{dataset}', ExportReportController::class)->middleware('role:admin')->name('admin.reports.csv');
+    Route::get('/admin/promotions', [PromotionController::class, 'admin'])->middleware('role:admin')->name('admin.promotions.index');
+    Route::patch('/admin/promotions/{promotion}/disable', [PromotionController::class, 'disable'])->middleware('role:admin')->name('admin.promotions.disable');
+    Route::get('/admin/archived-records', [ArchivedRecordsController::class, 'index'])->middleware('role:admin')->name('admin.archived-records.index');
+    Route::patch('/admin/archived-records/{type}/{record}', [ArchivedRecordsController::class, 'update'])->whereNumber('record')->middleware('role:admin')->name('admin.archived-records.update');
     Route::get('/admin/reports/download', [ReportController::class, 'download'])->middleware(['auth', 'role:admin'])->name('admin.reports.download');
     Route::get('/admin/users', [UserManagementController::class, 'index'])->middleware(['auth', 'role:admin'])->name('admin.users.index');
     Route::get('/admin/vehicle-catalog', [AdminVehicleCatalogController::class, 'index'])->middleware(['auth', 'role:admin'])->name('admin.vehicle-catalog.index');
@@ -293,6 +318,9 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         Route::post('quotations', [CustomerQuotationController::class, 'store'])->name('quotations.store');
         Route::get('inspections', [CustomerInspectionController::class, 'index'])->name('inspections.index');
         Route::get('repairs', [CustomerRepairJobController::class, 'index'])->name('repairs.index');
+        Route::get('repairs/{repairJob}/shares', [RepairTimelineShareController::class, 'index'])->name('repairs.shares.index');
+        Route::post('repairs/{repairJob}/shares', [RepairTimelineShareController::class, 'store'])->middleware('throttle:10,1')->name('repairs.shares.store');
+        Route::delete('repairs/{repairJob}/shares/{share}', [RepairTimelineShareController::class, 'revoke'])->whereNumber('share')->name('repairs.shares.revoke');
         Route::get('profile', [ProfileController::class, 'edit'])->name('profile.edit');
         Route::put('profile', [ProfileController::class, 'update'])->name('profile.update');
         Route::post('profile/privacy-requests', [PrivacyController::class, 'store'])->middleware('throttle:6,1')->name('privacy-requests.store');
@@ -313,6 +341,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         Route::post('appointments/{appointment}/reschedule', [CustomerAppointmentController::class, 'requestReschedule'])->name('appointments.reschedule.request');
         Route::delete('appointments/{appointment}', [CustomerAppointmentController::class, 'destroy'])->name('appointments.destroy');
         Route::get('quotations', [CustomerQuotationController::class, 'index'])->name('quotations.index');
+        Route::get('quotations/{quotation}/pdf', DownloadQuotationController::class)->name('quotations.pdf');
         Route::patch('quotations/{quotation}', [CustomerQuotationController::class, 'update'])->name('quotations.update');
         Route::get('invoices', [CustomerInvoiceController::class, 'index'])->name('invoices.index');
         Route::get('invoices/{invoice}', [CustomerInvoiceController::class, 'show'])->name('invoices.show');

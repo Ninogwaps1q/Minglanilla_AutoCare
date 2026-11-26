@@ -1,59 +1,68 @@
-<x-layouts.app title="Roadside assistance">
-    <div class="page-heading"><h1>Roadside assistance</h1><p>Tell us where you are and what happened. We will send the request to an eligible nearby shop or mechanic.</p></div>
-    <div class="row g-4">
-        <div class="col-lg-5"><section class="surface p-4" aria-labelledby="request-help-title">
-            <h2 class="h4" id="request-help-title">Request help</h2><x-form-errors />
-            <form method="POST" action="{{ route('customer.emergency-requests.store') }}" class="vstack gap-3">@csrf
-                <div><label class="form-label" for="vehicle_id">Vehicle</label><select id="vehicle_id" class="form-select" name="vehicle_id"><option value="">No vehicle selected</option>@foreach ($vehicles as $vehicle)<option value="{{ $vehicle->id }}" @selected(old('vehicle_id') == $vehicle->id)>{{ $vehicle->plate_number }} · {{ $vehicle->make }} {{ $vehicle->model }}</option>@endforeach</select></div>
-                <div><label class="form-label" for="emergency_type">Type of emergency</label><select id="emergency_type" class="form-select" name="emergency_type" required>@foreach (['breakdown' => 'Breakdown', 'flat_tire' => 'Flat tire', 'battery' => 'Battery', 'overheating' => 'Overheating', 'accident' => 'Accident', 'towing' => 'Towing', 'other' => 'Other'] as $value => $label)<option value="{{ $value }}" @selected(old('emergency_type') === $value)>{{ $label }}</option>@endforeach</select></div>
-                <fieldset>
-                    <legend class="h6">Pickup address (optional)</legend>
-                    <x-address-picker prefix="pickup" :street-max="255" />
+<x-layouts.app :title="__('roadside.title')">
+    <div class="page-heading"><h1>{{ __('roadside.title') }}</h1></div>
+
+    @if ($activeRequest)
+        <section class="surface p-4 mb-4" aria-labelledby="active-request-title">
+            <h2 class="h4" id="active-request-title">{{ __('roadside.active') }}</h2>
+            @include('customer.emergency-requests.request', ['emergencyRequest' => $activeRequest])
+        </section>
+    @else
+        <section class="surface p-4 mb-4" aria-labelledby="request-help-title">
+            <h2 class="h4" id="request-help-title">{{ __('roadside.request_help') }}</h2>
+            <x-form-errors />
+            <form method="POST" action="{{ route('customer.emergency-requests.store') }}" class="vstack gap-3" data-roadside-pickup data-copy="{{ json_encode(__('roadside.location')) }}">
+                @csrf
+                <div>
+                    <label class="form-label" for="emergency_type">{{ __('roadside.issue') }}</label>
+                    <select id="emergency_type" class="form-select" name="emergency_type" required>
+                        @foreach (__('roadside.issues') as $value => $label)
+                            <option value="{{ $value }}" @selected(old('emergency_type') === $value)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <fieldset class="vstack gap-2">
+                    <legend class="h6">{{ __('roadside.pickup') }}</legend>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button id="location-button" class="btn btn-outline-primary" type="button" aria-describedby="pickup-location-permission">{{ __('roadside.gps') }}</button>
+                    </div>
+                    <p id="pickup-location-permission" class="form-text mb-0">{{ __('roadside.location_privacy') }}</p>
+                    <p id="location-status" class="small mb-0" role="status" aria-live="polite">{{ old('latitude') && old('longitude') && ! $errors->hasAny(['latitude', 'longitude']) ? __('roadside.location.ready') : __('roadside.location.start') }}</p>
+                    <details id="pickup-pin" class="workspace-disclosure" @if ($errors->hasAny(['latitude', 'longitude'])) open @endif>
+                        <summary class="fw-semibold py-2">{{ __('roadside.manual') }}</summary>
+                        <div class="pt-2">
+                            <x-location-picker :label="__('roadside.pickup_map')" :hint="__('roadside.pickup_hint')" defer-map />
+                        </div>
+                    </details>
                 </fieldset>
-                <div><label class="form-label" for="description">What happened?</label><textarea id="description" class="form-control" name="description" rows="3" maxlength="2000" placeholder="Describe your situation briefly">{{ old('description') }}</textarea></div>
-                <input id="latitude" type="hidden" name="latitude" value="{{ old('latitude') }}"><input id="longitude" type="hidden" name="longitude" value="{{ old('longitude') }}">
-                <div><p id="pickup-location-permission" class="form-text">{{ __('privacy.location_permission') }}</p><button id="location-button" class="btn btn-outline-primary" type="button" aria-describedby="pickup-location-permission">Use my current location</button><p id="location-status" class="small text-secondary mt-2 mb-0" role="status" aria-live="polite">Location is needed to find the nearest eligible provider.</p></div>
-                <button class="btn btn-primary" type="submit">Send assistance request</button>
+                <div>
+                    <button class="btn btn-primary" type="submit">{{ __('roadside.send') }}</button>
+                </div>
+                <details class="workspace-disclosure" @if(old('address') || old('barangay_id') || old('description') || old('vehicle_id') || old('landmark') || $errors->hasAny(['address', 'barangay_id', 'description', 'vehicle_id', 'landmark'])) open @endif>
+                    <summary class="fw-semibold py-2">{{ __('roadside.optional') }}</summary>
+                    <div class="vstack gap-3 pt-3">
+                        <div>
+                            <label class="form-label" for="vehicle_id">{{ __('ui.Vehicle') }}</label>
+                            <select id="vehicle_id" class="form-select" name="vehicle_id">
+                                <option value="">{{ __('roadside.no_vehicle') }}</option>
+                                @foreach ($vehicles as $vehicle)
+                                    <option value="{{ $vehicle->id }}" @selected(old('vehicle_id') == $vehicle->id)>{{ $vehicle->plate_number }} · {{ $vehicle->make }} {{ $vehicle->model }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <fieldset><legend class="h6">{{ __('roadside.pickup_address') }}</legend><x-address-picker prefix="pickup" :street-max="255" /></fieldset>
+                        <div><label class="form-label" for="description">{{ __('roadside.details') }}</label><textarea id="description" class="form-control" name="description" rows="3" maxlength="2000">{{ old('description') }}</textarea></div>
+                    </div>
+                </details>
             </form>
-        </section></div>
-        <div class="col-lg-7"><section class="surface p-4" aria-labelledby="requests-title">
-            <h2 class="h4" id="requests-title">Your requests</h2>
-            <div class="vstack gap-3">@forelse ($requests as $emergencyRequest)
-                @php $attempts = $dispatchAttempts->get($emergencyRequest->id, collect()); @endphp
-                <article class="border rounded p-3" aria-label="{{ str_replace('_', ' ', $emergencyRequest->emergency_type) }} request">
-                    <div class="d-flex flex-wrap justify-content-between gap-2 mb-2"><strong>{{ ucfirst(str_replace('_', ' ', $emergencyRequest->emergency_type)) }}</strong><span class="badge text-bg-{{ $emergencyRequest->status === 'completed' ? 'success' : ($emergencyRequest->status === 'cancelled' ? 'secondary' : 'warning') }} text-capitalize">{{ str_replace('_', ' ', $emergencyRequest->status) }}</span></div>
-                    <p class="small text-secondary mb-2">Requested {{ $emergencyRequest->requested_at?->format('M j, Y · g:i A') }} · {{ $emergencyRequest->pickupAddress() ?: 'Location coordinates shared' }}</p>
-                    @if ($emergencyRequest->assignedShop)
-                        <p class="mb-1"><strong>Assigned {{ $emergencyRequest->assignedShop->isIndependentMechanic() ? 'mechanic' : 'shop' }}:</strong> {{ $emergencyRequest->assignedShop->name }}</p>
-                        @if ($emergencyRequest->assignedShop->phone)<p class="mb-1"><strong>Contact:</strong> <a href="tel:{{ preg_replace('/[^+0-9]/', '', $emergencyRequest->assignedShop->phone) }}">{{ $emergencyRequest->assignedShop->phone }}</a></p>@endif
-                        @if ($emergencyRequest->status === 'pending')<p class="small mb-1">Waiting for the provider to accept. You will receive a notification when its status changes.</p>@endif
-                    @else
-                        <p class="mb-1"><strong>No provider assigned.</strong> {{ $emergencyRequest->status === 'cancelled' ? 'No eligible provider could take this request. If urgent, contact local emergency services or another assistance provider.' : 'We are looking for an eligible provider. If urgent, contact local emergency services.' }}</p>
-                    @endif
-                    @if ($attempts->count() > 1)<p class="small text-secondary mb-1">Reassigned {{ $attempts->count() - 1 }} {{ $attempts->count() === 2 ? 'time' : 'times' }} after a provider could not assist.</p>@endif
-                    @if ($attempts->isNotEmpty())<details class="small mt-2"><summary>Dispatch history ({{ $attempts->count() }})</summary><ol class="mb-0 mt-2">@foreach ($attempts as $attempt)<li>{{ $attempt->shop_name }} · {{ ucfirst(str_replace('_', ' ', $attempt->status)) }} · {{ \Illuminate\Support\Carbon::parse($attempt->assigned_at)->format('M j, g:i A') }}</li>@endforeach</ol></details>@endif
-                    @if (in_array($emergencyRequest->status, ['pending', 'accepted'], true))
-                        <form method="POST" action="{{ route('customer.emergency-requests.destroy', $emergencyRequest) }}" class="mt-3">@csrf @method('DELETE')
-                            <button class="btn btn-sm btn-outline-danger" type="submit" data-confirm="Cancel this roadside request? The assigned provider will be notified.">Cancel request</button>
-                        </form>
-                    @endif
-                </article>
-            @empty<p class="text-secondary mb-0">No roadside assistance requests yet. Your requests and provider responses will appear here.</p>@endforelse</div>
-        </section></div>
-    </div>
-    @push('scripts')
-        <script>
-            document.querySelector('#location-button')?.addEventListener('click', function () {
-                const status = document.querySelector('#location-status');
-                if (!navigator.geolocation) { status.textContent = 'This browser does not support location sharing. Try another browser or device.'; return; }
-                this.disabled = true;
-                status.textContent = 'Finding your location…';
-                navigator.geolocation.getCurrentPosition(
-                    (position) => { document.dispatchEvent(new CustomEvent('autocare:location-consent', { detail: true })); document.querySelector('#latitude').value = position.coords.latitude; document.querySelector('#longitude').value = position.coords.longitude; status.textContent = 'Location ready. You can send your request now.'; this.disabled = false; },
-                    (error) => { if (error.code === 1) document.dispatchEvent(new CustomEvent('autocare:location-consent', { detail: false })); status.textContent = 'Location could not be shared. Allow location access in your browser and try again.'; this.disabled = false; },
-                    { enableHighAccuracy: true, timeout: 15000 }
-                );
-            });
-        </script>
-    @endpush
+        </section>
+    @endif
+
+    <section class="surface p-4" aria-labelledby="requests-title">
+        <h2 class="h4" id="requests-title">{{ __('roadside.history') }}</h2>
+        @forelse ($requests->reject(fn ($item) => $item->id === $activeRequest?->id) as $emergencyRequest)
+            @include('customer.emergency-requests.request', ['emergencyRequest' => $emergencyRequest])
+        @empty
+            <p class="text-secondary mb-0">{{ __('roadside.empty') }}</p>
+        @endforelse
+    </section>
 </x-layouts.app>

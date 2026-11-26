@@ -21,7 +21,7 @@ class AppointmentService extends Model
 
     public function appointment(): BelongsTo
     {
-        return $this->belongsTo(Appointment::class);
+        return $this->belongsTo(Appointment::class)->withTrashed();
     }
 
     public function service(): BelongsTo

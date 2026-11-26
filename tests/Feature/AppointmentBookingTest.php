@@ -10,6 +10,7 @@ use App\Models\ShopService;
 use App\Models\User;
 use App\Models\Vehicle;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 
 uses(RefreshDatabase::class);
 
@@ -31,6 +32,41 @@ it('creates a pending appointment for an available public shop', function () {
         'service_price' => '900.00',
         'status' => 'pending',
     ]);
+});
+
+it('remembers the last booked vehicle and restores the booking when a different vehicle is added', function () {
+    $fixture = appointmentFixture();
+    Vehicle::factory()->create(['customer_id' => $fixture['customer']->id]);
+    $appointment = $fixture['customer']->appointments()->create(appointmentPayload($fixture));
+
+    $this->actingAs($fixture['customer'])->get(route('customer.appointments.create'))
+        ->assertViewHas('selectedVehicleId', $appointment->vehicle_id);
+
+    $draft = [
+        'shop_id' => $fixture['shop']->id,
+        'service_ids' => [$fixture['service']->id],
+        'appointment_date' => today(Appointment::TIMEZONE)->addDays(2)->toDateString(),
+        'appointment_time' => '10:00',
+        'reason' => 'Check a noise when braking',
+    ];
+    $this->post(route('customer.vehicles.store'), [
+        'return_to_booking' => '1', 'plate_number' => 'DRAFT-26', 'vehicle_type' => 'car',
+        'make' => 'Toyota', 'model' => 'Vios', 'year' => 2024, 'booking_draft' => $draft,
+    ])->assertSessionHasNoErrors()->assertSessionHasInput('booking_draft', $draft);
+    $vehicle = $fixture['customer']->vehicles()->where('plate_number', 'DRAFT-26')->sole();
+
+    $this->get(route('customer.appointments.create', ['vehicle_id' => $vehicle->id]))
+        ->assertViewHas('selectedVehicleId', $vehicle->id)
+        ->assertViewHas('bookingDraft', $draft)
+        ->assertSee('Check a noise when braking');
+});
+
+it('remembers the provider when a guest signs in from their profile', function () {
+    $fixture = appointmentFixture();
+    $url = route('customer.appointments.create', ['shop_id' => $fixture['shop']->id]);
+    $this->get(route('shops.show', $fixture['shop']))->assertSee($url);
+    $this->get($url)->assertRedirect(route('login'))->assertSessionHas('url.intended', $url);
+    $this->post(route('login'), ['email' => $fixture['customer']->email, 'password' => 'password'])->assertRedirect($url);
 });
 
 it('books multiple services at their saved prices and creates separate repair lines', function () {
@@ -240,14 +276,31 @@ it('rejects past times today and services that would finish after closing', func
     $fixture = appointmentFixture();
     $fixture['service']->update(['estimated_duration' => 90]);
     $fixture['shop']->update(['opening_time' => '08:00', 'closing_time' => '17:00']);
-    $this->travelTo(today()->setTime(13, 0));
+    $this->travelTo(today(Appointment::TIMEZONE)->setTime(13, 0));
     $this->actingAs($fixture['customer']);
 
-    $this->post(route('customer.appointments.store'), appointmentPayload($fixture, ['appointment_date' => today()->toDateString(), 'appointment_time' => '12:00']))
+    $this->post(route('customer.appointments.store'), appointmentPayload($fixture, ['appointment_date' => today(Appointment::TIMEZONE)->toDateString(), 'appointment_time' => '12:00']))
         ->assertSessionHasErrors('appointment_time');
     $this->post(route('customer.appointments.store'), appointmentPayload($fixture, ['appointment_time' => '16:00']))
         ->assertSessionHasErrors('appointment_time');
     $this->assertDatabaseCount('appointments', 0);
+});
+
+it('uses the Manila calendar and clock for booking and availability across UTC midnight', function () {
+    $this->travelTo(Carbon::parse('2026-11-25 17:45:00', 'UTC'));
+    $fixture = appointmentFixture();
+    $fixture['shop']->update(['opening_time' => '01:00', 'closing_time' => '17:00']);
+    $this->actingAs($fixture['customer']);
+
+    $this->get(route('customer.appointments.create'))->assertSee('min="2026-11-26"', false);
+    $this->getJson(route('customer.appointments.availability', ['shop_id' => $fixture['shop']->id, 'date' => '2026-11-25']))
+        ->assertUnprocessable()->assertJsonValidationErrors('date');
+    $this->post(route('customer.appointments.store'), appointmentPayload($fixture, ['appointment_date' => '2026-11-26', 'appointment_time' => '01:30']))
+        ->assertSessionHasErrors('appointment_time');
+    $this->post(route('customer.appointments.store'), appointmentPayload($fixture, ['appointment_date' => '2026-11-26', 'appointment_time' => '02:00']))
+        ->assertRedirect(route('customer.appointments.index'))->assertSessionHasNoErrors();
+
+    expect(Appointment::query()->sole()->startsAt()->toIso8601String())->toBe('2026-11-26T02:00:00+08:00');
 });
 
 it('shows booked times and shop hours without exposing customer details', function () {

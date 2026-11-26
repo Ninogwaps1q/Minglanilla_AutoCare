@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\Appointment;
 use App\Models\Quotation;
 use App\Models\WorkflowAlert;
 use App\Notifications\Workflow\CustomerWorkflowNotification;
@@ -61,6 +62,14 @@ class DeliverWorkflowAlert implements ShouldBeUnique, ShouldQueue
 
     private function isStillRelevant(WorkflowAlert $alert): bool
     {
+        if ($alert->event === WorkflowEvent::AppointmentReminder) {
+            $appointment = Appointment::query()->whereKey($alert->data['appointment_id'])
+                ->where('status', 'confirmed')
+                ->whereDoesntHave('rescheduleRequests', fn ($query) => $query->where('status', 'pending'))->first();
+
+            return $appointment && $appointment->startsAt()->greaterThan(now())
+                && $appointment->startsAt()->toIso8601String() === $alert->data['starts_at'];
+        }
         if ($alert->event !== WorkflowEvent::EstimateReminder) {
             return true;
         }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ActivityLog;
 use App\Models\PrivacyRequest;
 use App\Models\User;
+use App\Services\AnonymizeCustomer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -45,12 +46,15 @@ class PrivacyController extends Controller
             ->orderByRaw("case when status = 'pending' then 0 else 1 end")->latest()->paginate(20)]);
     }
 
-    public function resolve(Request $request, PrivacyRequest $privacyRequest): RedirectResponse
+    public function resolve(Request $request, PrivacyRequest $privacyRequest, AnonymizeCustomer $anonymize): RedirectResponse
     {
         $attributes = $request->validate(['status' => ['required', 'in:completed,declined'], 'reason' => ['required', 'string', 'max:500']]);
-        DB::transaction(function () use ($request, $privacyRequest, $attributes): void {
+        DB::transaction(function () use ($request, $privacyRequest, $attributes, $anonymize): void {
             $item = PrivacyRequest::query()->lockForUpdate()->findOrFail($privacyRequest->id);
             abort_unless($item->status === 'pending', 409);
+            if ($item->type === 'delete' && $attributes['status'] === 'completed') {
+                $anonymize->handle(User::withTrashed()->lockForUpdate()->findOrFail($item->user_id));
+            }
             $item->update(['status' => $attributes['status']]);
             ActivityLog::query()->create([
                 'user_id' => $request->user()->id, 'action' => 'resolved_privacy_request', 'module' => 'privacy',

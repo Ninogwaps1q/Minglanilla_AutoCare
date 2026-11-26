@@ -2,21 +2,40 @@
 
 namespace App\Models;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Appointment extends Model
 {
+    use SoftDeletes;
+
+    public const TIMEZONE = 'Asia/Manila';
+
     protected $guarded = [];
+
+    public function startsAt(): CarbonImmutable
+    {
+        return CarbonImmutable::parse($this->appointment_date->format('Y-m-d').' '.$this->appointment_time->format('H:i:s'), self::TIMEZONE);
+    }
+
+    public function needsLateChangeAcknowledgement(): bool
+    {
+        return $this->status === 'confirmed' && $this->cancellation_notice_hours > 0
+            && now()->gt($this->startsAt()->subHours($this->cancellation_notice_hours));
+    }
 
     /** @return array<string, string> */
     public function availableStatusTransitions(): array
     {
         return match ($this->status) {
             'pending' => ['confirmed' => 'Confirm', 'cancelled' => 'Cancel'],
-            'confirmed' => ['completed' => 'Complete', 'cancelled' => 'Cancel'],
+            'confirmed' => ['completed' => 'Complete', 'cancelled' => 'Cancel'] + (
+                now()->gt($this->startsAt()) ? ['no_show' => __('extensions.appointments.mark_no_show')] : []
+            ),
             default => [],
         };
     }
@@ -34,17 +53,17 @@ class Appointment extends Model
 
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'customer_id');
+        return $this->belongsTo(User::class, 'customer_id')->withTrashed();
     }
 
     public function shop(): BelongsTo
     {
-        return $this->belongsTo(Shop::class);
+        return $this->belongsTo(Shop::class)->withTrashed();
     }
 
     public function vehicle(): BelongsTo
     {
-        return $this->belongsTo(Vehicle::class);
+        return $this->belongsTo(Vehicle::class)->withTrashed();
     }
 
     public function service(): BelongsTo

@@ -10,6 +10,13 @@ async function signIn(page, role) {
     await page.getByLabel('Email address').fill(role + '@browser.example.test');
     await page.getByLabel('Password', { exact: true }).fill(fixture.password);
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    if (role === 'admin') {
+        await expect(page.getByLabel('Email code')).toBeVisible();
+        const mail = await readFile(process.env.BROWSER_TEST_MAIL_LOG, 'utf8');
+        const codes = [...mail.matchAll(/Your six-digit admin sign-in code is (\d{6})/g)];
+        await page.getByLabel('Email code').fill(codes.at(-1)[1]);
+        await page.getByRole('button', { name: 'Verify and continue' }).click();
+    }
     await expect(page).toHaveURL(/dashboard$/);
     return fixture;
 }
@@ -328,6 +335,17 @@ test('shop can send itemized estimate, start approved repair, and issue its invo
     await page.goto('/customer/repairs');
     await page.locator(`#repair-${fixture.diagnosisRepairJob}`).getByRole('button', { name: 'Approve estimate' }).click();
     await expect(page.getByText('Quotation response saved.')).toBeVisible();
+    const acceptedRepair = page.locator(`#repair-${fixture.diagnosisRepairJob}`);
+    await expect(acceptedRepair.locator('.repair-approved-prices')).toContainText('PHP 1,250.00');
+    for (const [width, theme] of [[360, 'light'], [360, 'dark'], [768, 'light'], [768, 'dark'], [1440, 'light'], [1440, 'dark']]) {
+        await page.setViewportSize({ width, height: 850 });
+        await page.evaluate(value => localStorage.setItem('autocare-theme', value), theme);
+        await page.goto('/customer/repairs?repair_job_id=' + fixture.diagnosisRepairJob);
+        await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+        await expect(acceptedRepair.getByRole('region', { name: 'Service progress' })).toBeVisible();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+        await page.screenshot({ path: testInfo.outputPath('repair-' + width + '-' + theme + '.png'), fullPage: true });
+    }
 
     await context.clearCookies();
     await signIn(page, 'shop_owner');
@@ -356,6 +374,7 @@ test('customer can share location and see the assigned roadside shop', async ({ 
     await page.goto('/customer/emergency-requests');
     await page.getByRole('button', { name: 'Use my current location' }).click();
     await expect(page.locator('#location-status')).toContainText('Location ready');
+    await page.getByText('Add vehicle or pickup details (optional)', { exact: true }).click();
     await page.getByLabel('Region', { exact: true }).selectOption({ label: 'Davao Region' });
     await page.getByLabel('Province or area').selectOption({ label: 'Davao del Sur' });
     await page.getByLabel('City / municipality').selectOption({ label: 'City of Digos' });
@@ -382,6 +401,42 @@ test('customer can share location and see the assigned roadside shop', async ({ 
     page.once('dialog', dialog => dialog.accept());
     await request.getByRole('button', { name: 'Cancel request' }).click();
     await expect(request).toContainText('Cancelled');
+});
+
+test('roadside manual pickup works when GPS permission is denied', async ({ page }, testInfo) => {
+    test.setTimeout(90000);
+    await page.addInitScript(() => {
+        Object.defineProperty(navigator, 'geolocation', {
+            value: { getCurrentPosition: (_, reject) => reject({ code: 1 }) },
+        });
+    });
+    await page.route('https://maps.googleapis.com/**', route => route.abort());
+    await signIn(page, 'customer');
+
+    for (const [width, theme] of [[360, 'light'], [360, 'dark'], [768, 'light'], [768, 'dark'], [1440, 'light'], [1440, 'dark']]) {
+        await page.setViewportSize({ width, height: 850 });
+        await page.evaluate(value => localStorage.setItem('autocare-theme', value), theme);
+        await page.goto('/customer/emergency-requests');
+        await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+        await expect(page.getByLabel('Latitude')).toBeHidden();
+        const location = page.getByRole('button', { name: 'Use my current location' });
+        await location.focus();
+        await expect(location).toBeFocused();
+        await page.keyboard.press('Enter');
+        await expect(page.locator('#location-status')).toContainText('GPS was unavailable');
+        await page.getByLabel('Latitude').fill('6.7493');
+        await page.getByLabel('Longitude').fill('125.3552');
+        await expect(page.locator('#location-status')).toContainText('Location ready');
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+        await page.screenshot({ path: testInfo.outputPath('roadside-' + width + '-' + theme + '.png'), fullPage: true });
+    }
+    await page.getByRole('button', { name: 'Send assistance request' }).click();
+    const request = page.getByRole('region', { name: 'Active roadside request' });
+    await expect(request).toContainText('Browser Test AutoCare');
+    await expect(page.getByRole('button', { name: 'Send assistance request' })).toBeHidden();
+    page.once('dialog', dialog => dialog.accept());
+    await request.getByRole('button', { name: 'Cancel request' }).click();
+    await expect(page.getByRole('button', { name: 'Send assistance request' })).toBeVisible();
 });
 
 test('assigned roadside responder sees route and turn steps inside the page', async ({ page, context }, testInfo) => {
@@ -499,13 +554,18 @@ test('customer creates a vehicle and sees it in the garage', async ({ page }, te
 });
 
 
-test('booking shows the service price and checks the selected shop schedule', async ({ page }) => {
+test('booking shows the service price and checks the selected shop schedule', async ({ page }, testInfo) => {
     test.setTimeout(90000);
     const fixture = await signIn(page, 'customer');
     await page.goto('/customer/appointments/create');
+    await expect(page.locator('#booking-progress')).toHaveText('Step 1 of 3');
     await page.locator('#shop_id').selectOption(String(fixture.shop));
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    await expect(page.getByText('Choose at least one service.')).toBeVisible();
     await page.locator(`#booking-services input[data-shop-id="${fixture.shop}"][value="${fixture.service}"]`).check();
     await expect(page.locator('#booking-service-summary')).toContainText('₱900.00');
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Choose a visit time' })).toBeFocused();
     const availableDate = new Date(Date.now() + 4 * 86400000).toISOString().slice(0, 10);
     await page.locator('#appointment_date').fill(availableDate);
     const firstSuggestion = page.locator('#time-suggestions button').first();
@@ -514,6 +574,46 @@ test('booking shows the service price and checks the selected shop schedule', as
     await firstSuggestion.click();
     await expect(page.locator('#appointment_time')).toHaveValue(suggestedTime);
     await expect(page.locator('#slot-feedback')).toContainText('The shop still needs to confirm');
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    await expect(page.locator('#booking-progress')).toHaveText('Step 3 of 3');
+    for (const [width, theme] of [[360, 'light'], [360, 'dark'], [768, 'light'], [768, 'dark'], [1440, 'light'], [1440, 'dark']]) {
+        await page.setViewportSize({ width, height: 850 });
+        await page.evaluate(value => {
+            localStorage.setItem('autocare-theme', value);
+            document.documentElement.dataset.theme = value;
+            document.documentElement.dataset.bsTheme = value;
+        }, theme);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+        await page.screenshot({ path: testInfo.outputPath('booking-' + width + '-' + theme + '.png'), fullPage: true });
+    }
+});
+
+test('booking keeps the chosen provider, service and time when a vehicle is added', async ({ page }, testInfo) => {
+    const fixture = await signIn(page, 'customer');
+    await page.goto('/customer/appointments/create?shop_id=' + fixture.shop);
+    const service = page.locator(`#booking-services input[data-shop-id="${fixture.shop}"][value="${fixture.service}"]`);
+    await service.check();
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    const date = new Date(Date.now() + 6 * 86400000).toISOString().slice(0, 10);
+    await page.getByLabel('Preferred date').fill(date);
+    await page.getByLabel('Preferred time').fill('10:00');
+    await page.getByRole('button', { name: 'Back', exact: true }).click();
+
+    await page.getByText('Add a vehicle here', { exact: true }).click();
+    const plate = 'DRAFT-' + testInfo.project.name.toUpperCase();
+    await page.getByLabel('Plate number', { exact: true }).fill(plate);
+    await page.getByLabel('Vehicle type').selectOption('other');
+    await page.getByLabel('Make not listed').fill('Toyota');
+    await page.getByLabel('Model not listed').fill('Vios');
+    await page.getByLabel('Year', { exact: true }).selectOption('2024');
+    await page.getByRole('button', { name: 'Save vehicle and continue booking' }).click();
+    await expect(page).toHaveURL(/vehicle_id=\d+/);
+    await expect(page.locator('#vehicle_id option:checked')).toContainText(plate);
+    await expect(page.locator('#shop_id')).toHaveValue(String(fixture.shop));
+    await expect(service).toBeChecked();
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    await expect(page.getByLabel('Preferred date')).toHaveValue(date);
+    await expect(page.getByLabel('Preferred time')).toHaveValue('10:00');
 });
 
 test('customer requests a new appointment time and shop approves it', async ({ page }, testInfo) => {
@@ -625,10 +725,13 @@ test('dark theme keeps customer shop and admin workspaces readable', async ({ pa
 });
 
 test('AI assistant starts without saved database chat history', async ({ page }, testInfo) => {
+    const theme = testInfo.project.name === 'mobile' ? 'dark' : 'light';
+    await page.emulateMedia({ colorScheme: theme });
     await signIn(page, 'customer');
     await page.goto('/customer/ai-assistant');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
     await expect(page.getByRole('heading', { name: 'Ask AutoCare AI' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'How can I help with your vehicle today?' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'How can I help with AutoCare?' })).toBeVisible();
     await expect(page.locator('.ai-message-user')).toHaveCount(0);
     await expect(page.locator('.ai-message-assistant:not(.ai-message-typing)')).toHaveCount(0);
     await expect(page.getByLabel('Your question for AutoCare AI')).toBeVisible();
@@ -640,6 +743,15 @@ test('AI assistant starts without saved database chat history', async ({ page },
     await expect(page.locator('.ai-command-action').filter({ hasText: 'Book a service' })).toBeVisible();
     await expect(page.getByLabel('Your question for AutoCare AI')).toBeEmpty();
     expect(page.url()).toBe(pageUrl);
+
+    const input = page.getByLabel('Your question for AutoCare AI');
+    await input.fill('Write a poem about booking a service');
+    await page.getByRole('button', { name: 'Send question' }).click();
+    await expect(page.locator('.ai-composer').getByRole('alert')).toContainText('I can help with Minglanilla AutoCare only.');
+    await expect(input).toHaveValue('Write a poem about booking a service');
+    await expect(input).toBeFocused();
+    await expect(page.locator('.ai-message-user')).toHaveCount(1);
+    await page.screenshot({ path: testInfo.outputPath('ai-assistant-scope-error.png'), fullPage: true });
 });
 
 test('shop and admin dashboards make daily priorities clear', async ({ page }, testInfo) => {
@@ -672,6 +784,41 @@ test('shop and admin dashboards make daily priorities clear', async ({ page }, t
     await page.screenshot({ path: testInfo.outputPath('admin-dashboard.png'), fullPage: true });
 });
 
+test('dashboard, registration and notification controls fit all supported layouts', async ({ page }, testInfo) => {
+    test.setTimeout(120000);
+    await page.route('https://maps.googleapis.com/**', route => route.abort());
+    const workspaces = [
+        ['customer', [
+            ['/dashboard', 'customer-dashboard', '.customer-welcome .btn-accent'],
+            ['/settings/notifications', 'notification-settings', '#sms-phone'],
+        ]],
+        ['shop_owner', [
+            ['/shop/dashboard', 'shop-dashboard', '.workspace-welcome .btn-accent'],
+            ['/shop/register', 'shop-registration', '#registration-phone'],
+        ]],
+        ['admin', [['/admin/dashboard', 'admin-dashboard', '.page-heading .btn-primary']]],
+    ];
+    for (const [role, screens] of workspaces) {
+        await page.context().clearCookies();
+        await signIn(page, role);
+        for (const [path, name, selector] of screens) {
+            for (const width of [360, 768, 1440]) {
+                await page.setViewportSize({ width, height: 850 });
+                for (const theme of ['light', 'dark']) {
+                    await page.evaluate(value => localStorage.setItem('autocare-theme', value), theme);
+                    await page.goto(path);
+                    await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+                    const control = page.locator(selector).first();
+                    await control.focus();
+                    await expect(control).toBeFocused();
+                    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+                    await page.screenshot({ path: testInfo.outputPath(name + '-' + width + '-' + theme + '.png'), fullPage: true, animations: 'disabled' });
+                }
+            }
+        }
+    }
+});
+
 test('customer books, shop confirms, and admin monitors the same appointment', async ({ browser }, testInfo) => {
     test.setTimeout(120000);
     const context = await browser.newContext(testInfo.project.use);
@@ -683,12 +830,14 @@ test('customer books, shop confirms, and admin monitors the same appointment', a
         const date = new Date(Date.now() + dayOffset * 86400000).toISOString().slice(0, 10);
         const time = { desktop: '10:00', mobile: '11:00', 'small-mobile': '12:00' }[testInfo.project.name];
         await page.goto('/customer/appointments/create');
-        await page.getByLabel('Service shop', { exact: true }).selectOption(String(fixture.shop));
-        await page.getByLabel('Service', { exact: true }).selectOption(String(fixture.service));
+        await page.getByLabel('Service provider', { exact: true }).selectOption(String(fixture.shop));
+        await page.locator(`#booking-services input[data-shop-id="${fixture.shop}"][value="${fixture.service}"]`).check();
         await page.getByLabel('Vehicle', { exact: true }).selectOption(String(fixture.vehicle));
+        await page.getByRole('button', { name: 'Continue', exact: true }).click();
         await page.getByLabel('Preferred date').fill(date);
         await page.getByLabel('Preferred time').fill(time);
-        await page.getByLabel('What does your vehicle need?').fill(reason);
+        await page.getByRole('button', { name: 'Continue', exact: true }).click();
+        await page.getByLabel('Message to the provider (optional)').fill(reason);
         await page.getByRole('button', { name: 'Request appointment' }).click();
         await expect(page).toHaveURL(/customer\/appointments$/);
         await expect(page.getByText(/requested successfully/)).toBeVisible();
@@ -918,4 +1067,63 @@ test('admin can resolve and dismiss complaints with a clear reason on every view
     await expect(dismissCase.locator('.badge')).toHaveText('Dismissed');
     await expect(dismissCase).toContainText('The available evidence does not support further action.');
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => document.documentElement.clientWidth + 1));
+});
+
+test('service extensions work with keyboard focus across desktop and mobile themes', async ({ browser }, testInfo) => {
+    test.setTimeout(120000);
+    const customer = await browser.newPage();
+    const shop = await browser.newPage();
+    const admin = await browser.newPage();
+
+    async function check(page, path, selector, theme, width) {
+        await page.setViewportSize({ width, height: 820 });
+        await page.goto(path, { waitUntil: 'domcontentloaded' });
+        await page.evaluate(value => localStorage.setItem('autocare-theme', value), theme);
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+        const control = page.locator(selector).first();
+        await expect(control).toBeVisible();
+        await control.focus();
+        await expect(control).toBeFocused();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+    }
+
+    const fixture = await signIn(customer, 'customer');
+    await signIn(shop, 'shop_owner');
+    await admin.goto('/login');
+    await admin.getByLabel('Email address').fill('admin@browser.example.test');
+    await admin.getByLabel('Password', { exact: true }).fill(fixture.password);
+    await admin.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await expect(admin.getByLabel('Email code')).toBeVisible();
+    const testMail = await readFile(process.env.BROWSER_TEST_MAIL_LOG, 'utf8');
+    const codes = [...testMail.matchAll(/Your six-digit admin sign-in code is (\d{6})/g)];
+    await admin.getByLabel('Email code').fill(codes.at(-1)[1]);
+    await admin.getByRole('button', { name: 'Verify and continue' }).click();
+    await expect(admin).toHaveURL(/dashboard$/);
+    const sharePath = '/customer/repairs/' + fixture.repairJob + '/shares';
+
+    for (const [theme, width] of [['light', 1440], ['dark', 360], ['light', 360]]) {
+        await check(customer, '/settings/notifications', '#sms-phone', theme, width);
+        await check(customer, '/customer/appointments/create?shop_id=' + fixture.shop, '#shop_id', theme, width);
+        await expect(customer.locator('#booking-policy')).not.toBeEmpty();
+        await check(customer, sharePath, '#share-days', theme, width);
+        await check(shop, '/shop/promotions', '#promo-name', theme, width);
+        await check(shop, '/shop/profile', '#cancellation-notice', theme, width);
+        await check(shop, '/shop/reports', '[href*="/shop/reports/csv/"]', theme, width);
+        await check(admin, '/admin/archived-records', '#archive-type', theme, width);
+        await check(admin, '/admin/quotation-downloads', '#estimate-number', theme, width);
+    }
+    await customer.getByRole('button', { name: 'Create share link' }).click();
+    const sharedUrl = await customer.getByLabel('Copy this link').inputValue();
+    const publicPage = await browser.newPage({ viewport: { width: 360, height: 820 } });
+    const response = await publicPage.goto(sharedUrl);
+    expect(response.headers()['x-robots-tag']).toContain('noindex');
+    await expect(publicPage.getByRole('heading', { name: 'Shared repair timeline' })).toBeVisible();
+    await expect(publicPage.getByText('Brake maintenance')).toHaveCount(0);
+    customer.once('dialog', dialog => dialog.accept());
+    await customer.getByRole('button', { name: 'Revoke link' }).click();
+    await expect(customer.getByText('No active links.')).toBeVisible();
+    expect((await publicPage.reload()).status()).toBe(404);
+
+    await Promise.all([customer.close(), shop.close(), admin.close(), publicPage.close()]);
 });

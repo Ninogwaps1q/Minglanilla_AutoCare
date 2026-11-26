@@ -26,6 +26,6 @@ class RepairWarranty extends Model
 
     public function issuedBy(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'issued_by');
+        return $this->belongsTo(User::class, 'issued_by')->withTrashed();
     }
 }

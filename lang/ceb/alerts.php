@@ -6,6 +6,7 @@ return [
     'email' => 'Email',
     'sms' => 'SMS',
     'phone' => 'Numero sa cellphone para sa SMS',
+    'phone_format' => 'Gamita ang numero sa cellphone sa Pilipinas nga magsugod sa 09 o +639.',
     'invalid_phone' => 'Isulod ang numero sa Pilipinas nga magsugod sa 09 o +639 para sa SMS.',
     'push' => 'Pahibalo sa browser',
     'sms_consent' => 'Tugoti ang importanteng SMS sa akong gitipig nga numero sa Pilipinas.',

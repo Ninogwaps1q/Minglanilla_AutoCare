@@ -56,7 +56,7 @@
                     @if($case->type !== 'complaint' && $case->appointment?->status !== 'completed')
                         <div class="col-lg-6"><label class="form-label" for="case-time-{{ $case->id }}">Follow-up visit time
                                 (required if proposing a visit)</label><input id="case-time-{{ $case->id }}" class="form-control"
-                                type="datetime-local" name="scheduled_at" min="{{ now()->format('Y-m-d\TH:i') }}"
+                                type="datetime-local" name="scheduled_at" min="{{ now(\App\Models\Appointment::TIMEZONE)->format('Y-m-d\TH:i') }}"
                     value="{{ $case->scheduled_at?->format('Y-m-d\TH:i') }}"></div>@endif
                     <div class="col-12"><button class="btn btn-primary">Save response</button></div>
                 </form>

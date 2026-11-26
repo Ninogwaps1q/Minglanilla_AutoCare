@@ -19,7 +19,7 @@ class AppointmentController extends Controller
     {
         $shop = $this->shop($request);
         $status = $request->query('status');
-        $status = in_array($status, ['pending', 'confirmed', 'in_progress', 'completed', 'cancelled'], true) ? $status : null;
+        $status = in_array($status, ['pending', 'confirmed', 'in_progress', 'completed', 'cancelled', 'no_show'], true) ? $status : null;
 
         return view('shop.appointments.index', [
             'appointments' => $shop->appointments()
@@ -30,6 +30,7 @@ class AppointmentController extends Controller
                 ->orderBy('appointment_time')
                 ->paginate(10)->withQueryString(),
             'selectedStatus' => $status,
+            'noShowCount' => $shop->appointments()->where('status', 'no_show')->count(),
         ]);
     }
 
@@ -43,17 +44,21 @@ class AppointmentController extends Controller
             if ($nextStatus === 'confirmed' && ($appointment->shop->verification_status !== 'approved' || $appointment->shop->shop_status !== 'active')) {
                 throw ValidationException::withMessages(['status' => 'This shop must be approved and active before confirming new appointments.']);
             }
+            if ($nextStatus === 'no_show' && (! isset($appointment->availableStatusTransitions()['no_show']) || $appointment->repairJob()->exists())) {
+                throw ValidationException::withMessages(['status' => __('extensions.appointments.no_show_unavailable')]);
+            }
             if (! array_key_exists($nextStatus, $appointment->availableStatusTransitions())) {
                 throw ValidationException::withMessages(['status' => 'This status change is not allowed for the current appointment stage.']);
             }
             $previousStatus = $appointment->status;
             $appointment->update(['status' => $nextStatus]);
-            if ($nextStatus === 'cancelled' && $appointment->serviceCase) {
+            if (in_array($nextStatus, ['cancelled', 'no_show'], true) && $appointment->serviceCase) {
                 $case = $appointment->serviceCase;
                 $case->update(['status' => 'reviewing', 'scheduled_at' => null, 'schedule_status' => 'cancelled', 'appointment_id' => null]);
                 $case->events()->create([
                     'actor_id' => $request->user()->id, 'from_status' => 'scheduled',
-                    'to_status' => 'reviewing', 'note' => 'Follow-up appointment cancelled. A new visit time is needed.',
+                    'to_status' => 'reviewing', 'note' => $nextStatus === 'no_show'
+                        ? __('extensions.appointments.no_show_title') : 'Follow-up appointment cancelled. A new visit time is needed.',
                 ]);
             }
             if ($previousStatus === 'confirmed' && $nextStatus !== 'confirmed') {
@@ -61,8 +66,14 @@ class AppointmentController extends Controller
                     'status' => 'declined', 'decided_by' => $request->user()->id, 'decided_at' => now(),
                 ]);
             }
-            $appointment->statusHistories()->create(['from_status' => $previousStatus, 'to_status' => $nextStatus, 'changed_by' => $request->user()->id, 'changed_at' => now()]);
-            $appointment->customer->notifications()->create(['type' => 'appointment_status', 'title' => 'Appointment status updated', 'message' => "Your appointment is now {$nextStatus}.", 'data' => ['appointment_id' => $appointment->id, 'status' => $nextStatus]]);
+            $appointment->statusHistories()->create(['from_status' => $previousStatus, 'to_status' => $nextStatus, 'changed_by' => $request->user()->id, 'changed_at' => now(), 'note' => $nextStatus === 'no_show' ? $request->validated('note') : null]);
+            $locale = $appointment->customer->locale ?? 'en';
+            $appointment->customer->notifications()->create([
+                'type' => 'appointment_status',
+                'title' => $nextStatus === 'no_show' ? __('extensions.appointments.no_show_title', [], $locale) : 'Appointment status updated',
+                'message' => $nextStatus === 'no_show' ? __('extensions.appointments.no_show_message', [], $locale) : "Your appointment is now {$nextStatus}.",
+                'data' => ['appointment_id' => $appointment->id, 'status' => $nextStatus],
+            ]);
         });
 
         return back()->with('status', 'Appointment status updated.');

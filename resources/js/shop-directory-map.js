@@ -8,12 +8,12 @@ const locationInput = document.querySelector('#latitude');
 const longitudeInput = document.querySelector('#longitude');
 const selectedShopId = Number(mapElement.dataset.selectedShopId || 0);
 const message = text => { mapElement.textContent = text; };
-const authenticationFailureMessage = 'Google Maps could not load. Ask the administrator to check the Maps API key, billing, and daily quota. Browse providers below.';
+const authenticationFailureMessage = 'Google Maps could not load. Switch to List to browse matching providers.';
 const showFallback = () => showProviderMapFallback(mapElement, shops, shop => shop.url, selectedShopId);
 onGoogleMapsAuthenticationFailure(() => { if (!showFallback()) message(authenticationFailureMessage); });
 
 if (!shops.length) {
-    message('No matching providers have a map location yet. Browse the results below.');
+    message('No matching providers have a map location yet. Switch to List to browse the results.');
 } else {
     loadGoogleMaps(mapElement.dataset.googleKey).then(googleMaps => {
         mapElement.textContent = '';
@@ -47,6 +47,6 @@ if (!shops.length) {
         if (selectedMarker) googleMaps.event.trigger(selectedMarker, 'click');
     }).catch(error => {
         if (showFallback()) return;
-        message(error.message === 'Google Maps authentication failed.' ? authenticationFailureMessage : (error.message === 'Google Maps API key is not configured.' ? 'Map unavailable until the administrator configures Google Maps. Browse providers below.' : 'The map could not load. Browse providers below.'));
+        message(error.message === 'Google Maps authentication failed.' ? authenticationFailureMessage : 'The map could not load. Switch to List to browse matching providers.');
     });
 }

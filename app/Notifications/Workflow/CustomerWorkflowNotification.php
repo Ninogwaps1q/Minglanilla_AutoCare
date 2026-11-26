@@ -8,6 +8,7 @@ use App\Notifications\ImportantEventMail;
 use App\Notifications\WorkflowEvent;
 use App\Services\SmsService;
 use App\Services\WebPushDelivery;
+use Carbon\CarbonImmutable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Str;
@@ -85,6 +86,13 @@ abstract class CustomerWorkflowNotification extends Notification
             $name = 'estimate_updated';
         }
 
-        return __("workflow.{$name}.{$field}", [], $user->locale ?? 'en');
+        $locale = $user->locale ?? 'en';
+        $replacements = [];
+        if ($this->alert->event === WorkflowEvent::AppointmentReminder) {
+            $start = CarbonImmutable::parse($this->alert->data['starts_at'])->locale($locale);
+            $replacements['when'] = $start->translatedFormat($field === 'sms' ? 'M j, g:i A' : 'M j, Y, g:i A').' PHT';
+        }
+
+        return __("workflow.{$name}.{$field}", $replacements, $locale);
     }
 }

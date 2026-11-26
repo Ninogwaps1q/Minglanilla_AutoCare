@@ -8,6 +8,7 @@ use App\Services\AI\AiAssistantService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class AiAssistantController extends Controller
@@ -21,19 +22,19 @@ class AiAssistantController extends Controller
 
     public function store(SendAiMessageRequest $request, AiAssistantService $assistant): RedirectResponse|JsonResponse
     {
-        $message = $request->string('message')->toString();
-        $historyKey = 'ai_history_'.$request->user()->id;
-        $history = $request->session()->get($historyKey, []);
-        try {
-            $response = $assistant->respond($request->user(), $history, $message);
-        } catch (\RuntimeException $exception) {
+        $message = $request->validated('message');
+        $response = $assistant->respond($request->user(), $message);
+        if ($response === null) {
+            $errors = ['message' => __('assistant.scope')];
             if ($request->expectsJson()) {
-                return response()->json(['message' => $exception->getMessage()], 503);
+                throw ValidationException::withMessages($errors);
             }
 
-            return back()->withInput()->with('ai_widget_open', $request->boolean('widget'))->withErrors(['message' => $exception->getMessage()]);
+            return back()->withInput()->with('ai_widget_open', $request->boolean('widget'))->withErrors($errors);
         }
 
+        $historyKey = 'ai_history_'.$request->user()->id;
+        $history = $request->session()->get($historyKey, []);
         $history[] = ['role' => 'user', 'message' => $message, 'action' => null];
         $history[] = ['role' => 'assistant', 'message' => $response['message'], 'action' => $response['action']];
         $request->session()->put($historyKey, array_slice($history, -12));

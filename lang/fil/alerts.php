@@ -6,6 +6,7 @@ return [
     'email' => 'Email',
     'sms' => 'SMS',
     'phone' => 'Numero ng cellphone para sa SMS',
+    'phone_format' => 'Gumamit ng numero ng cellphone sa Pilipinas na nagsisimula sa 09 o +639.',
     'invalid_phone' => 'Maglagay ng numero sa Pilipinas na nagsisimula sa 09 o +639 para sa SMS.',
     'push' => 'Push sa browser',
     'sms_consent' => 'Payagan ang mahahalagang SMS sa naka-save kong numero sa Pilipinas.',

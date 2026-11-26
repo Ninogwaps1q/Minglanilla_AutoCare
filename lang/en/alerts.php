@@ -5,6 +5,7 @@ return [
     'email' => 'Email',
     'sms' => 'SMS',
     'phone' => 'Mobile number for SMS',
+    'phone_format' => 'Use a Philippine mobile number starting with 09 or +639.',
     'invalid_phone' => 'Enter a Philippine mobile number starting with 09 or +639 to enable SMS.',
     'push' => 'Browser push',
     'sms_consent' => 'Allow important SMS alerts to my saved Philippine mobile number.',

@@ -24,6 +24,6 @@ class ShopMapController extends Controller
             $filters['sort'] = 'distance';
         }
 
-        return redirect()->to(route('shops.index', array_filter($filters, fn ($value): bool => $value !== null && $value !== '')).'#shop-map');
+        return redirect()->to(route('shops.index', ['view' => 'map', ...array_filter($filters, fn ($value): bool => $value !== null && $value !== '')]).'#shop-map');
     }
 }

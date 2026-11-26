@@ -151,22 +151,22 @@ class RepairJob extends Model
 
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'customer_id');
+        return $this->belongsTo(User::class, 'customer_id')->withTrashed();
     }
 
     public function shop(): BelongsTo
     {
-        return $this->belongsTo(Shop::class);
+        return $this->belongsTo(Shop::class)->withTrashed();
     }
 
     public function vehicle(): BelongsTo
     {
-        return $this->belongsTo(Vehicle::class);
+        return $this->belongsTo(Vehicle::class)->withTrashed();
     }
 
     public function appointment(): BelongsTo
     {
-        return $this->belongsTo(Appointment::class);
+        return $this->belongsTo(Appointment::class)->withTrashed();
     }
 
     public function invoice(): HasOne

@@ -11,6 +11,19 @@ use Illuminate\Support\Facades\Notification;
 
 uses(RefreshDatabase::class);
 
+it('keeps a customer’s selected channels visible when the SMS number needs correction', function () {
+    $user = User::factory()->create(['role' => 'customer']);
+    $url = route('preferences.notifications.edit');
+    $this->actingAs($user)->from($url)->put(route('preferences.notifications.update'), [
+        'sms_phone' => '12345', 'sms_consent' => '1', 'sms' => ['estimate' => '1'],
+    ])->assertRedirect($url)->assertSessionHasErrors('sms_phone');
+
+    $page = $this->get($url)->assertOk();
+    expect($page->getContent())
+        ->toMatch('/<input[^>]+id="sms-estimate"[^>]*\bchecked\b/')
+        ->not->toMatch('/<input[^>]+id="email-estimate"[^>]*\bchecked\b/');
+});
+
 it('keeps email on by default and honors opt-in and event choices', function () {
     Bus::fake();
     Notification::fake();

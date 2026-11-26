@@ -5,19 +5,20 @@
             <h1>{{ $isMechanic ? 'Set up your independent mechanic profile' : 'Register your service shop' }}</h1>
             <p>{{ $isMechanic ? 'Tell customers what you can repair and where you travel. Your profile appears after document review.' : 'Registrations remain pending until an administrator verifies the business.' }}</p>
         </div>
+        <x-form-errors />
         <form method="POST" enctype="multipart/form-data" action="{{ route('shop.register.store') }}" class="surface p-4 row g-3">@csrf <div
-                class="col-md-6"><label class="form-label">{{ $isMechanic ? 'Public mechanic name' : 'Shop name' }}</label><input class="form-control" name="name"
+                class="col-md-6"><label class="form-label" for="registration-name">{{ $isMechanic ? 'Public mechanic name' : 'Shop name' }}</label><input id="registration-name" class="form-control" name="name"
                     value="{{ old('name') }}" required></div>
             @unless ($isMechanic)
-            <div class="col-md-6"><label class="form-label">Business permit number</label><input class="form-control"
+            <div class="col-md-6"><label class="form-label" for="registration-permit">Business permit number</label><input id="registration-permit" class="form-control"
                     name="business_permit_number" value="{{ old('business_permit_number') }}"></div>
             @endunless
-            <div class="col-md-6"><label class="form-label">Contact number</label><input class="form-control"
+            <div class="col-md-6"><label class="form-label" for="registration-phone">Contact number</label><input id="registration-phone" class="form-control" type="tel" autocomplete="tel"
                     name="phone" value="{{ old('phone') }}" required></div>
-            <div class="col-md-6"><label class="form-label">Contact email</label><input class="form-control"
+            <div class="col-md-6"><label class="form-label" for="registration-email">Contact email</label><input id="registration-email" class="form-control" autocomplete="email"
                     name="email" type="email" value="{{ old('email') }}" required></div>
             <div class="col-12"><h2 class="h5 mb-2">{{ $isMechanic ? 'Private base address' : 'Shop address' }}</h2><x-address-picker prefix="shop-registration" :required="true" /></div>
-            <div class="col-12"><label class="form-label">{{ $isMechanic ? 'Skills and mobile service description' : 'Business description' }}</label><textarea class="form-control"
+            <div class="col-12"><label class="form-label" for="registration-description">{{ $isMechanic ? 'Skills and mobile service description' : 'Business description' }}</label><textarea id="registration-description" class="form-control"
                     name="description" rows="4">{{ old('description') }}</textarea></div><x-location-picker :label="$isMechanic ? 'Service-area center' : 'Shop location'" :hint="$isMechanic ? 'Click the map to set the center of the area you can travel to. Avoid your exact home location.' : 'Click the map to place your exact shop pin.'" />
             @if ($isMechanic)<p class="col-12 form-text mb-0">Choose the center of your service area on the map. Customers see this area, so avoid pinpointing your home. After registration, upload a government ID and proof of mechanic qualifications or work history.</p>@endif
             <div class="col-12"><div class="shop-profile-media"><div id="registration-cover-preview" class="shop-cover-preview uploaded-image-fallback" role="img" aria-label="{{ $isMechanic ? 'Mechanic' : 'Shop' }} cover photo preview"><i class="bi bi-shop" aria-hidden="true"></i></div><div id="registration-logo-preview" class="shop-logo-preview uploaded-image-fallback" role="img" aria-label="{{ $isMechanic ? 'Mechanic' : 'Shop' }} logo preview"><i class="bi bi-wrench-adjustable-circle" aria-hidden="true"></i></div></div><p class="small text-secondary mt-2 mb-0">Selected images preview here. Submit registration to save them.</p></div>
@@ -45,7 +46,7 @@
                 @error('service_ids.*')<div class="text-danger small mt-2">{{ $message }}</div>@enderror
             </fieldset>
             <div class="col-12"><x-legal-consent /></div>
-            <div class="col-12"><button class="btn btn-primary">Submit registration</button></div>
+            <div class="col-12"><button class="btn btn-primary">{{ __('account_ui.send_registration') }}</button></div>
         </form>
     </div>
 </x-layouts.app>

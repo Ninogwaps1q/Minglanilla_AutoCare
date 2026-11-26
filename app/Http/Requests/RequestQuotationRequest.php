@@ -24,8 +24,8 @@ class RequestQuotationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'shop_id' => ['required', 'integer', Rule::exists('shops', 'id')->where('verification_status', 'approved')->where('shop_status', 'active')],
-            'vehicle_id' => ['required', 'integer', Rule::exists('vehicles', 'id')->where('customer_id', $this->user()->id)],
+            'shop_id' => ['required', 'integer', Rule::exists('shops', 'id')->whereNull('deleted_at')->where('verification_status', 'approved')->where('shop_status', 'active')],
+            'vehicle_id' => ['required', 'integer', Rule::exists('vehicles', 'id')->whereNull('deleted_at')->where('customer_id', $this->user()->id)],
             'notes' => ['required', 'string', 'max:5000'],
         ];
     }

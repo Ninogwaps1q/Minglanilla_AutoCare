@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Appointment;
 use App\Models\Shop;
 use App\Models\ShopService;
 use App\Services\AppointmentSchedule;
@@ -28,14 +29,15 @@ class StoreAppointmentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'shop_id' => ['required', 'integer', Rule::exists('shops', 'id')->where('verification_status', 'approved')->where('shop_status', 'active')],
-            'vehicle_id' => ['required', 'integer', Rule::exists('vehicles', 'id')->where('customer_id', $this->user()?->id)],
+            'shop_id' => ['required', 'integer', Rule::exists('shops', 'id')->whereNull('deleted_at')->where('verification_status', 'approved')->where('shop_status', 'active')],
+            'vehicle_id' => ['required', 'integer', Rule::exists('vehicles', 'id')->whereNull('deleted_at')->where('customer_id', $this->user()?->id)],
             'service_id' => ['nullable', 'integer', Rule::exists('shop_services', 'service_id')->where('shop_id', $this->integer('shop_id'))->where('availability', true)],
             'service_ids' => ['required_without:service_id', 'array', 'min:1', 'max:10'],
             'service_ids.*' => ['required', 'integer', 'distinct', Rule::exists('shop_services', 'service_id')->where('shop_id', $this->integer('shop_id'))->where('availability', true)],
-            'appointment_date' => ['required', 'date', 'after_or_equal:today'],
+            'appointment_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:'.today(Appointment::TIMEZONE)->toDateString()],
             'appointment_time' => ['required', 'date_format:H:i'],
             'reason' => ['nullable', 'string', 'max:2000'],
+            'promo_code' => ['nullable', 'string', 'max:32', 'regex:/^[a-zA-Z0-9_-]+$/D'],
             'service_barangay_id' => ['nullable', 'integer', 'exists:barangays,id'],
             'service_street' => ['nullable', 'string', 'max:255'],
             'service_landmark' => ['nullable', 'string', 'max:255'],
@@ -65,13 +67,13 @@ class StoreAppointmentRequest extends FormRequest
             if ($shop->isIndependentMechanic() && blank($this->input('service_street'))) {
                 $validator->errors()->add('service_street', 'Enter the street or house number where the mechanic should meet you.');
             }
-            if ($this->input('appointment_date').' '.$preferredTime <= now()->format('Y-m-d H:i')) {
+            $schedule = app(AppointmentSchedule::class);
+            if (! $schedule->isUpcoming($this->input('appointment_date'), $preferredTime)) {
                 $validator->errors()->add('appointment_time', 'Choose a future appointment time.');
 
                 return;
             }
 
-            $schedule = app(AppointmentSchedule::class);
             $duration = $offers->sum(fn (ShopService $offer): int => (int) ($offer->service->estimated_duration ?: 60));
             if (! $schedule->isAvailable($shop, $this->input('appointment_date'), $preferredTime, $duration)) {
                 $validator->errors()->add('appointment_time', 'The shop is closed or this time is blocked. Choose another slot.');
