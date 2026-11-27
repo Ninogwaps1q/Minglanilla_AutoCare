@@ -4,7 +4,7 @@
     <div class="container py-5">
         <div class="mb-4">
             <h1>Choose a plan for your service profile</h1>
-            <p class="text-secondary mb-0">Approved shops and independent mechanics appear on the map with their names and services. Choose a paid plan for online bookings and more tools.</p>
+            <p class="text-secondary mb-0">{{ $shop?->isIndependentMechanic() ? 'Compare booking limits and tools for your mobile mechanic profile.' : 'Approved shops and independent mechanics appear on the map with their names and services. Choose a paid plan for online bookings and more tools.' }}</p>
         </div>
         <x-form-errors />
         @if ($shop)
@@ -64,9 +64,18 @@
                         <p class="mb-2"><strong class="fs-2">₱{{ number_format($plan->monthly_price) }}</strong><span class="text-secondary"> / month</span></p>
                         <p class="text-secondary">{{ $plan->summary }}</p>
                         <ul class="list-unstyled d-grid gap-2 mb-4">
-                            @foreach ($plan->features as $feature)
-                                <li><i class="bi bi-check-circle-fill text-primary me-2" aria-hidden="true"></i>{{ $feature }}</li>
-                            @endforeach
+                            @if ($shop?->isIndependentMechanic())
+                                @php($features = $plan->mechanicFeatures())
+                                <li>{{ $features['monthly_limit'] === null ? 'Unlimited monthly requests' : $features['monthly_limit'].' requests per month' }}</li>
+                                <li>{{ $features['portfolio_limit'] }} portfolio projects</li>
+                                @if ($features['travel_pricing'])<li>Inspection, home visit and distance-based fees</li>@endif
+                                @if ($features['reminders'])<li>Appointment reminders for mechanics</li>@endif
+                                @if ($features['live_tracking'])<li>Optional live location during roadside calls</li>@endif
+                            @else
+                                @foreach ($plan->features as $feature)
+                                    <li><i class="bi bi-check-circle-fill text-primary me-2" aria-hidden="true"></i>{{ $feature }}</li>
+                                @endforeach
+                            @endif
                         </ul>
                         <div class="mt-auto">
                             @if ($shop && $plan->slug === 'free')

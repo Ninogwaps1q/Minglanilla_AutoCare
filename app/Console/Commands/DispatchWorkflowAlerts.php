@@ -29,6 +29,7 @@ class DispatchWorkflowAlerts extends Command
     public function handle(CustomerWorkflowAlerts $alerts): int
     {
         $alerts->appointmentReminders();
+        $alerts->mechanicInvoiceReminders();
 
         WorkflowAlert::query()->where('next_reminder_at', '<=', now())
             ->lazyById()->each(fn (WorkflowAlert $source) => $alerts->reminder($source));

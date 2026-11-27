@@ -5,6 +5,9 @@
         <section class="surface p-4 mb-4" aria-labelledby="active-request-title">
             <h2 class="h4" id="active-request-title">{{ __('roadside.active') }}</h2>
             @include('customer.emergency-requests.request', ['emergencyRequest' => $activeRequest])
+            @if ($activeRequest->assignedShop?->isIndependentMechanic())
+                <p class="small text-secondary mt-3 mb-1" role="status" data-roadside-tracking="{{ route('customer.emergency-requests.tracking', $activeRequest) }}" data-latitude="{{ $activeRequest->latitude }}" data-longitude="{{ $activeRequest->longitude }}" data-copy="{{ json_encode(array_replace(trans('mechanic', [], 'en'), trans('mechanic'))) }}">{{ __('mechanic.location_waiting') }}</p>
+            @endif
         </section>
     @else
         <section class="surface p-4 mb-4" aria-labelledby="request-help-title">
@@ -34,6 +37,7 @@
                         </div>
                     </details>
                 </fieldset>
+                <label class="form-check"><input class="form-check-input" type="checkbox" name="share_pickup" value="1" @checked(old('share_pickup')) required> {{ __('mechanic.pickup_consent') }}</label>
                 <div>
                     <button class="btn btn-primary" type="submit">{{ __('roadside.send') }}</button>
                 </div>

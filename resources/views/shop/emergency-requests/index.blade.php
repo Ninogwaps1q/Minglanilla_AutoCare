@@ -44,6 +44,19 @@
                         @if (in_array($emergencyRequest->status, ['pending', 'accepted', 'en_route'], true))
                             <x-driving-directions :latitude="$emergencyRequest->latitude" :longitude="$emergencyRequest->longitude" :destination-label="$emergencyRequest->customer->name.' pickup'" destination-type="pickup" title="Route to customer pickup" button-label="Show route to pickup" />
                             <p class="small text-secondary mt-2 mb-0">This route starts at your current location. Your service-area or private base location is not shared.</p>
+                            @if ($shop->isIndependentMechanic() && $emergencyRequest->status === 'en_route' && ! $emergencyRequest->arrived_at)
+                                <div class="mt-3 border-top pt-3" data-roadside-share="{{ route('shop.emergency-requests.location', $emergencyRequest) }}" data-copy="{{ json_encode(array_replace(trans('mechanic', [], 'en'), trans('mechanic'))) }}">
+                                    @if ($canShareLocation)
+                                        <p class="small">{{ __('mechanic.responder_consent') }}</p>
+                                        <button type="button" class="btn btn-outline-primary mb-2" data-share-location>{{ __('mechanic.share_location') }}</button>
+                                        <button type="button" class="btn btn-outline-secondary mb-2" data-stop-location hidden>{{ __('mechanic.stop_location') }}</button>
+                                    @endif
+                                    <button type="button" class="btn btn-outline-primary mb-2" data-mark-arrival>{{ __('mechanic.roadside_arrived') }}</button>
+                                    <p class="small text-secondary mb-0" data-location-status role="status"></p>
+                                </div>
+                            @elseif ($emergencyRequest->arrived_at)
+                                <p class="small mt-3 mb-0">{{ __('mechanic.responder_arrived') }}</p>
+                            @endif
                         @else
                             <p class="small text-secondary mb-0">Directions are unavailable for a closed request.</p>
                         @endif

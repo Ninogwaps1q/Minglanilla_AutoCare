@@ -16,6 +16,7 @@ return [
     'event_payment' => 'Problema sa bayad',
     'event_roadside' => 'Tabang sa dalan',
     'event_plan' => 'Mga plano sa provider',
+    'event_maintenance' => 'Mga pahinumdom sa maintenance',
     'saved' => 'Natipig ang mga gusto sa pahibalo.',
     'save' => 'Itipig ang mga gusto',
     'push_help' => 'Pilia ang Tugoti aron marehistro kini nga browser. Naghuwat pa ang pagpadala sa setup.',

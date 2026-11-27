@@ -83,6 +83,20 @@
                                 </div>
                             @endforeach
                             <p class="form-text">Feature text appears on the pricing page. Access follows the Free, Basic, and Premium plan rules.</p>
+                            @php($mechanicFeatures = $plan->mechanicFeatures())
+                            <fieldset class="border-top pt-3 mb-3">
+                                <legend class="h6">Independent mechanic entitlements</legend>
+                                <label class="form-label" for="mechanic-limit-{{ $plan->id }}">Monthly requests per mechanic</label>
+                                <input class="form-control" id="mechanic-limit-{{ $plan->id }}" name="mechanic_entitlements[monthly_limit]" type="number" min="0" max="1000" value="{{ $mechanicFeatures['monthly_limit'] }}" aria-describedby="mechanic-limit-help-{{ $plan->id }}">
+                                <p id="mechanic-limit-help-{{ $plan->id }}" class="form-text">Leave blank for unlimited. Set 0 to pause new requests on this plan.</p>
+                                <input name="mechanic_entitlements[travel_pricing]" value="0" type="hidden">
+                                <label class="form-check"><input class="form-check-input" type="checkbox" name="mechanic_entitlements[travel_pricing]" value="1" @checked($mechanicFeatures['travel_pricing'])> Enable inspection, home service and travel fees</label>
+                                <input name="mechanic_entitlements[live_tracking]" value="0" type="hidden">
+                                <label class="form-check"><input class="form-check-input" type="checkbox" name="mechanic_entitlements[live_tracking]" value="1" @checked($mechanicFeatures['live_tracking'] ?? $plan->slug === 'premium')> Allow optional live roadside location sharing</label>
+                                <label class="form-check"><input type="hidden" name="mechanic_entitlements[reminders]" value="0"><input class="form-check-input" type="checkbox" name="mechanic_entitlements[reminders]" value="1" @checked($mechanicFeatures['reminders'])> Send the mechanic appointment reminders</label>
+                                <label class="form-label mt-2" for="portfolio-limit-{{ $plan->id }}">Portfolio project limit</label>
+                                <input class="form-control" id="portfolio-limit-{{ $plan->id }}" name="mechanic_entitlements[portfolio_limit]" type="number" min="0" max="100" value="{{ $mechanicFeatures['portfolio_limit'] }}" required>
+                            </fieldset>
                             @if ($plan->slug !== 'free' && config('services.paymongo.legacy_manual_payments'))
                                 <fieldset class="border-top pt-3">
                                     <legend class="h6">Payment destination</legend>

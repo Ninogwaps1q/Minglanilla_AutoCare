@@ -20,13 +20,17 @@ class EmergencyDispatchService
             ->where('shop_status', 'active')
             ->whereHas('owner', fn ($query) => $query->where('status', 'active'))
             ->where('roadside_available', true)
-            ->withOnlineBookings()
+            ->where(fn ($providers) => $providers->where('provider_type', 'independent_mechanic')->orWhere(fn ($shops) => $shops->withOnlineBookings()))
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
             ->whereNotIn('id', $attemptedShopIds)
             ->with('owner')
             ->get()
             ->filter(function (Shop $candidate) use ($emergencyRequest): bool {
+                if ($candidate->isIndependentMechanic() && ! $candidate->mechanicOnline()) {
+                    return false;
+                }
+
                 return $candidate->roadside_radius_km === null || $this->distance((float) $emergencyRequest->latitude, (float) $emergencyRequest->longitude, (float) $candidate->latitude, (float) $candidate->longitude) <= $candidate->roadside_radius_km;
             })
             ->sortBy(fn (Shop $candidate): float => $this->distance(
@@ -54,7 +58,7 @@ class EmergencyDispatchService
             'type' => 'emergency_request',
             'title' => 'New roadside assistance request',
             'message' => 'A nearby customer requires roadside assistance.',
-            'data' => ['emergency_request_id' => $emergencyRequest->id],
+            'data' => ['emergency_request_id' => $emergencyRequest->id, 'mechanic_update' => $shop->isIndependentMechanic()],
         ]);
 
         return $shop;
@@ -82,7 +86,7 @@ class EmergencyDispatchService
             }
         }
 
-        $emergencyRequest->update(['assigned_shop_id' => null, 'responded_at' => null]);
+        $emergencyRequest->update(['assigned_shop_id' => null, 'responded_at' => null, 'responder_location' => null, 'arrived_at' => null]);
         $nextShop = $this->assignNext($emergencyRequest);
         if ($nextShop === null) {
             $emergencyRequest->update(['status' => 'cancelled']);

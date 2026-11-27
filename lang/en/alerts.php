@@ -15,6 +15,7 @@ return [
     'event_payment' => 'Payment problems',
     'event_roadside' => 'Roadside requests',
     'event_plan' => 'Provider plans',
+    'event_maintenance' => 'Maintenance reminders',
     'saved' => 'Notification preferences saved.',
     'save' => 'Save preferences',
     'push_help' => 'Choose Allow to register this browser for important updates. Message delivery is pending platform setup.',

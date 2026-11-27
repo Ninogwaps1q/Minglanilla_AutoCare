@@ -30,6 +30,9 @@ class PublicShopController extends Controller
             'open_now' => ['nullable', 'boolean'],
             'roadside' => ['nullable', 'boolean'],
             'motorcycle' => ['nullable', 'boolean'],
+            'home_service' => ['nullable', 'boolean'],
+            'max_price' => ['nullable', 'numeric', 'between:0,1000000'],
+            'vehicle_type' => ['nullable', 'in:car,motorcycle,truck'],
             'radius' => ['nullable', 'in:5,10,25,50,100'],
             'view' => ['nullable', 'in:list,map'],
             'selected' => ['nullable', 'integer', 'min:1'],
@@ -58,6 +61,11 @@ class PublicShopController extends Controller
                 ->whereHas('service', fn (Builder $service): Builder => $service->where('name', 'like', '%motorcycle%')
                     ->orWhereHas('category', fn (Builder $category): Builder => $category->where('name', 'like', '%motorcycle%')))))
             ->when($filters['provider'] ?? null, fn ($query, $provider) => $query->where('provider_type', $provider))
+            ->when($filters['home_service'] ?? false, fn (Builder $query) => $query->where('provider_type', 'independent_mechanic')
+                ->where(fn (Builder $home) => $home->whereNull('mechanic_settings->home_service')->orWhere('mechanic_settings->home_service', true)))
+            ->when($filters['vehicle_type'] ?? null, fn (Builder $query, string $type) => $query->whereJsonContains('mechanic_profile->vehicle_types', $type))
+            ->when(isset($filters['max_price']), fn (Builder $query) => $query->whereHas('services', fn (Builder $offers) => $offers->where('availability', true)
+                ->where('price', '<=', $filters['max_price'])->when($filters['service'] ?? null, fn (Builder $offer, $id) => $offer->where('service_id', $id))))
             ->when($filters['barangay'] ?? null, fn ($query, $barangay) => $query->where('barangay_id', $barangay))
             ->when($filters['service'] ?? null, fn ($query, $service) => $query->whereHas('services', fn ($query) => $query->where('service_id', $service)->where('availability', true)))
             ->when($filters['rating'] ?? null, fn ($query, $rating) => $query->where('total_reviews', '>', 0)->where('average_rating', '>=', $rating))
@@ -67,7 +75,7 @@ class PublicShopController extends Controller
         $plans = $shops->mapWithKeys(fn (Shop $shop): array => [$shop->id => $shop->activePlanSlug()]);
 
         if ($filters['open_now'] ?? false) {
-            $shops = $shops->whereIn('id', $openShopIds)->values();
+            $shops = $shops->filter(fn (Shop $shop): bool => in_array($shop->id, $openShopIds, true) && (! $shop->isIndependentMechanic() || $shop->mechanicOnline()))->values();
         }
 
         if ($filters['sort'] === 'name') {
@@ -95,7 +103,7 @@ class PublicShopController extends Controller
         }
 
         $canBook = $request->user() === null || $request->user()->role === 'customer';
-        $listings = $shops->mapWithKeys(function (Shop $shop) use ($filters, $plans, $canBook): array {
+        $listings = $shops->mapWithKeys(function (Shop $shop) use ($filters, $canBook): array {
             $pricedOffers = $shop->services->whereNotNull('price');
             if (isset($filters['service'])) {
                 $pricedOffers = $pricedOffers->where('service_id', $filters['service']);
@@ -105,7 +113,7 @@ class PublicShopController extends Controller
             return [$shop->id => [
                 'price' => $offer ? '₱'.number_format($offer->price, 2) : null,
                 'service_name' => $offer?->service->name,
-                'booking_url' => $canBook && $plans[$shop->id] !== 'free' && $shop->services->isNotEmpty()
+                'booking_url' => $canBook && $shop->acceptsNewBookings() && $shop->services->isNotEmpty()
                     ? route('customer.appointments.create', ['shop_id' => $shop->id])
                     : null,
             ]];
@@ -147,6 +155,9 @@ class PublicShopController extends Controller
     public function show(Shop $shop): View
     {
         abort_unless($shop->verification_status === 'approved' && $shop->shop_status === 'active' && $shop->owner->status === 'active', 404);
+        if ($shop->isIndependentMechanic()) {
+            $shop->loadCount(['repairJobs as completed_services_count' => fn ($query) => $query->whereIn('status', ['completed', 'released'])]);
+        }
 
         return view('shops.show', [
             'promotions' => $shop->hasPlanAtLeast('premium') ? ShopPromotion::query()->where('shop_id', $shop->id)->available()->latest()->limit(10)->get() : collect(),

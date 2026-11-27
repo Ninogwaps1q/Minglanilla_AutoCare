@@ -24,6 +24,18 @@
                             <h2 class="h5 mb-2">{{ $appointment->shop->name }}</h2>
                             <p class="small text-secondary mb-1">{{ trans_choice('extensions.appointments.policy', $appointment->cancellation_notice_hours) }}</p>
                             @if ($appointment->service_address)<p class="small mb-1"><strong>Service address:</strong> {{ $appointment->service_address }}</p>@endif
+                            @if ($appointment->arrived_at || $appointment->en_route_at)
+                                <p class="small mb-1">{{ __($appointment->arrived_at ? 'mechanic.arrived' : 'mechanic.en_route') }}</p>
+                            @endif
+                            @if ($appointment->mobile_service_quote && $appointment->mobile_service_quote['total'] !== $appointment->mobile_service_quote['service'])
+                                <dl class="small mb-1">
+                                    @foreach ($appointment->mobile_service_quote as $key => $price)
+                                        @if ($price > 0 || $key === 'total')
+                                            <dt>{{ __('mechanic.'.$key) }}</dt><dd>PHP {{ number_format($price / 100, 2) }}</dd>
+                                        @endif
+                                    @endforeach
+                                </dl>
+                            @endif
                             <p class="mb-0">{{ $appointment->serviceCase ? 'Follow-up visit' : ($appointment->bookedServices->isNotEmpty() ? $appointment->bookedServices->pluck('service.name')->implode(', ') : ($appointment->service?->name ?? 'Vehicle service')) }} · {{ $appointment->vehicle->plate_number }}</p>
                             @if ($appointment->service_price !== null)<p class="small text-secondary mb-0">Listed total: PHP {{ number_format($appointment->service_price, 2) }}</p>@endif
                             @if ($appointment->promotion_discount > 0)<p class="small mb-0">{{ __('extensions.promo.savings', ['amount' => number_format($appointment->promotion_discount, 2)]) }}</p>@endif
@@ -41,7 +53,15 @@
                             @elseif ($appointment->status === 'confirmed')
                                 <span class="small text-secondary">The shop will start the service.</span>
                             @endif
-                            @if ($appointment->status === 'confirmed' && ! $appointment->repairJob)
+                            @if ($appointment->latestRescheduleRequest?->status === 'pending' && $appointment->latestRescheduleRequest->proposed_by_provider)
+                                <p class="small mb-0">{{ __('mechanic.proposal_pending') }} {{ $appointment->latestRescheduleRequest->requested_date->format('M j, Y') }} · {{ $appointment->latestRescheduleRequest->requested_time->format('g:i A') }}</p>
+                                @if ($appointment->latestRescheduleRequest->reason)<p class="small mb-0 text-break">{{ $appointment->latestRescheduleRequest->reason }}</p>@endif
+                                <form method="POST" action="{{ route('customer.appointments.proposal.decide', $appointment) }}" class="d-flex flex-wrap gap-2">
+                                    @csrf @method('PATCH')
+                                    <button class="btn btn-sm btn-primary" name="decision" value="approve">Accept proposed time</button>
+                                    <button class="btn btn-sm btn-outline-secondary" name="decision" value="decline">Decline proposed time</button>
+                                </form>
+                            @elseif ($appointment->status === 'confirmed' && ! $appointment->repairJob && ! $appointment->en_route_at)
                                 @if ($appointment->latestRescheduleRequest?->status === 'pending')
                                     <p class='small text-secondary mb-0'>Time change requested for {{ $appointment->latestRescheduleRequest->requested_date->format('M j') }} at {{ $appointment->latestRescheduleRequest->requested_time->format('g:i A') }}. Waiting for shop approval.</p>
                                 @else

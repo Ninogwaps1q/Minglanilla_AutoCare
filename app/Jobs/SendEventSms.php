@@ -12,6 +12,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Throwable;
 
 class SendEventSms implements ShouldQueue
@@ -27,17 +28,19 @@ class SendEventSms implements ShouldQueue
         $workflowId = $this->workflowAlertId ?? null;
         $workflow = $workflowId ? WorkflowAlert::query()->find($workflowId) : null;
         $notification = $this->notificationId ? Notification::query()->find($this->notificationId) : null;
-        $event = $workflow?->event->stage() ?? ($notification ? ServiceAlert::forNotification($notification) : null);
-        if (! $event?->supportsSms() || (! $workflow && $event === ServiceAlert::Booking) || ! config('services.semaphore.api_key')) {
+        $mechanicEvent = $notification ? ServiceAlert::forMechanicNotification($notification) : null;
+        $event = $workflow?->event->stage() ?? $mechanicEvent ?? ($notification ? ServiceAlert::forNotification($notification) : null);
+        if (! $event?->supportsSms() || (! $workflow && ! $mechanicEvent && in_array($event, [ServiceAlert::Booking, ServiceAlert::Roadside, ServiceAlert::Plan], true)) || ! $sms->configured()) {
             return;
         }
 
         $record = $workflow ? ['workflow_alert_id' => $workflow->id] : ['notification_id' => $notification->id];
         $userId = $workflow?->customer_id ?? $notification->user_id;
-        $recipient = DB::transaction(function () use ($record, $userId, $event, $sms): ?array {
+        $recipient = DB::transaction(function () use ($record, $userId, $event, $sms, $mechanicEvent): ?array {
             $user = User::query()->lockForUpdate()->find($userId);
             $phone = $sms->phone($user?->phone);
-            if ($user?->status !== 'active' || ! $phone || ! $user->receivesEventVia($event->value, 'sms')) {
+            if ($user?->status !== 'active' || ! $phone || ! $user->receivesEventVia($event->value, 'sms')
+                || ($mechanicEvent && ! ($user->communication_preferences['sms'][$event->value] ?? false))) {
                 return null;
             }
 
@@ -61,6 +64,11 @@ class SendEventSms implements ShouldQueue
                 /** @var CustomerWorkflowNotification $message */
                 $message = new $class($workflow);
                 $text = $message->smsText($recipient['user']);
+            } elseif ($mechanicEvent) {
+                $locale = $recipient['user']->locale ?? 'en';
+                $key = $notification->type === 'appointment_status' && ($notification->data['status'] ?? '') === 'en_route' ? 'en_route' : $notification->type;
+                $link = $notification->destinationFor($recipient['user']);
+                $text = Str::limit(Str::ascii(__('mechanic.sms.'.$key, [], $locale)), max(0, 159 - strlen($link)), '').' '.$link;
             } elseif ($event === ServiceAlert::Messages) {
                 $text = __('extensions.chat.sms', [], $recipient['user']->locale ?? 'en').' '.$notification->destinationFor($recipient['user']);
             } else {
@@ -71,11 +79,12 @@ class SendEventSms implements ShouldQueue
         } catch (Throwable $exception) {
             $result = ['accepted' => false, 'response' => ['exception_type' => $exception::class], 'cost' => null];
         }
-        if (! $result['accepted']) {
+        $simulated = ($result['response']['provider'] ?? null) === 'demo';
+        if (! $result['accepted'] && ! $simulated) {
             Log::warning('sms.delivery_failed', $record + $result['response']);
         }
         DB::table('sms_deliveries')->where($record)->update([
-            'status' => $result['accepted'] ? 'accepted' : 'failed',
+            'status' => $simulated ? 'simulated' : ($result['accepted'] ? 'accepted' : 'failed'),
             'provider_response' => json_encode($result['response'], JSON_THROW_ON_ERROR),
             'cost' => $result['cost'],
         ]);

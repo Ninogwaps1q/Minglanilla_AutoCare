@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreEmergencyRequest;
 use App\Models\EmergencyRequest;
 use App\Services\EmergencyDispatchService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -39,7 +40,7 @@ class EmergencyRequestController extends Controller
 
     public function store(StoreEmergencyRequest $request): RedirectResponse
     {
-        $attributes = $request->validated();
+        $attributes = $request->safe()->except('share_pickup');
         if (isset($attributes['vehicle_id']) && ! $request->user()->vehicles()->whereKey($attributes['vehicle_id'])->exists()) {
             throw ValidationException::withMessages(['vehicle_id' => 'Select one of your own vehicles.']);
         }
@@ -48,13 +49,27 @@ class EmergencyRequestController extends Controller
             if ($customer->emergencyRequests()->whereIn('status', ['pending', 'accepted', 'en_route'])->exists()) {
                 throw ValidationException::withMessages(['emergency_type' => 'You already have an active roadside request. Track or cancel it before requesting help again.']);
             }
-            $emergencyRequest = $request->user()->emergencyRequests()->create([...$attributes, 'status' => 'pending', 'requested_at' => now()]);
+            $emergencyRequest = $request->user()->emergencyRequests()->create([...$attributes, 'status' => 'pending', 'requested_at' => now(), 'pickup_consented_at' => now()]);
             $this->dispatchService->assignNext($emergencyRequest);
 
             return $emergencyRequest;
         });
 
         return back()->with('status', $emergencyRequest->assigned_shop_id === null ? 'Your request was recorded. No eligible nearby provider is currently available.' : 'Your request was sent to the nearest eligible provider.');
+    }
+
+    public function tracking(Request $request, EmergencyRequest $emergencyRequest): JsonResponse
+    {
+        abort_unless($emergencyRequest->customer_id === $request->user()->id, 404);
+        $location = $emergencyRequest->responder_location;
+        $active = in_array($emergencyRequest->status, ['pending', 'accepted', 'en_route'], true);
+        $sharing = $emergencyRequest->status === 'en_route' && ! $emergencyRequest->arrived_at && $location && $location['time'] > now()->subMinutes(2)->timestamp;
+
+        return response()->json([
+            'active' => $active,
+            'arrived' => $emergencyRequest->arrived_at !== null,
+            'location' => $sharing ? $location : null,
+        ])->header('Cache-Control', 'private, no-store');
     }
 
     public function destroy(Request $request, EmergencyRequest $emergencyRequest): RedirectResponse
@@ -66,7 +81,7 @@ class EmergencyRequestController extends Controller
                 throw ValidationException::withMessages(['request' => 'This request can no longer be cancelled online. Contact the assigned provider for help.']);
             }
             $shop = $emergencyRequest->assignedShop;
-            $emergencyRequest->update(['status' => 'cancelled', 'completed_at' => now()]);
+            $emergencyRequest->update(['status' => 'cancelled', 'completed_at' => now(), 'responder_location' => null]);
             if ($shop !== null) {
                 DB::table('emergency_dispatch_attempts')->where('emergency_request_id', $emergencyRequest->id)
                     ->where('shop_id', $shop->id)->whereIn('status', ['assigned', 'pending', 'accepted'])

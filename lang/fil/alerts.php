@@ -16,6 +16,7 @@ return [
     'event_payment' => 'Problema sa bayad',
     'event_roadside' => 'Tulong sa kalsada',
     'event_plan' => 'Mga plano ng provider',
+    'event_maintenance' => 'Mga paalala sa maintenance',
     'saved' => 'Na-save ang mga pagpipilian sa abiso.',
     'save' => 'I-save ang mga pagpipilian',
     'push_help' => 'Piliin ang Payagan para irehistro ang browser na ito. Naghihintay pa ng setup ang pagpapadala.',

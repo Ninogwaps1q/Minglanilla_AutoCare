@@ -48,6 +48,39 @@
                 <p class="text-secondary small mb-0 mt-3">The listed service price may not include additional repair work. The provider must send an estimate for your approval before extra work begins.</p>
             </section>
 
+            @if ($shop->isIndependentMechanic())
+                @php($profile = $shop->mechanic_profile ?? [])
+                <section class="surface p-4" aria-labelledby="mechanic-profile-heading">
+                    <h2 id="mechanic-profile-heading" class="h5">{{ __('mechanic.portfolio') }}</h2>
+                    <p class="mb-2">{{ __($shop->acceptsNewBookings() ? 'mechanic.online' : 'mechanic.offline') }} @if ($shop->offersHomeService()) · {{ __('mechanic.home_service') }} @endif</p>
+                    <dl class="mb-0">
+                        @foreach (['experience_years', 'specializations', 'certifications'] as $field)
+                            @if (isset($profile[$field]))
+                                <dt>{{ __('mechanic.'.$field) }}</dt><dd class="text-break">{{ $profile[$field] }}</dd>
+                            @endif
+                        @endforeach
+                        @if (! empty($profile['vehicle_types']))
+                            <dt>{{ __('mechanic.vehicle_types') }}</dt><dd>{{ collect($profile['vehicle_types'])->map(fn ($type) => __('mechanic.'.$type))->implode(', ') }}</dd>
+                        @endif
+                        <dt>{{ __('mechanic.completed') }}</dt><dd>{{ $shop->completed_services_count }}</dd>
+                    </dl>
+                    @foreach ($shop->mechanic_portfolio ?? [] as $id => $project)
+                        @continue(! ($project['permission'] ?? false))
+                        <article class="border-top mt-3 pt-3 text-break">
+                            <h3 class="h6">{{ $project['title'] }}</h3>
+                            <p class="small text-secondary">{{ $project['vehicle'] }}</p>
+                            <p>{{ $project['description'] }}</p>
+                            <div class="row g-2">
+                                @foreach (['before', 'after'] as $phase)
+                                    @if (! empty($project[$phase]))
+                                        <div class="col-6"><figure class="mb-0"><img class="img-fluid rounded" loading="lazy" src="{{ route('shops.portfolio.photo', [$shop, $id, $phase]) }}" alt="{{ ucfirst($phase) }} {{ $project['title'] }}"><figcaption class="small text-secondary">{{ ucfirst($phase) }}</figcaption></figure></div>
+                                    @endif
+                                @endforeach
+                            </div>
+                        </article>
+                    @endforeach
+                </section>
+            @endif
             <section class="surface p-4" aria-labelledby="shop-reviews-heading">
                 <x-form-errors />
                 <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-3">
@@ -81,9 +114,9 @@
                 <div class="d-grid gap-2 mb-4">
                     @auth
                         @if (auth()->user()->role === 'customer')
-                            @if ($shop->services->contains('availability', true) && $shop->hasPlanAtLeast('basic'))
+                            @if ($shop->services->contains('availability', true) && $shop->acceptsNewBookings())
                                 <a class="btn btn-primary" href="{{ route('customer.appointments.create', ['shop_id' => $shop->id]) }}">Book a service</a>
-                            @elseif (! $shop->hasPlanAtLeast('basic'))
+                            @elseif (! $shop->acceptsNewBookings())
                                 <p class="small text-secondary mb-0">This provider is listed for discovery and is not accepting online bookings right now.</p>
                             @endif
                             <a class="btn btn-outline-primary" href="{{ route('customer.messages.show', $shop) }}">Message {{ $shop->isIndependentMechanic() ? 'mechanic' : 'shop' }}</a>
@@ -94,7 +127,7 @@
                             </form>
                         @endif
                     @else
-                        @if ($shop->services->contains('availability', true) && $shop->hasPlanAtLeast('basic'))
+                        @if ($shop->services->contains('availability', true) && $shop->acceptsNewBookings())
                             <a class="btn btn-primary" href="{{ route('customer.appointments.create', ['shop_id' => $shop->id]) }}">{{ __('booking.sign_in_to_book') }}</a>
                             <a class="btn btn-outline-primary" href="{{ route('customer.messages.show', $shop) }}">{{ __('booking.sign_in_to_message') }}</a>
                         @else

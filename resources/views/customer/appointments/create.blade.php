@@ -49,7 +49,7 @@
                 <p id="booking-progress" class="small text-secondary mb-0"></p>
             </div>
             @if ($errors->any() && ! $vehicleFormErrors)<x-form-errors />@endif
-            <section class="row g-3 mb-3" data-booking-step data-step-label="{{ __('booking.choose_vehicle') }}" data-step-action="{{ __('booking.to_services') }}" aria-labelledby="booking-vehicle-heading" @if ($errors->hasAny(['shop_id', 'vehicle_id', 'service_barangay_id', 'service_street', 'service_landmark'])) data-step-error @endif>
+            <section class="row g-3 mb-3" data-booking-step data-step-label="{{ __('booking.choose_vehicle') }}" data-step-action="{{ __('booking.to_services') }}" aria-labelledby="booking-vehicle-heading" @if ($errors->hasAny(['shop_id', 'vehicle_id', 'service_barangay_id', 'service_street', 'service_landmark', 'latitude', 'longitude'])) data-step-error @endif>
             <div class="col-12 booking-form-section-head">
                 <h2 id="booking-vehicle-heading" tabindex="-1">{{ __('booking.choose_vehicle') }}</h2>
             </div>
@@ -58,7 +58,7 @@
                 <select id="shop_id" class="form-select @error('shop_id') is-invalid @enderror" name="shop_id" required>
                     <option value="">{{ __('ui.' . 'Choose a shop or mechanic') }}</option>
                     @foreach ($shops as $shop)
-                        <option value="{{ $shop->id }}" data-provider-type="{{ $shop->provider_type }}" data-shop-name="{{ $shop->name }}" data-shop-area="{{ $shop->barangay?->areaLabel() }}" @selected($shopId == $shop->id)>{{ $shop->name }} · {{ $shop->providerLabel() }}</option>
+                        <option value="{{ $shop->id }}" data-provider-type="{{ $shop->provider_type }}" data-visit-pin="{{ isset($shop->mechanic_settings['radius_km']) ? 'yes' : 'no' }}" data-shop-name="{{ $shop->name }}" data-shop-area="{{ $shop->barangay?->areaLabel() }}" @selected($shopId == $shop->id)>{{ $shop->name }} · {{ $shop->providerLabel() }}</option>
                     @endforeach
                 </select>
                 @error('shop_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
@@ -70,7 +70,7 @@
                 <select id="vehicle_id" class="form-select @error('vehicle_id') is-invalid @enderror" name="vehicle_id" required>
                     <option value="">{{ __('ui.' . 'Choose a vehicle') }}</option>
                     @foreach ($vehicles as $vehicle)
-                        <option value="{{ $vehicle->id }}" data-vehicle-name="{{ $vehicle->make }} {{ $vehicle->model }} {{ $vehicle->variant ? '· '.$vehicle->variant : '' }} {{ $vehicle->year ? '· '.$vehicle->year : '' }}" data-plate="{{ $vehicle->plate_number }}" @selected(old('vehicle_id', $selectedVehicleId) == $vehicle->id)>{{ $vehicle->plate_number }} — {{ $vehicle->make }} {{ $vehicle->model }}</option>
+                        <option value="{{ $vehicle->id }}" @selected(old('vehicle_id', $selectedVehicleId) == $vehicle->id) data-vehicle-name="{{ $vehicle->make }} {{ $vehicle->model }} {{ $vehicle->variant ? '· '.$vehicle->variant : '' }} {{ $vehicle->year ? '· '.$vehicle->year : '' }}" data-plate="{{ $vehicle->plate_number }}">{{ $vehicle->plate_number }} — {{ $vehicle->make }} {{ $vehicle->model }}</option>
                     @endforeach
                 </select>
                 @error('vehicle_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
@@ -78,6 +78,9 @@
             <div class="col-12" id="service-address-field" @if(! $selectedProvider?->isIndependentMechanic()) hidden @endif>
                 <h2 class="h5">{{ __('ui.' . 'Where should the mechanic meet you?') }}</h2>
                 <x-address-picker prefix="service" barangay-name="service_barangay_id" street-name="service_street" landmark-name="service_landmark" :selected-barangay="$bookingValue('service_barangay_id', auth()->user()->barangay_id)" :street="$bookingValue('service_street', auth()->user()->address)" :landmark="$bookingValue('service_landmark', auth()->user()->landmark)" :street-max="255" :required="$selectedProvider?->isIndependentMechanic()" />
+                <div id="booking-visit-pin" class="mt-3" @unless(isset($selectedProvider?->mechanic_settings['radius_km'])) hidden @endunless>
+                    <x-location-picker :label="__('mechanic.visit_pin')" :hint="__('mechanic.visit_pin_help')" :latitude="$bookingValue('latitude')" :longitude="$bookingValue('longitude')" :required="false" load-when-visible />
+                </div>
             </div>
             </section>
             <section class="row g-3 mb-3" data-booking-step data-step-label="{{ __('booking.choose_services') }}" data-step-action="{{ __('booking.to_schedule') }}" aria-labelledby="booking-service-heading" @if ($errors->has('service_ids') || $errors->get('service_ids.*') !== []) data-step-error @endif>
@@ -162,6 +165,9 @@
                     <p class="mb-1" id="booking-review-summary"></p>
                     <p class="mb-1" id="booking-inclusions">{{ __('booking.inclusions_empty') }}</p>
                     <p class="mb-0 text-secondary">{{ __('booking.confirmation') }}</p>
+                    <p id="mobile-quote-error" class="text-danger mb-0 mt-2" role="alert" hidden></p>
+                    <dl id="mobile-quote-summary" class="row gx-2 gy-1 small mb-0 mt-2" hidden></dl>
+                    <input type="hidden" name="mobile_quote_total" id="mobile-quote-total">
                 </div>
             </div>
             <div class="col-md-6">
@@ -172,7 +178,7 @@
             </section>
             <div class="booking-action-bar">
                 <div class="booking-action-totals" aria-live="polite" hidden>
-                    <div><span id="booking-service-summary"></span><span class="small text-secondary d-block">{{ __('booking.listed_estimate') }}</span></div>
+                    <div><span id="booking-service-summary"></span><span class="small text-secondary d-block" id="booking-estimate-label">{{ __('booking.listed_estimate') }}</span></div>
                     <strong class="price" id="booking-estimate"></strong>
                 </div>
                 <div class="booking-action-controls d-flex flex-wrap align-items-center gap-2">
@@ -187,6 +193,7 @@
         const shopSelect = document.querySelector('#shop_id');
         const serviceAddressField = document.querySelector('#service-address-field');
         const serviceAddressInputs = serviceAddressField.querySelectorAll('[data-address-choice], [data-address-street]');
+        const visitPin = document.querySelector('#booking-visit-pin');
         const serviceChecks = [...document.querySelectorAll('#booking-services input[type="checkbox"]')];
         const selectedServices = () => serviceChecks.filter(input => input.checked && !input.disabled);
         const dateInput = document.querySelector('#appointment_date');
@@ -195,6 +202,7 @@
         const timeSuggestions = document.querySelector('#time-suggestions');
         const serviceSummary = document.querySelector('#booking-service-summary');
         const estimate = document.querySelector('#booking-estimate');
+        const estimateLabel = document.querySelector('#booking-estimate-label');
         const reviewSummary = document.querySelector('#booking-review-summary');
         const vehicleSelect = document.querySelector('#vehicle_id');
         const vehicleSummary = document.querySelector('#booking-vehicle-summary');
@@ -346,6 +354,11 @@
             const isMechanic = shopSelect.selectedOptions[0]?.dataset.providerType === 'independent_mechanic';
             serviceAddressField.hidden = !isMechanic;
             serviceAddressInputs.forEach(input => { input.required = isMechanic; });
+            visitPin.hidden = shopSelect.selectedOptions[0]?.dataset.visitPin !== 'yes';
+            visitPin.querySelectorAll('input').forEach(input => {
+                input.required = !visitPin.hidden;
+                input.disabled = visitPin.hidden;
+            });
             serviceChecks.forEach(input => {
                 const unavailable = input.dataset.shopId !== shopSelect.value;
                 input.closest('[data-service-shop]').hidden = unavailable;
@@ -425,11 +438,72 @@
             const index = steps.indexOf(event.target.closest('[data-booking-step]'));
             if (index >= 0 && index !== currentStep) showStep(index, false);
         }, true);
-        bookingForm.addEventListener('submit', event => {
-            if (currentStep === lastStep) return;
+        const mobileQuoteTotal = document.querySelector('#mobile-quote-total');
+        const mobileQuoteSummary = document.querySelector('#mobile-quote-summary');
+        const mobileQuoteError = document.querySelector('#mobile-quote-error');
+        const mechanicCopy = @js(array_replace(trans('mechanic', [], 'en'), trans('mechanic')));
+        const bookingSubmitLabel = submit.textContent.trim();
+        const isMobileBooking = () => shopSelect.selectedOptions[0]?.dataset.providerType === 'independent_mechanic';
+        let quoteVersion = 0;
+        const resetMobileQuote = () => {
+            quoteVersion++;
+            if (mobileQuoteTotal.value !== '') {
+                estimate.textContent = priceFormatter.format(selectedServices().reduce((sum, input) => sum + Number(input.dataset.price), 0));
+                estimateLabel.textContent = bookingCopy.listed_estimate;
+            }
+            mobileQuoteTotal.value = '';
+            mobileQuoteSummary.hidden = true;
+            mobileQuoteError.hidden = true;
+            submit.textContent = isMobileBooking() ? mechanicCopy.check_quote : bookingSubmitLabel;
+        };
+        bookingForm.addEventListener('input', resetMobileQuote);
+        bookingForm.addEventListener('change', resetMobileQuote);
+        bookingForm.addEventListener('submit', async event => {
+            if (currentStep !== lastStep) {
+                event.preventDefault();
+                advance();
+                return;
+            }
+            if (!isMobileBooking() || mobileQuoteTotal.value !== '') return;
             event.preventDefault();
-            advance();
+            const version = ++quoteVersion;
+            submit.disabled = true;
+            mobileQuoteError.hidden = true;
+            try {
+                const response = await fetch(@js(route('customer.appointments.mobile-quote')), {
+                    method: 'POST',
+                    body: new FormData(bookingForm),
+                    headers: { Accept: 'application/json' },
+                });
+                const quote = await response.json();
+                if (version !== quoteVersion) return;
+                if (!response.ok) throw new Error(response.status === 422 ? quote.message : mechanicCopy.quote_unavailable);
+                mobileQuoteSummary.replaceChildren();
+                for (const [key, cents] of Object.entries(quote)) {
+                    if (cents === 0 && !['service', 'total'].includes(key)) continue;
+                    const label = document.createElement('dt');
+                    label.className = 'col-7 text-break';
+                    label.textContent = mechanicCopy[key];
+                    const amount = document.createElement('dd');
+                    amount.className = 'col-5 mb-0 text-end';
+                    amount.textContent = priceFormatter.format(cents / 100);
+                    mobileQuoteSummary.append(label, amount);
+                }
+                mobileQuoteSummary.hidden = false;
+                mobileQuoteTotal.value = quote.total;
+                estimate.textContent = priceFormatter.format(quote.total / 100);
+                estimateLabel.textContent = mechanicCopy.total;
+                submit.textContent = bookingSubmitLabel;
+                mobileQuoteSummary.scrollIntoView({ block: 'center' });
+            } catch (error) {
+                if (version !== quoteVersion) return;
+                mobileQuoteError.textContent = error instanceof SyntaxError ? mechanicCopy.quote_unavailable : error.message;
+                mobileQuoteError.hidden = false;
+            } finally {
+                submit.disabled = false;
+            }
         });
+        resetMobileQuote();
         vehicleForm.addEventListener('formdata', event => {
             for (const [name, value] of new FormData(bookingForm)) {
                 if (!['_token', 'vehicle_id'].includes(name)) {

@@ -19,19 +19,39 @@ class ShopVerificationController extends Controller
     {
         $area = $request->validate(Barangay::AREA_FILTER_RULES);
         $status = $request->query('status');
-        $status = in_array($status, ['pending', 'approved', 'rejected'], true) ? $status : null;
+        $status = in_array($status, ['pending', 'under_review', 'additional_requirements', 'approved', 'rejected', 'suspended'], true) ? $status : null;
         $provider = in_array($request->query('provider'), ['shop', 'independent_mechanic'], true) ? $request->query('provider') : null;
 
         return view('admin.shops.index', [
             'shops' => Shop::query()->with(['owner', 'barangay.municipality.province.region', 'documents'])
                 ->inArea($area)
-                ->when($status, fn ($query) => $query->where('verification_status', $status))
+                ->when($status, fn ($query) => $query->where($status === 'suspended' ? 'shop_status' : 'verification_status', $status))
                 ->when($provider, fn ($query) => $query->where('provider_type', $provider))
                 ->latest()->paginate(10)->withQueryString(),
             'selectedStatus' => $status,
             'selectedProvider' => $provider,
             'area' => $area,
         ]);
+    }
+
+    public function review(Shop $shop, Request $request): RedirectResponse
+    {
+        abort_unless($shop->isIndependentMechanic(), 404);
+        $attributes = $request->validate([
+            'status' => ['required', 'in:under_review,additional_requirements'],
+            'reason' => ['nullable', 'required_if:status,additional_requirements', 'string', 'max:1000'],
+        ]);
+        DB::transaction(function () use ($shop, $request, $attributes): void {
+            $shop = Shop::query()->lockForUpdate()->findOrFail($shop->id);
+            abort_unless(in_array($shop->verification_status, ['pending', 'under_review', 'additional_requirements'], true), 409);
+            if ($shop->verification_status === $attributes['status'] && $attributes['status'] === 'under_review') {
+                return;
+            }
+            $shop->update(['verification_status' => $attributes['status']]);
+            $this->recordDecision($shop, $request, __('mechanic.verification.'.$attributes['status']), $attributes['reason'] ?? null);
+        });
+
+        return back()->with('status', __('mechanic.saved'));
     }
 
     public function approve(Shop $shop, Request $request): RedirectResponse
@@ -75,6 +95,9 @@ class ShopVerificationController extends Controller
             $shop = Shop::query()->lockForUpdate()->findOrFail($shop->id);
             if ($shop->verification_status === $verification) {
                 return;
+            }
+            if ($verification === 'rejected' && $shop->verification_status === 'approved') {
+                throw ValidationException::withMessages(['shop' => 'Suspend an approved shop through its operational status instead.']);
             }
             if ($verification === 'approved' && ! $shop->hasCurrentVerifiedPermits()) {
                 throw ValidationException::withMessages(['shop' => 'Verify all required documents before approving this provider.']);

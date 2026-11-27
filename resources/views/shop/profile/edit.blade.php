@@ -43,15 +43,18 @@
         <div class="col-md-6"><label class="form-label">Closing time</label><input class="form-control" type="time"
                 name="closing_time"
                 value="{{ old('closing_time', $shop->closing_time ? substr($shop->closing_time, 0, 5) : '') }}"></div>
-        <fieldset class="col-12">
-            <legend class="form-label">Days open for bookings</legend>
+        <fieldset class="col-12" aria-describedby="operating-days-help">
+            <legend class="form-label float-none w-auto">Days open for bookings</legend>
             <input type="hidden" name="operating_days_present" value="1">
-            <div class="d-flex flex-wrap gap-3">
+            <div class="d-flex flex-wrap gap-2">
                 @foreach ([1 => 'Mon', 2 => 'Tue', 3 => 'Wed', 4 => 'Thu', 5 => 'Fri', 6 => 'Sat', 7 => 'Sun'] as $day => $label)
-                    <label class="form-check-label"><input class="form-check-input me-1" type="checkbox" name="operating_days[]" value="{{ $day }}" @checked(in_array($day, old('operating_days', $shop->operating_days ?? [1, 2, 3, 4, 5, 6, 7])))>{{ $label }}</label>
+                    <label class="booking-day-option d-inline-flex align-items-center gap-2 px-2">
+                        <input class="form-check-input flex-shrink-0 m-0" type="checkbox" name="operating_days[]" value="{{ $day }}" @checked(in_array($day, old('operating_days', $shop->operating_days ?? [1, 2, 3, 4, 5, 6, 7])))>
+                        <span>{{ $label }}</span>
+                    </label>
                 @endforeach
             </div>
-            <p class="form-text">Uncheck a day to stop new bookings on that weekday. Existing appointments remain visible.</p>
+            <p class="form-text mb-0" id="operating-days-help">Uncheck a day to stop new bookings on that weekday. Existing appointments remain visible.</p>
         </fieldset>
         <div class="col-md-6"><input type="hidden" name="roadside_available" value="0"><label class="form-check-label"><input class="form-check-input me-1" type="checkbox" name="roadside_available" value="1" @checked(old('roadside_available', $shop->roadside_available ?? true))>Accept roadside requests now</label><div class="form-text">Turn off when you are unavailable.</div></div>
         <div class="col-md-6"><label class="form-label" for="roadside-radius">Roadside service radius (km)</label><input class="form-control" id="roadside-radius" type="number" name="roadside_radius_km" min="1" max="200" value="{{ old('roadside_radius_km', $shop->roadside_radius_km) }}"><div class="form-text">{{ $shop->isIndependentMechanic() ? 'Required when you accept roadside requests. Set how far you can travel from your service-area center.' : 'Leave blank for no distance limit.' }}</div></div>

@@ -1,4 +1,8 @@
 import './bootstrap';
+
+if (document.querySelector('[data-roadside-share], [data-roadside-tracking]')) {
+    import('./roadside-tracking');
+}
 import 'bootstrap';
 import './ai-chat';
 import './activity-counts';

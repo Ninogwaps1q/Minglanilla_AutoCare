@@ -48,6 +48,9 @@ class Appointment extends Model
             'service_price' => 'decimal:2',
             'service_labor_included' => 'boolean',
             'service_parts_included' => 'boolean',
+            'mobile_service_quote' => 'array',
+            'en_route_at' => 'datetime',
+            'arrived_at' => 'datetime',
         ];
     }
 

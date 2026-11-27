@@ -2,9 +2,11 @@
 
 namespace App\Models;
 
+use App\Jobs\SendEventSms;
 use App\Jobs\SendNotificationPush;
 use App\Notifications\ImportantEventMail;
 use App\Notifications\ServiceAlert;
+use App\Services\SmsService;
 use App\Services\WebPushDelivery;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -46,10 +48,19 @@ class Notification extends Model
         }
 
         $smsEvent = ServiceAlert::forNotification($this);
+        $mechanicEvent = ServiceAlert::forMechanicNotification($this);
+        if ($mechanicEvent && app(SmsService::class)->configured() && $user->receivesEventVia($mechanicEvent->value, 'sms')
+            && ($user->communication_preferences['sms'][$mechanicEvent->value] ?? false)) {
+            try {
+                SendEventSms::dispatch($this->id);
+            } catch (Throwable $exception) {
+                Log::warning('notification.sms_queue_failed', ['notification_id' => $this->id, 'exception_type' => $exception::class]);
+            }
+        }
         if (! in_array($this->type, [
             'appointment_requested', 'appointment_status', 'appointment_reschedule_requested', 'appointment_reschedule_decided', 'appointment_cancelled',
-            'quotation_sent', 'quotation_requested', 'quotation_response', 'quotation_expired', 'repair_status', 'shop_plan_reminder',
-            'shop_plan_payment', 'emergency_request', 'emergency_status', 'payment_verification',
+            'quotation_sent', 'quotation_requested', 'quotation_response', 'quotation_expired', 'quotation_reminder', 'repair_status', 'shop_plan_reminder',
+            'shop_plan_payment', 'emergency_request', 'emergency_status', 'payment_verification', 'appointment_reminder', 'invoice_due', 'maintenance_due',
         ], true) || ($this->type === 'payment_verification' && $smsEvent !== ServiceAlert::Payment)) {
             return;
         }
@@ -123,7 +134,7 @@ class Notification extends Model
                 return route('customer.repairs.index', ['repair_job_id' => $repairId]).'#repair-'.$repairId;
             }
 
-            foreach (['appointment_id' => 'customer.appointments.index', 'quotation_id' => 'customer.quotations.index', 'service_case_id' => 'customer.service-cases.index', 'emergency_request_id' => 'customer.emergency-requests.index', 'reminder_id' => 'customer.reminders.index', 'review_id' => 'customer.reviews.index'] as $key => $routeName) {
+            foreach (['appointment_id' => 'customer.appointments.index', 'quotation_id' => 'customer.quotations.index', 'invoice_id' => 'customer.invoices.index', 'service_case_id' => 'customer.service-cases.index', 'emergency_request_id' => 'customer.emergency-requests.index', 'reminder_id' => 'customer.reminders.index', 'review_id' => 'customer.reviews.index'] as $key => $routeName) {
                 if ($id($key)) {
                     return route($routeName, ['focus' => $id($key)]);
                 }

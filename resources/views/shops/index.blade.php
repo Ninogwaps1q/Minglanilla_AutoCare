@@ -10,13 +10,16 @@
             <div class="col-md-5 col-lg-3"><label class="form-label" for="shop-service">Service</label><select id="shop-service" class="form-select" name="service"><option value="">All services</option>@foreach ($services as $service)<option value="{{ $service->id }}" @selected(($filters['service'] ?? null) == $service->id)>{{ $service->name }}</option>@endforeach</select></div>
             <div class="col-md-5 col-lg-2"><label class="form-label" for="shop-radius">{{ __('directory.distance' ) }}</label><select id="shop-radius" class="form-select" name="radius"><option value="">{{ __('directory.any_distance') }}</option>@foreach ([5, 10, 25, 50, 100] as $radius)<option value="{{ $radius }}" @selected(($filters['radius'] ?? null) == $radius)>{{ __('directory.radius', ['km' => $radius]) }}</option>@endforeach</select></div>
             <div class="col-12">
-                <details class="workspace-disclosure" @if (isset($filters['region_id']) || isset($filters['provider']) || isset($filters['rating']) || ($filters['open_now'] ?? false) || $filters['sort'] === 'rating') open @endif>
+                <details class="workspace-disclosure" @if (isset($filters['region_id']) || isset($filters['provider']) || isset($filters['rating']) || isset($filters['max_price']) || isset($filters['vehicle_type']) || ($filters['home_service'] ?? false) || ($filters['open_now'] ?? false) || $filters['sort'] === 'rating') open @endif>
                     <summary class="fw-semibold">{{ __('directory.more_filters') }}</summary>
                     <div class="row g-3 align-items-end pt-2">
                         <div class="col-12"><x-address-picker prefix="directory-area" area-only :area="$filters" /></div>
                         <div class="col-md-6 col-xl-3"><label class="form-label" for="provider-filter">Provider type</label><select id="provider-filter" class="form-select" name="provider"><option value="">Shops and mechanics</option><option value="shop" @selected(($filters['provider'] ?? '') === 'shop')>Service shops</option><option value="independent_mechanic" @selected(($filters['provider'] ?? '') === 'independent_mechanic')>Mobile mechanics</option></select></div>
                         <div class="col-md-6 col-xl-3"><label class="form-label" for="shop-sort">Sort by</label><select id="shop-sort" class="form-select" name="sort"><option value="name" @selected($filters['sort'] === 'name')>{{ __('directory.featured_sort') }}</option><option value="rating" @selected($filters['sort'] === 'rating')>Highest rating</option><option value="distance" @selected($filters['sort'] === 'distance') @disabled(! isset($filters['latitude'], $filters['longitude']))>Nearest to me</option></select></div>
                         <div class="col-md-6 col-xl-3"><label class="form-label" for="minimum-rating">{{ __('directory.rating') }}</label><select id="minimum-rating" class="form-select" name="rating"><option value="">{{ __('directory.any_rating') }}</option>@foreach (['3', '4', '4.5'] as $rating)<option value="{{ $rating }}" @selected(($filters['rating'] ?? null) === $rating)>{{ __('directory.rating_option', ['rating' => $rating]) }}</option>@endforeach</select></div>
+                        <div class="col-md-6 col-xl-3"><label class="form-label" for="max-price">Maximum listed price (PHP)</label><input id="max-price" class="form-control" name="max_price" type="number" min="0" max="1000000" step="0.01" value="{{ $filters['max_price'] ?? '' }}"></div>
+                        <div class="col-md-6 col-xl-3"><label class="form-label" for="vehicle-type">{{ __('mechanic.vehicle_types') }}</label><select id="vehicle-type" class="form-select" name="vehicle_type"><option value="">Any listed vehicle type</option>@foreach (['car', 'motorcycle', 'truck'] as $type)<option value="{{ $type }}" @selected(($filters['vehicle_type'] ?? null) === $type)>{{ __('mechanic.'.$type) }}</option>@endforeach</select></div>
+                        <div class="col-12"><label class="form-check"><input class="form-check-input" type="checkbox" name="home_service" value="1" @checked($filters['home_service'] ?? false)> {{ __('mechanic.home_service') }}</label></div>
                     </div>
                 </details>
             </div>
@@ -83,6 +86,16 @@
                                 @endif
                             </div>
                             <p class="small text-secondary mt-2 mb-0">{{ $shop->barangay->areaLabel() }}</p>
+                            @if ($shop->isIndependentMechanic())
+                                <p class="small text-secondary mb-0">
+                                    {{ __($shop->acceptsNewBookings() ? 'mechanic.online' : 'mechanic.offline') }}
+                                    @if ($shop->offersHomeService()) · {{ __('mechanic.home_service') }} @endif
+                                    @if (isset($shop->mechanic_settings['radius_km'])) · {{ $shop->mechanic_settings['radius_km'] }} km @endif
+                                </p>
+                                @if (! empty($shop->mechanic_profile['specializations']))
+                                    <p class="small text-secondary text-break mb-0">{{ $shop->mechanic_profile['specializations'] }}</p>
+                                @endif
+                            @endif
                             @if ($shop->services->isNotEmpty())
                                 <p class="small text-secondary mb-0">{{ $shop->services->pluck('service.name')->unique()->take(4)->implode(', ') }}</p>
                             @endif

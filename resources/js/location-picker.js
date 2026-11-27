@@ -36,7 +36,7 @@ function initialize() {
             longitude.value = position.lng().toFixed(7);
             if (marker) marker.setPosition(position);
             else marker = new googleMaps.Marker({ map, position, title: 'Selected location' });
-            if (deferred) longitude.dispatchEvent(new Event('input', { bubbles: true }));
+            longitude.dispatchEvent(new Event('input', { bubbles: true }));
             status.textContent = copy.pin;
         };
         map.addListener('click', event => pin(event.latLng));
@@ -111,7 +111,14 @@ function initialize() {
 }
 
 const disclosure = deferred ? element.closest('details') : null;
-if (disclosure && !disclosure.open) {
+if (element.hasAttribute('data-load-when-visible') && 'IntersectionObserver' in window) {
+    const observer = new IntersectionObserver(entries => {
+        if (!entries.some(entry => entry.isIntersecting)) return;
+        observer.disconnect();
+        initialize();
+    });
+    observer.observe(element);
+} else if (disclosure && !disclosure.open) {
     disclosure.addEventListener('toggle', function onOpen() {
         if (!disclosure.open) return;
         disclosure.removeEventListener('toggle', onOpen);

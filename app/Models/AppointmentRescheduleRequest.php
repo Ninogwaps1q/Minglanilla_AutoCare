@@ -14,6 +14,7 @@ class AppointmentRescheduleRequest extends Model
         return [
             'original_date' => 'date', 'original_time' => 'datetime:H:i',
             'requested_date' => 'date', 'requested_time' => 'datetime:H:i', 'decided_at' => 'datetime',
+            'proposed_by_provider' => 'boolean',
         ];
     }
 

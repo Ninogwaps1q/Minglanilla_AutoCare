@@ -41,12 +41,13 @@ it('applies a refund credit note without creating a replacement balance', functi
 });
 
 it('keeps a paid invoice paid when an approved PayMongo refund is a service credit', function () {
-    config()->set('services.paymongo.secret_key', 'sk_test_example');
+    config()->set(['services.paymongo.secret_key' => 'sk_test_example', 'services.paymongo.webhook_secret' => 'whsec_example']);
     $shop = Shop::factory()->create();
     $customer = User::factory()->create(['role' => 'customer']);
     $invoice = Invoice::query()->create(['shop_id' => $shop->id, 'customer_id' => $customer->id, 'invoice_number' => 'INV-SERVICE-CREDIT', 'subtotal' => 500, 'total' => 500, 'status' => 'paid']);
     $payment = $invoice->payments()->create(['shop_id' => $shop->id, 'customer_id' => $customer->id, 'amount' => 500, 'payment_method' => 'paymongo', 'payment_date' => now(), 'status' => 'confirmed', 'paymongo_payment_id' => 'pay_credit', 'settlement_status' => 'pending']);
     $this->actingAs($customer)->post(route('customer.payments.refund.request', $payment), ['amount' => 100, 'reason' => 'Cancelled part of service'])->assertRedirect();
+    Http::preventStrayRequests();
     Http::fake(['api.paymongo.com/*' => Http::response(['data' => ['id' => 'ref_credit', 'attributes' => ['payment_id' => 'pay_credit', 'amount' => 10000, 'currency' => 'PHP', 'status' => 'succeeded']]])]);
 
     $this->actingAs(User::factory()->create(['role' => 'admin']))->withSession(['auth.password_confirmed_at' => now()->timestamp])

@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Models\Vehicle;
 use App\Services\AppointmentSchedule;
 use App\Services\BookingPromotion;
+use App\Services\MechanicBooking;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -50,7 +51,7 @@ class AppointmentController extends Controller
         ]);
         $shop = Shop::query()->where('verification_status', 'approved')->where('shop_status', 'active')
             ->whereHas('owner', fn ($query) => $query->where('status', 'active'))
-            ->withOnlineBookings()
+            ->withAppointmentBookings()
             ->findOrFail($attributes['shop_id']);
         $serviceIds = $attributes['service_ids'] ?? array_filter([$request->integer('service_id')]);
         $offers = ShopService::query()->where('shop_id', $shop->id)
@@ -65,11 +66,11 @@ class AppointmentController extends Controller
             'opening_time' => $shop->opening_time ? substr($shop->opening_time, 0, 5) : null,
             'closing_time' => $shop->closing_time ? substr($shop->closing_time, 0, 5) : null,
             'is_open_day' => $shop->operating_days === null || in_array(Carbon::parse($attributes['date'])->dayOfWeekIso, array_map('intval', $shop->operating_days), true),
-            'schedule_blocks' => collect($shop->schedule_blocks ?? [])->where('date', $attributes['date'])->values(),
+            'schedule_blocks' => $schedule->blocksFor($shop, $attributes['date']),
             'taken_times' => collect($intervals)->map(fn (array $interval): string => sprintf('%02d:%02d', intdiv($interval['start'], 60), $interval['start'] % 60))->values(),
             'booked_intervals' => $intervals,
-            'duration_minutes' => $offers->isEmpty() ? 60 : $offers->sum(fn (ShopService $offer): int => (int) ($offer->service?->estimated_duration ?: 60)),
-            'capacity' => (int) $shop->booking_capacity,
+            'duration_minutes' => $schedule->duration($shop, $offers->isEmpty() ? 60 : $offers->sum(fn (ShopService $offer): int => (int) ($offer->service?->estimated_duration ?: 60))),
+            'capacity' => $shop->appointmentCapacity(),
         ]);
     }
 
@@ -86,7 +87,7 @@ class AppointmentController extends Controller
                 ->where('verification_status', 'approved')
                 ->where('shop_status', 'active')
                 ->whereHas('owner', fn ($query) => $query->where('status', 'active'))
-                ->withOnlineBookings()
+                ->withAppointmentBookings()
                 ->with(['services' => fn ($query) => $query->where('availability', true), 'services.service', 'barangay.municipality.province.region'])
                 ->orderBy('name')
                 ->get(),
@@ -98,25 +99,41 @@ class AppointmentController extends Controller
         ]);
     }
 
-    public function store(StoreAppointmentRequest $request, AppointmentSchedule $schedule, BookingPromotion $promotions): RedirectResponse
+    public function quote(StoreAppointmentRequest $request, MechanicBooking $booking): JsonResponse
+    {
+        $attributes = $request->validated();
+        $shop = Shop::query()->publicListing()->findOrFail($attributes['shop_id']);
+        abort_unless($shop->isIndependentMechanic() && $shop->acceptsNewBookings(), 404);
+        $booking->checkNewBooking($shop);
+        $barangay = Barangay::query()->with('municipality')->findOrFail($attributes['service_barangay_id']);
+        $serviceCents = $shop->services()->where('availability', true)
+            ->whereIn('service_id', $attributes['service_ids'] ?? [$attributes['service_id']])
+            ->get(['price'])->sum(fn (ShopService $offer): int => (int) round((float) $offer->price * 100));
+
+        return response()->json($booking->quote($shop, $barangay, $attributes, $serviceCents));
+    }
+
+    public function store(StoreAppointmentRequest $request, AppointmentSchedule $schedule, BookingPromotion $promotions, MechanicBooking $booking): RedirectResponse
     {
         $attributes = $request->validated();
         $serviceIds = $attributes['service_ids'] ?? [$attributes['service_id']];
-        unset($attributes['service_ids'], $attributes['promo_code']);
-        $appointment = DB::transaction(function () use ($request, $attributes, $serviceIds, $schedule, $promotions): Appointment {
+        $visit = array_intersect_key($attributes, array_flip(['latitude', 'longitude', 'mobile_quote_total']));
+        unset($attributes['service_ids'], $attributes['promo_code'], $attributes['latitude'], $attributes['longitude'], $attributes['mobile_quote_total']);
+        $appointment = DB::transaction(function () use ($request, $attributes, $serviceIds, $schedule, $promotions, $booking, $visit): Appointment {
             $shop = Shop::query()->lockForUpdate()->findOrFail($attributes['shop_id']);
             $customer = User::query()->lockForUpdate()->findOrFail($request->user()->id);
             abort_unless($customer->vehicles()->lockForUpdate()->find($attributes['vehicle_id']), 404);
             if ($shop->verification_status !== 'approved' || $shop->shop_status !== 'active' || $shop->owner->status !== 'active') {
                 throw ValidationException::withMessages(['shop_id' => 'This shop is no longer accepting appointments.']);
             }
-            if (! $shop->hasPlanAtLeast('basic')) {
+            if (! $shop->acceptsNewBookings()) {
                 throw ValidationException::withMessages(['shop_id' => 'This shop is listed for discovery but is not accepting online bookings right now.']);
             }
             if ($shop->isIndependentMechanic() && (blank($attributes['service_street'] ?? null) || empty($attributes['service_barangay_id']))) {
                 throw ValidationException::withMessages(['service_street' => 'Enter the full visit address for this mobile service.']);
             }
             if ($shop->isIndependentMechanic()) {
+                $booking->checkNewBooking($shop);
                 $barangay = Barangay::query()->with('municipality.province.region')->findOrFail($attributes['service_barangay_id']);
                 $attributes['service_address'] = Str::limit($attributes['service_street'].', '.$barangay->areaLabel(), 500, '');
             } else {
@@ -128,14 +145,15 @@ class AppointmentController extends Controller
             if ($offers->count() !== count($serviceIds) || $offers->contains(fn (ShopService $offer): bool => ! $offer->service)) {
                 throw ValidationException::withMessages(['service_ids' => 'A selected service is no longer available at this provider.']);
             }
-            $duration = collect($serviceIds)->sum(fn (int $id): int => (int) ($offers[$id]->service->estimated_duration ?: 60));
+            $serviceMinutes = collect($serviceIds)->sum(fn (int $id): int => (int) ($offers[$id]->service->estimated_duration ?: 60));
+            $duration = $schedule->duration($shop, $serviceMinutes);
             if (! $schedule->isUpcoming($attributes['appointment_date'], $attributes['appointment_time'])) {
                 throw ValidationException::withMessages(['appointment_time' => 'Choose a future appointment time.']);
             }
             if (! $schedule->isAvailable($shop, $attributes['appointment_date'], $attributes['appointment_time'], $duration)) {
                 throw ValidationException::withMessages(['appointment_time' => 'The shop is closed or this time is blocked. Choose another slot.']);
             }
-            if (! $schedule->hasCapacity($schedule->bookedIntervals($shop, $attributes['appointment_date']), $attributes['appointment_time'], $duration, (int) $shop->booking_capacity)) {
+            if (! $schedule->hasCapacity($schedule->bookedIntervals($shop, $attributes['appointment_date']), $attributes['appointment_time'], $duration, $shop->appointmentCapacity())) {
                 throw ValidationException::withMessages([
                     'appointment_time' => 'The shop is fully booked during this service. Choose another time.',
                 ]);
@@ -143,8 +161,16 @@ class AppointmentController extends Controller
 
             $primary = $offers[$serviceIds[0]];
             $attributes['service_id'] = $primary->service_id;
-            $attributes['duration_minutes'] = $duration;
-            $attributes['service_price'] = number_format(collect($serviceIds)->sum(fn (int $id): int => (int) round((float) $offers[$id]->price * 100)) / 100, 2, '.', '');
+            $attributes['duration_minutes'] = $serviceMinutes;
+            $serviceCents = $offers->sum(fn (ShopService $offer): int => (int) round((float) $offer->price * 100));
+            $attributes['service_price'] = number_format($serviceCents / 100, 2, '.', '');
+            if (isset($barangay)) {
+                $quote = $booking->quote($shop, $barangay, $visit, $serviceCents);
+                if (($quote['total'] !== $serviceCents || isset($visit['mobile_quote_total'])) && (int) ($visit['mobile_quote_total'] ?? -1) !== $quote['total']) {
+                    throw ValidationException::withMessages(['mobile_quote_total' => __('mechanic.review_quote')]);
+                }
+                $attributes['mobile_service_quote'] = $quote;
+            }
             $attributes['service_labor_included'] = $primary->labor_included;
             $attributes['service_parts_included'] = $primary->parts_included;
             $attributes['service_scope'] = $primary->description;
@@ -167,7 +193,7 @@ class AppointmentController extends Controller
                 'type' => 'appointment_requested',
                 'title' => 'New appointment request',
                 'message' => "Appointment #{$appointment->id} is awaiting your confirmation.",
-                'data' => ['appointment_id' => $appointment->id],
+                'data' => ['appointment_id' => $appointment->id, 'mechanic_update' => $shop->isIndependentMechanic()],
             ]);
 
             return $appointment;
@@ -188,7 +214,7 @@ class AppointmentController extends Controller
         DB::transaction(function () use ($appointment, $schedule, $attributes, $request): void {
             $shop = Shop::query()->lockForUpdate()->findOrFail($appointment->shop_id);
             $appointment = Appointment::query()->lockForUpdate()->findOrFail($appointment->id);
-            if ($appointment->status !== 'confirmed' || $appointment->repairJob()->exists()) {
+            if ($appointment->status !== 'confirmed' || $appointment->en_route_at || $appointment->repairJob()->exists()) {
                 throw ValidationException::withMessages(['requested_date' => 'This appointment can no longer be rescheduled.']);
             }
             $this->validateLateChange($request, $appointment);
@@ -254,6 +280,38 @@ class AppointmentController extends Controller
         });
 
         return back()->with('status', 'Appointment cancelled.');
+    }
+
+    public function decideProposal(Request $request, Appointment $appointment, AppointmentSchedule $schedule): RedirectResponse
+    {
+        abort_unless($appointment->customer_id === $request->user()->id, 404);
+        $approved = $request->validate(['decision' => ['required', 'in:approve,decline']])['decision'] === 'approve';
+        DB::transaction(function () use ($appointment, $request, $schedule, $approved): void {
+            $shop = Shop::query()->lockForUpdate()->findOrFail($appointment->shop_id);
+            $appointment = $request->user()->appointments()->lockForUpdate()->findOrFail($appointment->id);
+            $proposal = $appointment->rescheduleRequests()->where('status', 'pending')->where('proposed_by_provider', true)->lockForUpdate()->first();
+            abort_unless($shop->isIndependentMechanic() && $proposal && in_array($appointment->status, ['pending', 'confirmed'], true) && ! $appointment->en_route_at && ! $appointment->repairJob()->exists(), 404);
+            if ($approved) {
+                $date = $proposal->requested_date->toDateString();
+                $time = $proposal->requested_time->format('H:i');
+                $schedule->assertRescheduleAvailable($shop, $appointment, $date, $time);
+                $oldStatus = $appointment->status;
+                $appointment->update(['appointment_date' => $date, 'appointment_time' => $time, 'status' => 'confirmed']);
+                if ($oldStatus !== 'confirmed') {
+                    $appointment->statusHistories()->create([
+                        'from_status' => $oldStatus, 'to_status' => 'confirmed', 'changed_by' => $request->user()->id, 'changed_at' => now(),
+                    ]);
+                }
+                $appointment->serviceCase?->update(['scheduled_at' => $date.' '.$time]);
+            }
+            $proposal->update(['status' => $approved ? 'approved' : 'declined', 'decided_by' => $request->user()->id, 'decided_at' => now()]);
+            $shop->owner->notifications()->create([
+                'type' => 'appointment_reschedule_decided', 'title' => __('mechanic.proposal_answered'),
+                'message' => __($approved ? 'mechanic.proposal_accepted' : 'mechanic.proposal_declined'), 'data' => ['appointment_id' => $appointment->id],
+            ]);
+        });
+
+        return back()->with('status', __($approved ? 'mechanic.proposal_accepted' : 'mechanic.proposal_declined'));
     }
 
     private function validateLateChange(Request $request, Appointment $appointment): void

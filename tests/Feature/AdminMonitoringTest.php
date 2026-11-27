@@ -72,6 +72,19 @@ it('rejects unsupported monitoring modules and statuses', function () {
     $this->get(route('admin.monitoring.index', ['module' => 'payments', 'status' => 'released']))->assertSessionHasErrors('status');
 });
 
+it('filters operations independently for mechanics and shops', function () {
+    $customer = User::factory()->create(['role' => 'customer']);
+    foreach (['shop' => 'SHOP-ONLY', 'independent_mechanic' => 'MECHANIC-ONLY'] as $type => $reference) {
+        $provider = Shop::factory()->create(['provider_type' => $type]);
+        $provider->invoices()->create(['customer_id' => $customer->id, 'invoice_number' => $reference]);
+    }
+
+    $this->actingAs(User::factory()->create(['role' => 'admin']))
+        ->get(route('admin.monitoring.index', ['module' => 'invoices', 'provider' => 'independent_mechanic']))
+        ->assertOk()->assertSee('MECHANIC-ONLY')->assertDontSee('SHOP-ONLY')
+        ->assertSee('Failed SMS deliveries today');
+});
+
 it('shows the last observed AI state to administrators without exposing its key', function () {
     config(['ai.api_key' => 'private-test-key', 'ai.provider' => 'gemini', 'ai.model' => 'gemini-2.0-flash']);
     app(AiServiceStatus::class)->record('rate_limited', 429);

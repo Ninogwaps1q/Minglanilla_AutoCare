@@ -20,7 +20,34 @@ class Shop extends Model
 
     protected function casts(): array
     {
-        return ['operating_days' => 'array', 'schedule_blocks' => 'array', 'roadside_available' => 'boolean', 'trial_started_at' => 'datetime', 'trial_revoked_at' => 'datetime', 'plan_expires_at' => 'datetime', 'next_plan_starts_at' => 'datetime'];
+        return ['operating_days' => 'array', 'schedule_blocks' => 'array', 'roadside_available' => 'boolean', 'trial_started_at' => 'datetime', 'trial_revoked_at' => 'datetime', 'plan_expires_at' => 'datetime', 'next_plan_starts_at' => 'datetime', 'mechanic_profile' => 'array', 'mechanic_settings' => 'array', 'mechanic_tools' => 'array', 'mechanic_portfolio' => 'array'];
+    }
+
+    public function appointmentCapacity(): int
+    {
+        return $this->isIndependentMechanic() ? 1 : (int) $this->booking_capacity;
+    }
+
+    public function mechanicOnline(): bool
+    {
+        return (bool) ($this->mechanic_settings['online'] ?? true);
+    }
+
+    public function offersHomeService(): bool
+    {
+        return $this->isIndependentMechanic() && (bool) ($this->mechanic_settings['home_service'] ?? true);
+    }
+
+    public function mechanicEntitlements(): array
+    {
+        $slug = $this->activePlanSlug();
+
+        return ShopPlan::query()->where('slug', $slug)->first()?->mechanicFeatures() ?? ShopPlan::mechanicDefaults($slug);
+    }
+
+    public function acceptsNewBookings(): bool
+    {
+        return $this->isIndependentMechanic() ? $this->mechanicOnline() && $this->offersHomeService() : $this->hasPlanAtLeast('basic');
     }
 
     public function isIndependentMechanic(): bool
@@ -143,6 +170,15 @@ class Shop extends Model
                 })
                 ->orWhereHas('planPayments', fn (Builder $query): Builder => $query->validPeriods()->where('period_starts_at', '<=', now())->where('period_ends_at', '>', now()));
         });
+    }
+
+    public function scopeWithAppointmentBookings(Builder $query): Builder
+    {
+        return $query->where(fn (Builder $providers): Builder => $providers
+            ->where(fn (Builder $shops): Builder => $shops->where('provider_type', 'shop')->withOnlineBookings())
+            ->orWhere(fn (Builder $mechanics): Builder => $mechanics->where('provider_type', 'independent_mechanic')
+                ->where(fn (Builder $availability): Builder => $availability->whereNull('mechanic_settings->online')->orWhere('mechanic_settings->online', true))
+                ->where(fn (Builder $home): Builder => $home->whereNull('mechanic_settings->home_service')->orWhere('mechanic_settings->home_service', true))));
     }
 
     public function planPayments(): HasMany

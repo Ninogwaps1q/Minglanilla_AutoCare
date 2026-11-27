@@ -41,6 +41,9 @@ class StoreAppointmentRequest extends FormRequest
             'service_barangay_id' => ['nullable', 'integer', 'exists:barangays,id'],
             'service_street' => ['nullable', 'string', 'max:255'],
             'service_landmark' => ['nullable', 'string', 'max:255'],
+            'latitude' => ['nullable', 'required_with:longitude', 'numeric', 'between:4,22'],
+            'longitude' => ['nullable', 'required_with:latitude', 'numeric', 'between:112,128'],
+            'mobile_quote_total' => ['nullable', 'integer', 'min:0'],
         ];
     }
 
@@ -74,13 +77,13 @@ class StoreAppointmentRequest extends FormRequest
                 return;
             }
 
-            $duration = $offers->sum(fn (ShopService $offer): int => (int) ($offer->service->estimated_duration ?: 60));
+            $duration = $schedule->duration($shop, $offers->sum(fn (ShopService $offer): int => (int) ($offer->service->estimated_duration ?: 60)));
             if (! $schedule->isAvailable($shop, $this->input('appointment_date'), $preferredTime, $duration)) {
                 $validator->errors()->add('appointment_time', 'The shop is closed or this time is blocked. Choose another slot.');
 
                 return;
             }
-            if (! $schedule->hasCapacity($schedule->bookedIntervals($shop, $this->input('appointment_date')), $preferredTime, $duration, (int) $shop->booking_capacity)) {
+            if (! $schedule->hasCapacity($schedule->bookedIntervals($shop, $this->input('appointment_date')), $preferredTime, $duration, $shop->appointmentCapacity())) {
                 $validator->errors()->add('appointment_time', 'The shop is fully booked during this service. Choose another time.');
             }
         }];

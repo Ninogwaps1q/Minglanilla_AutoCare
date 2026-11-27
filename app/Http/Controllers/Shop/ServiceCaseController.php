@@ -67,8 +67,9 @@ class ServiceCaseController extends Controller
                     throw ValidationException::withMessages(['scheduled_at' => __('booking.slot_past')]);
                 }
                 $intervals = $schedule->bookedIntervals($shop, $date, null, $case->id);
-                if (! $schedule->isAvailable($shop, $date, $time, 60)
-                    || ! $schedule->hasCapacity($intervals, $time, 60, (int) $shop->booking_capacity)) {
+                $duration = $schedule->duration($shop, 60);
+                if (! $schedule->isAvailable($shop, $date, $time, $duration)
+                    || ! $schedule->hasCapacity($intervals, $time, $duration, $shop->appointmentCapacity())) {
                     throw ValidationException::withMessages(['scheduled_at' => 'This follow-up time is unavailable. Choose another one-hour slot within shop hours.']);
                 }
             }

@@ -37,8 +37,25 @@
                                 <div class="appointment-actions">
                                     @if ($appointment->repairJob)
                                         <a class="btn btn-sm btn-outline-primary appointment-main-action" href="{{ route('shop.repair-jobs.index', ['appointment_id' => $appointment->id]) }}">View repair</a>
-                                    @elseif ($appointment->status === 'confirmed' && $appointment->latestRescheduleRequest?->status !== 'pending')
+                                    @elseif ($appointment->status === 'confirmed' && $appointment->latestRescheduleRequest?->status !== 'pending' && (! $appointment->mobile_service_quote || $appointment->arrived_at))
                                         <a class="btn btn-sm btn-primary appointment-main-action" href="{{ route('shop.repair-jobs.create', ['appointment_id' => $appointment->id]) }}">Start repair job</a>
+                                    @endif
+                                    @if (auth()->user()->role === 'mechanic' && $appointment->status === 'confirmed' && $appointment->service_address && ! $appointment->arrived_at && $appointment->latestRescheduleRequest?->status !== 'pending')
+                                        <form method="POST" action="{{ route('shop.mechanic.travel', $appointment) }}">@csrf @method('PATCH')
+                                            <button class="btn btn-sm btn-outline-primary" name="stage" value="{{ $appointment->en_route_at ? 'arrived' : 'en_route' }}">{{ __($appointment->en_route_at ? 'mechanic.arrived' : 'mechanic.en_route') }}</button>
+                                        </form>
+                                    @endif
+                                    @if (auth()->user()->role === 'mechanic' && in_array($appointment->status, ['pending', 'confirmed'], true) && ! $appointment->en_route_at && ! $appointment->repairJob && $appointment->latestRescheduleRequest?->status !== 'pending')
+                                        <details class="appointment-more-actions">
+                                            <summary>{{ __('mechanic.propose_time') }}</summary>
+                                            <form method="POST" action="{{ route('shop.appointments.propose', $appointment) }}" class="d-grid gap-2 mt-2">
+                                                @csrf
+                                                <label>New date<input name="requested_date" class="form-control" type="date" min="{{ today(\App\Models\Appointment::TIMEZONE)->toDateString() }}" required></label>
+                                                <label>New time<input name="requested_time" class="form-control" type="time" required></label>
+                                                <label>Reason (optional)<input name="reason" class="form-control" maxlength="500"></label>
+                                                <button class="btn btn-outline-primary">{{ __('mechanic.propose_time') }}</button>
+                                            </form>
+                                        </details>
                                     @endif
                                     @if ($appointment->availableStatusTransitions() && ! $appointment->repairJob)
                                         @if ($appointment->status === 'confirmed')
@@ -52,7 +69,7 @@
                                                 <option value="" selected disabled>Choose action</option>
                                                 @foreach ($appointment->availableStatusTransitions() as $status => $label)
                                                     @continue($status === 'no_show')
-                                                    <option value="{{ $status }}">{{ $label }}</option>
+                                                    <option value="{{ $status }}">{{ auth()->user()->role === 'mechanic' && $appointment->status === 'pending' ? ($status === 'confirmed' ? 'Accept request' : 'Decline request') : $label }}</option>
                                                 @endforeach
                                             </select>
                                             <button class="btn btn-sm btn-outline-primary" type="submit">Update status</button>
@@ -74,7 +91,9 @@
                                 </div>
                             </td>
                         </tr>
-                        @if ($appointment->status === 'confirmed' && $appointment->latestRescheduleRequest?->status === 'pending')
+                        @if ($appointment->latestRescheduleRequest?->status === 'pending' && $appointment->latestRescheduleRequest->proposed_by_provider)
+                            <tr><td colspan="5" class="p-3"><strong>{{ __('mechanic.proposal_pending') }}</strong> {{ $appointment->latestRescheduleRequest->requested_date->format('M j, Y') }} · {{ $appointment->latestRescheduleRequest->requested_time->format('g:i A') }}</td></tr>
+                        @elseif ($appointment->status === 'confirmed' && $appointment->latestRescheduleRequest?->status === 'pending')
                             <tr>
                                 <td colspan='5' class='p-3'>
                                     <div class='d-flex flex-wrap align-items-center justify-content-between gap-3'>

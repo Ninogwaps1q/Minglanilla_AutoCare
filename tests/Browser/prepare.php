@@ -43,7 +43,7 @@ foreach (['VehicleMakeSeeder', 'VehicleModelSeeder'] as $seeder) {
 }
 
 $password = bin2hex(random_bytes(16));
-foreach (['customer', 'shop_owner', 'admin'] as $role) {
+foreach (['customer', 'shop_owner', 'admin', 'mechanic'] as $role) {
     $users[$role] = User::factory()->create([
         'role' => $role, 'email' => $role.'@browser.example.test', 'password' => $password,
         'name' => 'Browser '.str_replace('_', ' ', $role),
@@ -95,6 +95,13 @@ $messageThread->messages()->createMany([
 ]);
 $category = ServiceCategory::factory()->create();
 $service = Service::factory()->create(['category_id' => $category->id, 'name' => 'Browser Oil Change']);
+$mechanic = Shop::factory()->create([
+    'owner_id' => $users['mechanic']->id, 'barangay_id' => $barangay->id, 'name' => 'Isolated Test Mobile Service',
+    'provider_type' => 'independent_mechanic', 'verification_status' => 'approved', 'shop_status' => 'active',
+    'latitude' => 6.7493, 'longitude' => 125.3552, 'plan_slug' => 'basic', 'plan_expires_at' => now()->addMonth(), 'roadside_available' => false,
+    'mechanic_settings' => ['radius_km' => 10, 'home_fee' => 200, 'travel_rate' => 20],
+]);
+$mechanic->services()->create(['service_id' => $service->id, 'price' => 600, 'availability' => true]);
 ShopService::query()->create(['shop_id' => $shop->id, 'service_id' => $service->id, 'price' => 900, 'availability' => true]);
 $browserAppointmentIds = [];
 foreach (['confirmed' => '09:00', 'pending' => '11:00'] as $status => $time) {
@@ -161,7 +168,7 @@ $invoice = Invoice::query()->create([
 $invoice->items()->create(['description' => 'Browser brake service', 'quantity' => 2,
     'unit_price' => 250, 'subtotal' => 500]);
 echo json_encode(['database' => $database, 'password' => $password, 'shop' => $shop->id, 'logo' => $logoPath,
-    'customerPhoto' => $customerPhotoPath,
+    'customerPhoto' => $customerPhotoPath, 'mechanic' => $mechanic->id,
     'vehicle' => $vehicle->id, 'service' => $service->id, 'confirmedAppointment' => $browserAppointmentIds['confirmed'],
     'repairJob' => $repairJob->id, 'diagnosisRepairJob' => $diagnosisJob->id,
     'part' => $part->id, 'invoice' => $invoice->id, 'browserDocuments' => $browserDocumentIds,

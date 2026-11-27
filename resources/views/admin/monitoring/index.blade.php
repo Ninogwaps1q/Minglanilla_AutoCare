@@ -2,9 +2,10 @@
     <div class="page-heading"><h1>Operations monitoring</h1><p>Read-only oversight of appointments, repairs, billing, and roadside requests. Records remain managed by their authorized owners.</p></div>
     <nav class="d-flex flex-wrap gap-2 mb-4 monitoring-module-nav" aria-label="Monitoring modules">
         @foreach ($modules as $key => $definition)
-            <a class="btn {{ $key === $module ? 'btn-primary' : 'btn-outline-secondary' }}" href="{{ route('admin.monitoring.index', ['module' => $key]) }}" @if ($key === $module) aria-current="page" @endif>{{ $definition[0] }}</a>
+            <a class="btn {{ $key === $module ? 'btn-primary' : 'btn-outline-secondary' }}" href="{{ route('admin.monitoring.index', array_filter(['module' => $key, 'provider' => $filters['provider'] ?? null])) }}" @if ($key === $module) aria-current="page" @endif>{{ $definition[0] }}</a>
         @endforeach
     </nav>
+    <p class="small text-secondary">Failed SMS deliveries today (Manila time) · {{ $smsFailuresToday }}</p>
     @php
         $aiState = $aiService['configured'] ? $aiService['state'] : 'unconfigured';
         $aiLabels = ['healthy' => 'Available', 'not_checked' => 'Not checked yet', 'unconfigured' => 'Not configured', 'rate_limited' => 'Rate limited', 'provider_busy' => 'Provider busy', 'connection_error' => 'Connection problem', 'configuration_error' => 'Configuration problem', 'model_unavailable' => 'Model unavailable', 'invalid_request' => 'Request rejected', 'no_reply' => 'No reply received', 'provider_error' => 'Provider error'];
@@ -31,9 +32,10 @@
         <form method="GET" action="{{ route('admin.monitoring.index') }}" class="row g-3 align-items-end">
             <input type="hidden" name="module" value="{{ $module }}">
             @if(!empty($filters['attention']))<input type="hidden" name="attention" value="1">@endif
-            <div class="col-md-6"><label for="monitor-search" class="form-label">Customer, shop, or reference</label><input id="monitor-search" name="search" type="search" maxlength="100" class="form-control" value="{{ $filters['search'] ?? '' }}"></div>
+            <div class="col-md-6 col-lg-3"><label for="monitor-search" class="form-label">Customer, provider, or reference</label><input id="monitor-search" name="search" type="search" maxlength="100" class="form-control" value="{{ $filters['search'] ?? '' }}"></div>
             <div class="col-md-3"><label for="monitor-status" class="form-label">Status</label><select id="monitor-status" name="status" class="form-select"><option value="">All statuses</option>@foreach ($statuses as $status)<option value="{{ $status }}" @selected(($filters['status'] ?? '') === $status)>{{ ucfirst(str_replace('_', ' ', $status)) }}</option>@endforeach</select></div>
-            <div class="col-md-3 d-flex gap-2"><button class="btn btn-primary">Filter</button><a class="btn btn-outline-secondary" href="{{ route('admin.monitoring.index', ['module' => $module]) }}">Clear</a></div>
+            <div class="col-md-3"><label for="monitor-provider" class="form-label">Provider type</label><select id="monitor-provider" name="provider" class="form-select"><option value="">All providers</option><option value="shop" @selected(($filters['provider'] ?? '') === 'shop')>Service shops</option><option value="independent_mechanic" @selected(($filters['provider'] ?? '') === 'independent_mechanic')>Independent mechanics</option></select></div>
+            <div class="col-lg-3 d-flex flex-wrap gap-2"><button class="btn btn-primary">Filter</button><a class="btn btn-outline-secondary" href="{{ route('admin.monitoring.index', ['module' => $module]) }}">Clear</a></div>
         </form>
         <x-form-errors />
     </div>

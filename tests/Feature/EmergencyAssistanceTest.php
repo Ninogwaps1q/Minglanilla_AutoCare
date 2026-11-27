@@ -16,6 +16,7 @@ it('assigns a customer emergency request to the nearest eligible shop', function
     createEmergencyShop($fixture['barangay'], 10.2800, 123.8200);
 
     $this->actingAs($fixture['customer'])->post(route('customer.emergency-requests.store'), [
+        'share_pickup' => true,
         'vehicle_id' => $fixture['vehicle']->id,
         'emergency_type' => 'breakdown',
         'latitude' => 10.2410,
@@ -98,7 +99,7 @@ it('prevents duplicate active roadside requests and closes the assigned dispatch
     $fixture = emergencyFixture();
     $shop = createEmergencyShop($fixture['barangay'], 10.2400, 123.7800);
     $payload = [
-        'emergency_type' => 'breakdown', 'latitude' => 10.2410, 'longitude' => 123.7810,
+        'emergency_type' => 'breakdown', 'latitude' => 10.2410, 'longitude' => 123.7810, 'share_pickup' => true,
     ];
 
     $this->actingAs($fixture['customer'])->post(route('customer.emergency-requests.store'), $payload)
@@ -125,6 +126,7 @@ it('reassigns a declined roadside request to the next nearest eligible shop with
     $nearest = createEmergencyShop($fixture['barangay'], 10.2400, 123.7800);
     $next = createEmergencyShop($fixture['barangay'], 10.2500, 123.7900);
     $this->actingAs($fixture['customer'])->post(route('customer.emergency-requests.store'), [
+        'share_pickup' => true,
         'emergency_type' => 'breakdown', 'latitude' => 10.2410, 'longitude' => 123.7810,
     ])->assertRedirect();
     $request = EmergencyRequest::query()->firstOrFail();
@@ -147,6 +149,7 @@ it('times out only pending roadside assignments and reassigns them once', functi
     $nearest = createEmergencyShop($fixture['barangay'], 10.2400, 123.7800);
     $next = createEmergencyShop($fixture['barangay'], 10.2500, 123.7900);
     $this->actingAs($fixture['customer'])->post(route('customer.emergency-requests.store'), [
+        'share_pickup' => true,
         'emergency_type' => 'breakdown', 'latitude' => 10.2410, 'longitude' => 123.7810,
     ])->assertRedirect();
     $request = EmergencyRequest::query()->firstOrFail();

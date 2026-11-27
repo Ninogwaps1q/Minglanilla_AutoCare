@@ -2,6 +2,13 @@
 
 // Machine-translated draft. Native-speaker review pending.
 return [
+    'Availability' => 'Pagkaandam',
+    'Service coverage' => 'Lugar nga maserbisyohan',
+    'Tools and equipment' => 'Mga gamit ug ekipo',
+    'Portfolio' => 'Mga nahuman nga proyekto',
+    'Personal earnings' => 'Kaugalingong kita',
+    'Roadside' => 'Tabang',
+    'Chat' => 'Chat',
     'Quick navigation' => 'Paspas nga nabigasyon',
     'Primary navigation' => 'Pangunang nabigasyon',
     'Toggle navigation' => 'Ablihi o sirhi ang menu',

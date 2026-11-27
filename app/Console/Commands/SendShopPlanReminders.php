@@ -72,9 +72,9 @@ class SendShopPlanReminders extends Command
                             'type' => 'shop_plan_reminder',
                             'title' => $days === 0 ? 'Shop plan access ends today' : 'Shop plan renewal reminder',
                             'message' => $days === 0
-                                ? "Your {$kind} ends today. Your shop listing stays visible; renew to keep online booking access."
+                                ? ($shop->isIndependentMechanic() ? "Your {$kind} ends today. Your Free plan limits now apply. You can continue existing work." : "Your {$kind} ends today. Your shop listing stays visible; renew to keep online booking access.")
                                 : "Your {$kind} ends in {$days} ".($days === 1 ? 'day' : 'days')." on {$end->format('M j, Y')}.",
-                            'data' => ['shop_id' => $shop->id, 'ends_on' => $end->toDateString(), 'days_remaining' => $days],
+                            'data' => ['shop_id' => $shop->id, 'ends_on' => $end->toDateString(), 'days_remaining' => $days, 'mechanic_update' => $shop->isIndependentMechanic()],
                         ]);
 
                         return 1;

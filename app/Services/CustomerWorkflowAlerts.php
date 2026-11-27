@@ -40,6 +40,48 @@ class CustomerWorkflowAlerts
                     $appointment->customer_id, $appointment->shop, $appointment->vehicle, [
                         'appointment_id' => $appointment->id, 'starts_at' => $start->toIso8601String(),
                     ]);
+                if ($appointment->shop->isIndependentMechanic() && $appointment->shop->mechanicEntitlements()['reminders']) {
+                    DB::transaction(function () use ($appointment, $start): void {
+                        $locked = Appointment::query()->where('status', 'confirmed')->lockForUpdate()->find($appointment->id);
+                        if (! $locked || ! $locked->startsAt()->equalTo($start) || $locked->rescheduleRequests()->where('status', 'pending')->exists()) {
+                            return;
+                        }
+                        $notifications = $appointment->shop->owner->notifications();
+                        $startsAt = $start->toIso8601String();
+                        if ($notifications->where('type', 'appointment_reminder')->where('data->appointment_id', $appointment->id)->where('data->starts_at', $startsAt)->exists()) {
+                            return;
+                        }
+                        $notifications->create([
+                            'type' => 'appointment_reminder', 'title' => 'Upcoming mobile visit',
+                            'message' => 'Check your schedule for the mobile visit on '.$start->format('M j, g:i A').' PHT.',
+                            'data' => ['appointment_id' => $appointment->id, 'starts_at' => $startsAt, 'mechanic_update' => true],
+                        ]);
+                    });
+                }
+            });
+    }
+
+    public function mechanicInvoiceReminders(): void
+    {
+        $today = today(Appointment::TIMEZONE)->toDateString();
+        Invoice::query()->whereIn('status', ['unpaid', 'partial'])->whereDate('due_date', $today)
+            ->whereHas('shop', fn ($query) => $query->where('provider_type', 'independent_mechanic'))
+            ->lazyById()->each(function (Invoice $invoice) use ($today): void {
+                DB::transaction(function () use ($invoice, $today): void {
+                    $invoice = Invoice::query()->lockForUpdate()->findOrFail($invoice->id);
+                    if ($invoice->due_date?->toDateString() !== $today || $invoice->remainingBalance() <= 0) {
+                        return;
+                    }
+                    $notifications = $invoice->customer->notifications();
+                    if ($notifications->where('type', 'invoice_due')->where('data->invoice_id', $invoice->id)->where('data->due_on', $today)->exists()) {
+                        return;
+                    }
+                    $notifications->create([
+                        'type' => 'invoice_due', 'title' => 'Mobile service payment due',
+                        'message' => 'Invoice '.$invoice->invoice_number.' is due today.',
+                        'data' => ['invoice_id' => $invoice->id, 'due_on' => $today, 'mechanic_update' => true],
+                    ]);
+                });
             });
     }
 
@@ -95,6 +137,17 @@ class CustomerWorkflowAlerts
             $hours = $at48->isFuture() ? 24 : 48;
             if ($estimate) {
                 $this->estimate($estimate, WorkflowEvent::EstimateReminder, (string) $hours);
+                $shop = $estimate->shop;
+                if ($shop?->isIndependentMechanic() && $shop->mechanicEntitlements()['reminders']) {
+                    $notifications = $shop->owner->notifications();
+                    if (! $notifications->where('type', 'quotation_reminder')->where('data->quotation_id', $estimate->id)->exists()) {
+                        $notifications->create([
+                            'type' => 'quotation_reminder', 'title' => 'Estimate awaiting customer response',
+                            'message' => 'Your estimate '.$estimate->quotation_number.' is still awaiting a decision.',
+                            'data' => ['quotation_id' => $estimate->id, 'mechanic_update' => true],
+                        ]);
+                    }
+                }
             }
             $source->update(['next_reminder_at' => $estimate && $hours === 24 ? $at48 : null]);
         });

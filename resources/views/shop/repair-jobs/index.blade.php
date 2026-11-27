@@ -109,7 +109,7 @@
                                 name="unit_price" min="0" step="0.01" required></label></div>
                     <div class="col-md-2 d-grid"><button class="btn btn-outline-primary">Add item</button></div>
             </form>@endif
-            @if (auth()->user()->staff_role !== 'receptionist')
+            @if (auth()->user()->role !== 'mechanic' && auth()->user()->staff_role !== 'receptionist')
                 @include('shop.repair-jobs.partials.stock-parts')
             @endif
         </details>

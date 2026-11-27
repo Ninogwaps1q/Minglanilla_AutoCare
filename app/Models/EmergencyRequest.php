@@ -22,7 +22,7 @@ class EmergencyRequest extends Model
 
     protected function casts(): array
     {
-        return ['latitude' => 'decimal:7', 'longitude' => 'decimal:7', 'requested_at' => 'datetime', 'responded_at' => 'datetime', 'completed_at' => 'datetime'];
+        return ['latitude' => 'decimal:7', 'longitude' => 'decimal:7', 'requested_at' => 'datetime', 'responded_at' => 'datetime', 'completed_at' => 'datetime', 'responder_location' => 'array', 'pickup_consented_at' => 'datetime', 'arrived_at' => 'datetime'];
     }
 
     public function customer(): BelongsTo

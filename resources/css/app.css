@@ -3356,6 +3356,23 @@ body {
     box-shadow: none;
 }
 
+.booking-day-option {
+    min-block-size: var(--control-min-height);
+    min-inline-size: 4.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-control);
+    cursor: pointer;
+}
+
+.booking-day-option:hover {
+    border-color: var(--bs-primary);
+}
+
+.booking-day-option:has(:focus-visible) {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: 2px;
+}
+
 .provider-availability-toggle {
     min-height: 2.75rem;
 }

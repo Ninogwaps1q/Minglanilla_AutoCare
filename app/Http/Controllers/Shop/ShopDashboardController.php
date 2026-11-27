@@ -14,6 +14,20 @@ class ShopDashboardController extends Controller
     {
         $shop = $request->user()->managedShop();
 
+        if ($request->user()->role === 'mechanic') {
+            return view('shop.mechanic.dashboard', [
+                'shop' => $shop,
+                'todayAppointments' => $shop?->appointments()->with(['customer:id,name', 'vehicle:id,plate_number'])->whereDate('appointment_date', today(Appointment::TIMEZONE))->orderBy('appointment_time')->limit(5)->get(),
+                'pendingCount' => $shop?->appointments()->where('status', 'pending')->count(),
+                'upcomingCount' => $shop?->appointments()->whereDate('appointment_date', '>=', today(Appointment::TIMEZONE))->where('status', 'confirmed')->whereNotNull('service_address')->count(),
+                'activeRepairs' => $shop?->repairJobs()->whereNotIn('status', ['completed', 'released', 'cancelled'])->count(),
+                'completed' => $shop?->repairJobs()->whereIn('status', ['completed', 'released'])->count(),
+                'emergencies' => $shop?->emergencyRequests()->whereNotIn('status', ['completed', 'cancelled', 'rejected'])->count(),
+                'confirmedReceipts' => $shop ? Payment::query()->where('shop_id', $shop->id)->where('status', 'confirmed')->where('payment_date', '>=', now(Appointment::TIMEZONE)->startOfMonth()->utc())->sum('amount') : 0,
+                'reminders' => $request->user()->notifications()->whereNull('read_at')->whereIn('type', ['appointment_reminder', 'quotation_reminder', 'shop_plan_reminder'])->latest()->limit(3)->get(),
+            ]);
+        }
+
         if ($shop === null) {
             return view('shop.dashboard', ['shop' => null, 'metrics' => []]);
         }

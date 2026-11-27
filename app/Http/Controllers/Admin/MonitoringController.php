@@ -11,6 +11,7 @@ use App\Models\Quotation;
 use App\Models\RepairJob;
 use App\Services\AI\AiServiceStatus;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -45,11 +46,13 @@ class MonitoringController extends Controller
             'search' => ['nullable', 'string', 'max:100'],
             'status' => ['nullable', 'string', 'max:30'],
             'attention' => ['nullable', 'boolean'],
+            'provider' => ['nullable', 'in:shop,independent_mechanic'],
         ]);
         $module = $filters['module'] ?? 'appointments';
         [$label, $model, $shopRelation, $statuses] = $modules[$module];
         $request->validate(['status' => ['nullable', Rule::in($statuses)]]);
         $records = $model::query()->with(['customer:id,name', $shopRelation.':id,name', ...$detailRelations[$module]])
+            ->when($filters['provider'] ?? null, fn ($query, string $provider) => $query->whereHas($shopRelation, fn ($query) => $query->where('provider_type', $provider)))
             ->when((bool) ($filters['attention'] ?? false), fn ($query) => $query
                 ->whereIn('status', $attentionStatuses[$module])
                 ->where('created_at', '<=', now()->subMinutes($module === 'emergencies' ? 10 : 1440)))
@@ -69,6 +72,7 @@ class MonitoringController extends Controller
 
         return view('admin.monitoring.index', [
             ...compact('modules', 'module', 'label', 'statuses', 'filters', 'records', 'shopRelation'),
+            'smsFailuresToday' => DB::table('sms_deliveries')->where('delivery_day', today(Appointment::TIMEZONE)->toDateString())->where('status', 'failed')->count(),
             'aiService' => [
                 ...$aiServiceStatus->snapshot(),
                 'provider' => config('ai.provider'),

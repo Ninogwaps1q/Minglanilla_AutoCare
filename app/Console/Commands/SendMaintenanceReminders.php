@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\MaintenanceReminder;
+use App\Models\RepairJob;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -36,7 +37,11 @@ class SendMaintenanceReminders extends Command
                             'type' => 'maintenance_due',
                             'message' => "{$reminder->title} is due for your vehicle.",
                             'title' => 'Maintenance due',
-                            'data' => ['reminder_id' => $reminder->id],
+                            'data' => [
+                                'reminder_id' => $reminder->id,
+                                'mechanic_update' => RepairJob::query()->where('customer_id', $reminder->customer_id)->where('vehicle_id', $reminder->vehicle_id)
+                                    ->whereIn('status', ['completed', 'released'])->whereHas('shop', fn ($query) => $query->where('provider_type', 'independent_mechanic'))->exists(),
+                            ],
                         ]);
 
                         return 1;

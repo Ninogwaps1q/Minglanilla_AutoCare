@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Controllers\Shop\MechanicWorkspaceController;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -23,6 +24,7 @@ class ShopRegistrationRequest extends FormRequest
     public function rules(): array
     {
         return [
+            ...($this->user()?->role === 'mechanic' ? MechanicWorkspaceController::profileRules() : []),
             'legal_consent' => ['accepted'],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],

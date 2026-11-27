@@ -7,6 +7,7 @@ use App\Http\Requests\StoreRepairJobItemRequest;
 use App\Models\RepairJob;
 use App\Models\RepairJobItem;
 use App\Models\SparePart;
+use App\Services\MechanicBooking;
 use App\Services\RepairInventoryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,6 +19,7 @@ class RepairJobItemController extends Controller
     public function store(StoreRepairJobItemRequest $request, RepairJob $repairJob, RepairInventoryService $inventory): RedirectResponse
     {
         abort_unless($request->user()->canAccessShop($repairJob->shop_id), 404);
+        abort_if($request->user()->role === 'mechanic' && $request->filled('spare_part_id'), 403);
         DB::transaction(function () use ($request, $repairJob, $inventory): void {
             $repairJob = RepairJob::query()->lockForUpdate()->findOrFail($repairJob->id);
             abort_if(in_array($repairJob->status, ['completed', 'released', 'cancelled'], true) || $repairJob->invoice()->exists(), 409, 'Completed or invoiced repair jobs cannot be changed.');
@@ -56,7 +58,7 @@ class RepairJobItemController extends Controller
             $repairJob = RepairJob::query()->lockForUpdate()->findOrFail($repairJobItem->repair_job_id);
             abort_if(in_array($repairJob->status, ['completed', 'released', 'cancelled'], true) || $repairJob->invoice()->exists(), 409, 'Completed or invoiced repair jobs cannot be changed.');
             abort_if(in_array($repairJob->quotation?->status, ['sent', 'accepted', 'approved'], true), 409, 'The estimate is awaiting or has received customer approval. Its price cannot be changed.');
-            abort_if($repairJobItem->service_id !== null, 409, 'The booked service is part of this appointment and cannot be removed from its estimate.');
+            abort_if($repairJobItem->service_id !== null || in_array($repairJobItem->type, MechanicBooking::FEES, true), 409, 'The booked service is part of this appointment and cannot be removed from its estimate.');
             abort_if($repairJobItem->inventoryTransactions()->exists(), 409, 'This part has already been used. Its stock history must be retained.');
             $repairJobItem->delete();
             $repairJob->update(['actual_cost' => $repairJob->items()->sum('subtotal')]);

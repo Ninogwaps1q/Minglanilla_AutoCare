@@ -42,8 +42,24 @@ class ShopPlanController extends Controller
             'payment_account_number' => ['nullable', 'required_with:payment_account_name', 'string', 'max:100'],
             'payment_qr' => ['nullable', 'prohibited_if:remove_payment_qr,1', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048', 'dimensions:max_width=4096,max_height=4096'],
             'remove_payment_qr' => ['sometimes', 'boolean'],
+            'mechanic_entitlements' => ['sometimes', 'array:monthly_limit,travel_pricing,live_tracking,portfolio_limit,reminders'],
+            'mechanic_entitlements.monthly_limit' => ['present_with:mechanic_entitlements', 'nullable', 'integer', 'between:0,1000'],
+            'mechanic_entitlements.travel_pricing' => ['required_with:mechanic_entitlements', 'boolean'],
+            'mechanic_entitlements.live_tracking' => ['sometimes', 'boolean'],
+            'mechanic_entitlements.portfolio_limit' => ['sometimes', 'integer', 'between:0,100'],
+            'mechanic_entitlements.reminders' => ['sometimes', 'boolean'],
         ]);
         unset($attributes['payment_qr'], $attributes['remove_payment_qr']);
+        if (isset($attributes['mechanic_entitlements'])) {
+            $attributes['mechanic_entitlements']['travel_pricing'] = (bool) $attributes['mechanic_entitlements']['travel_pricing'];
+            foreach (['travel_pricing', 'live_tracking', 'reminders'] as $feature) {
+                if (array_key_exists($feature, $attributes['mechanic_entitlements'])) {
+                    $attributes['mechanic_entitlements'][$feature] = (bool) $attributes['mechanic_entitlements'][$feature];
+                }
+            }
+            $limit = $attributes['mechanic_entitlements']['monthly_limit'] ?? null;
+            $attributes['mechanic_entitlements']['monthly_limit'] = $limit === null ? null : (int) $limit;
+        }
         if ($shopPlan->slug === 'free') {
             $attributes['monthly_price'] = 0;
             unset($attributes['payment_instructions'], $attributes['payment_account_name'], $attributes['payment_account_number']);

@@ -34,15 +34,22 @@ class AppointmentController extends Controller
         ]);
     }
 
-    public function update(UpdateAppointmentStatusRequest $request, Appointment $appointment): RedirectResponse
+    public function update(UpdateAppointmentStatusRequest $request, Appointment $appointment, AppointmentSchedule $schedule): RedirectResponse
     {
         abort_unless($appointment->shop_id === $this->shop($request)->id, 404);
 
-        DB::transaction(function () use ($appointment, $request): void {
+        DB::transaction(function () use ($appointment, $request, $schedule): void {
+            $shop = Shop::query()->lockForUpdate()->findOrFail($appointment->shop_id);
             $appointment = Appointment::query()->lockForUpdate()->findOrFail($appointment->id);
             $nextStatus = $request->validated('status');
-            if ($nextStatus === 'confirmed' && ($appointment->shop->verification_status !== 'approved' || $appointment->shop->shop_status !== 'active')) {
+            if ($nextStatus === 'confirmed' && ($shop->verification_status !== 'approved' || $shop->shop_status !== 'active')) {
                 throw ValidationException::withMessages(['status' => 'This shop must be approved and active before confirming new appointments.']);
+            }
+            if ($nextStatus === 'confirmed' && $shop->isIndependentMechanic()) {
+                if ($appointment->rescheduleRequests()->where('status', 'pending')->where('proposed_by_provider', true)->exists()) {
+                    throw ValidationException::withMessages(['status' => __('mechanic.proposal_pending')]);
+                }
+                $schedule->assertRescheduleAvailable($shop, $appointment, $appointment->appointment_date->toDateString(), $appointment->appointment_time->format('H:i'));
             }
             if ($nextStatus === 'no_show' && (! isset($appointment->availableStatusTransitions()['no_show']) || $appointment->repairJob()->exists())) {
                 throw ValidationException::withMessages(['status' => __('extensions.appointments.no_show_unavailable')]);
@@ -61,7 +68,7 @@ class AppointmentController extends Controller
                         ? __('extensions.appointments.no_show_title') : 'Follow-up appointment cancelled. A new visit time is needed.',
                 ]);
             }
-            if ($previousStatus === 'confirmed' && $nextStatus !== 'confirmed') {
+            if ($nextStatus !== 'confirmed') {
                 $appointment->rescheduleRequests()->where('status', 'pending')->update([
                     'status' => 'declined', 'decided_by' => $request->user()->id, 'decided_at' => now(),
                 ]);
@@ -72,7 +79,7 @@ class AppointmentController extends Controller
                 'type' => 'appointment_status',
                 'title' => $nextStatus === 'no_show' ? __('extensions.appointments.no_show_title', [], $locale) : 'Appointment status updated',
                 'message' => $nextStatus === 'no_show' ? __('extensions.appointments.no_show_message', [], $locale) : "Your appointment is now {$nextStatus}.",
-                'data' => ['appointment_id' => $appointment->id, 'status' => $nextStatus],
+                'data' => ['appointment_id' => $appointment->id, 'status' => $nextStatus, 'mechanic_update' => $shop->isIndependentMechanic() && $nextStatus === 'confirmed'],
             ]);
         });
 
@@ -88,7 +95,7 @@ class AppointmentController extends Controller
         DB::transaction(function () use ($shop, $appointment, $request, $schedule, $attributes): void {
             $shop = Shop::query()->lockForUpdate()->findOrFail($shop->id);
             $appointment = Appointment::query()->lockForUpdate()->findOrFail($appointment->id);
-            $reschedule = $appointment->rescheduleRequests()->where('status', 'pending')->lockForUpdate()->first();
+            $reschedule = $appointment->rescheduleRequests()->where('status', 'pending')->where('proposed_by_provider', false)->lockForUpdate()->first();
             if (! $reschedule || $appointment->status !== 'confirmed' || $appointment->repairJob()->exists()) {
                 throw ValidationException::withMessages(['decision' => 'There is no active time-change request for this appointment.']);
             }
@@ -121,6 +128,40 @@ class AppointmentController extends Controller
         });
 
         return back()->with('status', $attributes['decision'] === 'approve' ? 'New appointment time approved.' : 'Time change declined; original appointment kept.');
+    }
+
+    public function propose(Request $request, Appointment $appointment, AppointmentSchedule $schedule): RedirectResponse
+    {
+        $shop = $this->shop($request);
+        abort_unless($shop->isIndependentMechanic() && $shop->owner_id === $request->user()->id && $appointment->shop_id === $shop->id, 404);
+        $attributes = $request->validate([
+            'requested_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:'.today(Appointment::TIMEZONE)->toDateString()],
+            'requested_time' => ['required', 'date_format:H:i'],
+            'reason' => ['nullable', 'string', 'max:500'],
+        ]);
+        DB::transaction(function () use ($appointment, $attributes, $schedule): void {
+            $shop = Shop::query()->lockForUpdate()->findOrFail($appointment->shop_id);
+            $appointment = $shop->appointments()->lockForUpdate()->findOrFail($appointment->id);
+            if (! in_array($appointment->status, ['pending', 'confirmed'], true) || $appointment->en_route_at || $appointment->repairJob()->exists()
+                || $appointment->rescheduleRequests()->where('status', 'pending')->exists()) {
+                throw ValidationException::withMessages(['requested_time' => __('mechanic.proposal_pending')]);
+            }
+            if ($appointment->appointment_date->toDateString() === $attributes['requested_date']
+                && $appointment->appointment_time->format('H:i') === $attributes['requested_time']) {
+                throw ValidationException::withMessages(['requested_time' => 'Choose a different appointment date or time.']);
+            }
+            $schedule->assertRescheduleAvailable($shop, $appointment, $attributes['requested_date'], $attributes['requested_time']);
+            $appointment->rescheduleRequests()->create([
+                ...$attributes, 'original_date' => $appointment->appointment_date->toDateString(),
+                'original_time' => $appointment->appointment_time->format('H:i'), 'status' => 'pending', 'proposed_by_provider' => true,
+            ]);
+            $appointment->customer->notifications()->create([
+                'type' => 'appointment_reschedule_requested', 'title' => __('mechanic.propose_time'),
+                'message' => __('mechanic.proposal_pending'), 'data' => ['appointment_id' => $appointment->id],
+            ]);
+        });
+
+        return back()->with('status', __('mechanic.proposal_pending'));
     }
 
     private function shop(Request $request): Shop

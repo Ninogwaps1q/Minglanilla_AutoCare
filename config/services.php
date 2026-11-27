@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'sms' => [
+        'driver' => env('SMS_DRIVER', 'semaphore'),
+        'mechanic_alerts' => env('SMS_MECHANIC_ALERTS', false),
+    ],
     'semaphore' => [
         'api_key' => env('SEMAPHORE_API_KEY'),
         'sender_name' => env('SEMAPHORE_SENDER_NAME'),

@@ -10,9 +10,22 @@ use Illuminate\Validation\ValidationException;
 
 class AppointmentSchedule
 {
+    public function duration(Shop $shop, int $serviceMinutes): int
+    {
+        return $serviceMinutes + ($shop->isIndependentMechanic() ? (int) ($shop->mechanic_settings['buffer_minutes'] ?? 0) : 0);
+    }
+
     public function isUpcoming(string $date, string $time): bool
     {
         return $date.' '.$time > now(Appointment::TIMEZONE)->format('Y-m-d H:i');
+    }
+
+    public function mechanicHasActiveVisit(Shop $shop, Appointment $appointment): bool
+    {
+        return $shop->appointments()->whereKeyNot($appointment->id)
+            ->where(fn ($query) => $query->where('status', 'in_progress')
+                ->orWhere(fn ($travelling) => $travelling->where('status', 'confirmed')->whereNotNull('en_route_at')))
+            ->exists();
     }
 
     /** @return array<int, array{start: int, end: int}> */
@@ -24,11 +37,11 @@ class AppointmentSchedule
             ->when($exceptAppointmentId, fn ($query) => $query->whereKeyNot($exceptAppointmentId))
             ->with('service:id,estimated_duration')
             ->get(['id', 'service_id', 'appointment_time', 'duration_minutes'])
-            ->map(function (Appointment $appointment): array {
+            ->map(function (Appointment $appointment) use ($shop): array {
                 $start = $this->minutes($appointment->appointment_time->format('H:i'));
                 $duration = (int) ($appointment->duration_minutes ?: $appointment->service?->estimated_duration ?: 60);
 
-                return ['start' => $start, 'end' => $start + $duration];
+                return ['start' => $start, 'end' => $start + $this->duration($shop, $duration)];
             })->all();
 
         $followUps = ServiceCase::query()->where('shop_id', $shop->id)
@@ -37,10 +50,10 @@ class AppointmentSchedule
             ->whereIn('schedule_status', ['pending', 'confirmed'])
             ->when($exceptServiceCaseId, fn ($query) => $query->whereKeyNot($exceptServiceCaseId))
             ->get(['scheduled_at'])
-            ->map(function (ServiceCase $case): array {
+            ->map(function (ServiceCase $case) use ($shop): array {
                 $start = $this->minutes($case->scheduled_at->format('H:i'));
 
-                return ['start' => $start, 'end' => $start + 60];
+                return ['start' => $start, 'end' => $start + $this->duration($shop, 60)];
             })->all();
 
         return [...$appointments, ...$followUps];
@@ -66,13 +79,21 @@ class AppointmentSchedule
         }
         $start = $this->minutes($time);
         $end = $start + $duration;
-        foreach ($shop->schedule_blocks ?? [] as $block) {
+        foreach ($this->blocksFor($shop, $date) as $block) {
             if (($block['date'] ?? null) === $date && $start < $this->minutes($block['end']) && $end > $this->minutes($block['start'])) {
                 return false;
             }
         }
 
         return true;
+    }
+
+    public function blocksFor(Shop $shop, string $date): array
+    {
+        $blocks = collect($shop->schedule_blocks ?? [])->where('date', $date)->values()->all();
+        $rest = $shop->isIndependentMechanic() ? ($shop->mechanic_settings['rest'] ?? null) : null;
+
+        return $rest ? [...$blocks, ['date' => $date, ...$rest]] : $blocks;
     }
 
     /** @return array{open: bool, time: string|null}|null */
@@ -86,7 +107,7 @@ class AppointmentSchedule
         $time = $now->format('H:i');
         $opening = substr($shop->opening_time, 0, 5);
         $closing = substr($shop->closing_time, 0, 5);
-        $blocks = collect($shop->schedule_blocks ?? [])->where('date', $date);
+        $blocks = collect($this->blocksFor($shop, $date));
 
         if ($this->isAvailable($shop, $date, $time, 1)) {
             $until = $blocks->pluck('start')->map(fn (string $start): string => substr($start, 0, 5))
@@ -109,11 +130,11 @@ class AppointmentSchedule
         if (! $this->isUpcoming($date, $time)) {
             throw ValidationException::withMessages(['requested_time' => 'Choose a future appointment time.']);
         }
-        $duration = (int) ($appointment->duration_minutes ?: $appointment->service?->estimated_duration ?: 60);
+        $duration = $this->duration($shop, (int) ($appointment->duration_minutes ?: $appointment->service?->estimated_duration ?: 60));
         if (! $this->isAvailable($shop, $date, $time, $duration)) {
             throw ValidationException::withMessages(['requested_time' => 'The shop is closed or this time is blocked. Choose another slot.']);
         }
-        if (! $this->hasCapacity($this->bookedIntervals($shop, $date, $appointment->id), $time, $duration, (int) $shop->booking_capacity)) {
+        if (! $this->hasCapacity($this->bookedIntervals($shop, $date, $appointment->id), $time, $duration, $shop->appointmentCapacity())) {
             throw ValidationException::withMessages(['requested_time' => 'The shop is fully booked at that time. Choose another slot.']);
         }
     }

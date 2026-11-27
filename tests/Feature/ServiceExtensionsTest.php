@@ -153,7 +153,7 @@ it('enforces promotion ownership, keeps one use per customer, releases a cancell
     expect($estimate->total)->toBe('720.00');
     $this->actingAs($customer)->patch(route('customer.quotations.update', $estimate), ['status' => 'accepted'])->assertRedirect()->assertSessionHasNoErrors();
     $this->get(route('customer.repairs.index', ['repair_job_id' => $job->id]))
-        ->assertOk()->assertSeeInOrder(['Work subtotal', 'PHP 800.00', 'Discount', '−PHP 80.00', 'Approved estimate total', 'PHP 720.00']);
+        ->assertOk()->assertSeeInOrder(['Work subtotal', '₱800.00', 'Discount', '−₱80.00', 'Approved estimate total', '₱720.00']);
     $job->update(['status' => 'completed']);
     $this->actingAs($shop->owner)->post(route('shop.invoices.store', $job))->assertRedirect(route('shop.invoices.index'))->assertSessionHasNoErrors();
     $bill = Invoice::query()->sole();

@@ -11,6 +11,8 @@ use App\Models\RepairJob;
 use App\Models\Shop;
 use App\Models\ShopService;
 use App\Models\VehicleServiceRecord;
+use App\Services\AppointmentSchedule;
+use App\Services\MechanicBooking;
 use App\Services\RepairInventoryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,7 +27,7 @@ class RepairJobController extends Controller
     {
         $shop = $this->shop($request);
         abort_unless($quotation->shop_id === $shop->id, 404);
-        if ($shop->verification_status !== 'approved' || $shop->shop_status !== 'active' || ! $shop->hasPlanAtLeast('basic')) {
+        if ($shop->verification_status !== 'approved' || $shop->shop_status !== 'active' || (! $shop->isIndependentMechanic() && ! $shop->hasPlanAtLeast('basic'))) {
             throw ValidationException::withMessages(['shop' => 'An active Basic or Premium plan is needed to start a new repair. Existing records remain available.']);
         }
         DB::transaction(function () use ($quotation, $request): void {
@@ -90,16 +92,22 @@ class RepairJobController extends Controller
         ]);
     }
 
-    public function store(StoreRepairJobRequest $request): RedirectResponse
+    public function store(StoreRepairJobRequest $request, AppointmentSchedule $schedule): RedirectResponse
     {
         $shop = $this->shop($request);
-        $repairJob = DB::transaction(function () use ($request, $shop): RepairJob {
+        $repairJob = DB::transaction(function () use ($request, $shop, $schedule): RepairJob {
+            if ($shop->isIndependentMechanic()) {
+                Shop::query()->whereKey($shop->id)->lockForUpdate()->firstOrFail();
+            }
             $appointment = Appointment::query()->whereKey($request->integer('appointment_id'))
                 ->where('shop_id', $shop->id)
                 ->where('status', 'confirmed')
                 ->lockForUpdate()->firstOrFail();
             if ($appointment->repairJob()->exists()) {
                 throw ValidationException::withMessages(['appointment_id' => 'A repair job already exists for this appointment. Open it from Shop appointments.']);
+            }
+            if ($shop->isIndependentMechanic() && (($appointment->mobile_service_quote && ! $appointment->arrived_at) || $schedule->mechanicHasActiveVisit($shop, $appointment))) {
+                throw ValidationException::withMessages(['appointment_id' => __('mechanic.active_visit')]);
             }
             if ($appointment->rescheduleRequests()->where('status', 'pending')->exists()) {
                 throw ValidationException::withMessages(['appointment_id' => 'Approve or decline the pending time change before starting this repair.']);
@@ -118,7 +126,7 @@ class RepairJobController extends Controller
                 foreach ($bookedLines as $line) {
                     $repairJob->items()->create([
                         'service_id' => $line['service_id'],
-                        'type' => 'service',
+                        'type' => $line['type'] ?? 'service',
                         'description' => $line['name'],
                         'quantity' => 1,
                         'unit_price' => $line['price'],
@@ -158,7 +166,8 @@ class RepairJobController extends Controller
                 throw ValidationException::withMessages(['service' => 'This repair has no booked service to add.']);
             }
             foreach ($this->bookedServiceLines($appointment, $shop) as $line) {
-                if ($job->items()->where('service_id', $line['service_id'])->exists()) {
+                $recorded = isset($line['type']) ? ['type' => $line['type']] : ['service_id' => $line['service_id']];
+                if ($job->items()->where($recorded)->exists()) {
                     continue;
                 }
                 if ($job->items()->where('type', 'service')->get()->contains(
@@ -171,7 +180,7 @@ class RepairJobController extends Controller
                 }
                 $job->items()->create([
                     'service_id' => $line['service_id'],
-                    'type' => 'service',
+                    'type' => $line['type'] ?? 'service',
                     'description' => $line['name'],
                     'quantity' => 1,
                     'unit_price' => $line['price'],
@@ -317,17 +326,25 @@ class RepairJobController extends Controller
         return (string) $price;
     }
 
-    /** @return array<int, array{service_id: int, name: string, price: string, price_cents: int}> */
+    /** @return array<int, array{service_id: ?int, name: string, price: string, price_cents: int, type?: string}> */
     private function bookedServiceLines(Appointment $appointment, Shop $shop): array
     {
         $booked = $appointment->bookedServices()->with('service:id,name')->get();
         if ($booked->isNotEmpty()) {
-            return $booked->map(fn ($line): array => [
+            $lines = $booked->map(fn ($line): array => [
                 'service_id' => $line->service_id,
                 'name' => $line->service->name,
                 'price' => (string) $line->price,
                 'price_cents' => (int) round((float) $line->price * 100),
             ])->all();
+            foreach (MechanicBooking::FEES as $fee) {
+                $cents = $appointment->mobile_service_quote[$fee] ?? 0;
+                if ($cents > 0) {
+                    $lines[] = ['service_id' => null, 'type' => $fee, 'name' => __('mechanic.'.$fee, [], 'en'), 'price' => number_format($cents / 100, 2, '.', ''), 'price_cents' => $cents];
+                }
+            }
+
+            return $lines;
         }
         $price = $this->bookedServicePrice($appointment, $shop);
 

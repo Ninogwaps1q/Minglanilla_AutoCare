@@ -4,11 +4,15 @@
         <p>Review shop permits and mechanic documents before approving a public profile.</p>
     </div>
     <x-form-errors />
-    <a class="btn btn-outline-primary mb-3" href="{{ route('admin.promotions.index') }}">{{ __('extensions.promo.title') }}</a>
+    <nav class="d-flex flex-wrap gap-2 mb-3" aria-label="Provider verification queues">
+        <a class="btn btn-outline-primary" href="{{ route('admin.shops.index', ['provider' => 'shop']) }}" @if ($selectedProvider === 'shop') aria-current="page" @endif>Shop applications</a>
+        <a class="btn btn-outline-primary" href="{{ route('admin.shops.index', ['provider' => 'independent_mechanic']) }}" @if ($selectedProvider === 'independent_mechanic') aria-current="page" @endif>Mechanic applications</a>
+        <a class="btn btn-outline-primary" href="{{ route('admin.promotions.index') }}">{{ __('extensions.promo.title') }}</a>
+    </nav>
 
     <form method="GET" action="{{ route('admin.shops.index') }}" class="surface p-3 mb-3 d-flex flex-wrap align-items-end gap-2">
         <div class="w-100"><x-address-picker prefix="verification-area" area-only :area="$area" /></div>
-        <div><label for="verification-status-filter" class="form-label">Show shops</label><select id="verification-status-filter" name="status" class="form-select"><option value="">All statuses</option>@foreach (['pending' => 'Awaiting review', 'approved' => 'Approved', 'rejected' => 'Rejected'] as $value => $label)<option value="{{ $value }}" @selected($selectedStatus === $value)>{{ $label }}</option>@endforeach</select></div>
+        <div><label for="verification-status-filter" class="form-label">Application status</label><select id="verification-status-filter" name="status" class="form-select"><option value="">All statuses</option>@foreach (__('mechanic.verification') as $value => $label)<option value="{{ $value }}" @selected($selectedStatus === $value)>{{ $label }}</option>@endforeach</select></div>
         <div><label for="provider-filter" class="form-label">Provider type</label><select id="provider-filter" name="provider" class="form-select"><option value="">Shops and mechanics</option><option value="shop" @selected($selectedProvider === 'shop')>Service shops</option><option value="independent_mechanic" @selected($selectedProvider === 'independent_mechanic')>Independent mechanics</option></select></div>
         <button class="btn btn-outline-primary">Apply filter</button>
         @if ($selectedStatus || $selectedProvider || array_filter($area))<a class="btn btn-link" href="{{ route('admin.shops.index') }}">Clear filters</a>@endif
@@ -33,6 +37,7 @@
                     @endif
                 @endunless
 
+                <h3 class="h6">{{ $shop->isIndependentMechanic() ? 'Required mechanic documents' : 'Required permit checklist' }}</h3>
                 <div class="row g-2 mb-3" aria-label="Required verification documents">
                     @foreach ($permitChecklist as $permit)
                         <div class="col-md-6"><div class="border rounded p-3 h-100">
@@ -60,6 +65,17 @@
                 </details>
 
                 <div class="d-flex flex-wrap align-items-end gap-2">
+                    @if ($shop->isIndependentMechanic() && in_array($shop->verification_status, ['pending', 'under_review', 'additional_requirements'], true))
+                        <form method="POST" action="{{ route('admin.shops.mechanic-review', $shop) }}" class="surface rounded p-3">
+                            @csrf @method('PATCH')
+                            <label class="form-label" for="review-requirements-{{ $shop->id }}">Requirements to send to the mechanic</label>
+                            <input class="form-control mb-2" id="review-requirements-{{ $shop->id }}" name="reason" maxlength="1000">
+                            <div class="d-flex flex-wrap gap-2">
+                                <button class="btn btn-outline-secondary" name="status" value="under_review">{{ __('mechanic.verification.under_review') }}</button>
+                                <button class="btn btn-outline-warning" name="status" value="additional_requirements">{{ __('mechanic.verification.additional_requirements') }}</button>
+                            </div>
+                        </form>
+                    @endif
                     @if ($shop->verification_status !== 'approved')
                         <form method="POST" action="{{ route('admin.shops.approve', $shop) }}">@csrf @method('PATCH')<button class="btn btn-success" @disabled(! $documentsComplete)>Approve {{ $shop->isIndependentMechanic() ? 'mechanic' : 'shop' }}</button></form>
                         @if ($shop->verification_status !== 'rejected')<form method="POST" action="{{ route('admin.shops.reject', $shop) }}">@csrf @method('PATCH')<button class="btn btn-outline-danger">Reject registration</button></form>@endif

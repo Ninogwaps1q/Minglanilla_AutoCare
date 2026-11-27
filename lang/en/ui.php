@@ -1,6 +1,13 @@
 <?php
 
 return [
+    'Availability' => 'Availability',
+    'Service coverage' => 'Service coverage',
+    'Tools and equipment' => 'Tools and equipment',
+    'Portfolio' => 'Portfolio',
+    'Personal earnings' => 'Personal earnings',
+    'Roadside' => 'Roadside',
+    'Chat' => 'Chat',
     'Quick navigation' => 'Quick navigation',
     'Primary navigation' => 'Primary navigation',
     'Toggle navigation' => 'Toggle navigation',

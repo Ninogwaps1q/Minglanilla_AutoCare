@@ -16,6 +16,13 @@ class EnsureShopStaffPermission
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
+        if ($user?->role === 'mechanic') {
+            $route = $request->route()?->getName() ?? '';
+            abort_if(str_starts_with($route, 'shop.inventory.')
+                || str_starts_with($route, 'shop.reports.')
+                || str_starts_with($route, 'shop.promotions.')
+                || in_array($route, ['shop.exports.index', 'shop.repair-job-items.consume', 'shop.repair-job-items.reserve', 'shop.repair-job-items.return'], true), 403);
+        }
         if ($user?->role === 'shop_staff') {
             $permissions = [
                 'receptionist' => ['dashboard', 'today-work.', 'appointments.', 'service-cases.', 'messages.', 'emergency-requests.', 'quotations.', 'reviews.', 'repair-jobs.index', 'repair-jobs.create', 'repair-jobs.store'],

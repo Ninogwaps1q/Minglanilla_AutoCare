@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Shop\MechanicWorkspaceController;
 use App\Http\Requests\ShopRegistrationRequest;
 use App\Models\Service;
 use App\Models\Shop;
@@ -22,7 +23,12 @@ class ShopRegistrationController extends Controller
 
     public function store(ShopRegistrationRequest $request): RedirectResponse
     {
-        $attributes = $request->safe()->except(['service_ids', 'logo', 'cover_photo', 'legal_consent']);
+        $profileFields = array_diff(array_keys(MechanicWorkspaceController::profileRules()), ['vehicle_types.*']);
+        $profile = $request->safe()->only($profileFields);
+        $attributes = $request->safe()->except(['service_ids', 'logo', 'cover_photo', 'legal_consent', ...$profileFields]);
+        if ($request->user()->role === 'mechanic') {
+            $attributes['mechanic_profile'] = $profile;
+        }
         $services = Service::query()->whereKey($request->validated('service_ids', []))->get(['id', 'default_price']);
 
         foreach (['logo' => 'shop-logos', 'cover_photo' => 'shop-covers'] as $field => $directory) {

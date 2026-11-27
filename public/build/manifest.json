@@ -16,7 +16,7 @@
     "src": "node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff2"
   },
   "resources/css/app.css": {
-    "file": "assets/app-DJ6hJUMZ.css",
+    "file": "assets/app-Bs4OnsTK.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "app",
@@ -40,11 +40,12 @@
     "isDynamicEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-Dp1tCP1W.js",
+    "file": "assets/app-BMAXNtdt.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "dynamicImports": [
+      "resources/js/roadside-tracking.js",
       "resources/js/push-preferences.js",
       "resources/js/landing-map.js",
       "resources/js/shop-directory-map.js",
@@ -57,7 +58,7 @@
     ]
   },
   "resources/js/driving-directions.js": {
-    "file": "assets/driving-directions-BjY6xZC1.js",
+    "file": "assets/driving-directions-BPEVmSkW.js",
     "name": "driving-directions",
     "src": "resources/js/driving-directions.js",
     "isDynamicEntry": true,
@@ -77,7 +78,7 @@
     ]
   },
   "resources/js/location-picker.js": {
-    "file": "assets/location-picker-BlFKaMYX.js",
+    "file": "assets/location-picker-B8FnBj6z.js",
     "name": "location-picker",
     "src": "resources/js/location-picker.js",
     "isDynamicEntry": true,
@@ -86,7 +87,7 @@
     ]
   },
   "resources/js/nearby-search.js": {
-    "file": "assets/nearby-search-DjAFqjjt.js",
+    "file": "assets/nearby-search-C7oLcTHe.js",
     "name": "nearby-search",
     "src": "resources/js/nearby-search.js",
     "isDynamicEntry": true,
@@ -110,6 +111,12 @@
     "file": "assets/roadside-pickup-CzLBPlw5.js",
     "name": "roadside-pickup",
     "src": "resources/js/roadside-pickup.js",
+    "isDynamicEntry": true
+  },
+  "resources/js/roadside-tracking.js": {
+    "file": "assets/roadside-tracking-zX3Z-Uoo.js",
+    "name": "roadside-tracking",
+    "src": "resources/js/roadside-tracking.js",
     "isDynamicEntry": true
   },
   "resources/js/shop-directory-map.js": {

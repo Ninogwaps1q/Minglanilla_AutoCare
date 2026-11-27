@@ -109,6 +109,7 @@ it('dispatches by GPS while sharing the selected nationwide pickup address with 
     $customer = User::factory()->create(['role' => 'customer']);
 
     $this->actingAs($customer)->post(route('customer.emergency-requests.store'), [
+        'share_pickup' => true,
         'emergency_type' => 'breakdown', 'latitude' => 6.751, 'longitude' => 125.351,
         'barangay_id' => $pickup->id, 'address' => '9 Market Road', 'landmark' => 'Beside the bridge',
     ])->assertSessionHasNoErrors()->assertRedirect();

@@ -30,6 +30,104 @@ async function captureWorkspaceThemes(page, testInfo, name) {
     }
 }
 
+for (const role of ['shop_owner', 'mechanic']) {
+    test(role + ' booking days align beneath the heading and wrap within the profile', async ({ page }, testInfo) => {
+        test.setTimeout(90000);
+        await page.route('https://maps.googleapis.com/**', route => route.abort());
+        await signIn(page, role);
+        await page.goto('/shop/profile');
+
+        const days = page.getByRole('group', { name: 'Days open for bookings' });
+        const monday = days.getByRole('checkbox', { name: 'Mon', exact: true });
+        const widths = testInfo.project.name === 'desktop' ? [1440, 768] : [page.viewportSize().width];
+        for (const width of widths) {
+            await page.setViewportSize({ width, height: 900 });
+            for (const theme of ['light', 'dark']) {
+                await page.evaluate(value => localStorage.setItem('autocare-theme', value), theme);
+                await page.reload();
+                await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+                await expect(days.getByRole('checkbox')).toHaveCount(7);
+
+                const layout = await days.evaluate(group => {
+                    const legend = group.querySelector('legend').getBoundingClientRect();
+                    const controls = [...group.querySelectorAll('label')].map(label => label.getBoundingClientRect());
+
+                    return {
+                        aligned: Math.abs(controls[0].left - legend.left) <= 1 && controls[0].top >= legend.bottom,
+                        fits: controls.every(control => control.right <= group.getBoundingClientRect().right && control.height >= 44),
+                    };
+                });
+                expect(layout).toEqual({ aligned: true, fits: true });
+                await days.screenshot({ path: testInfo.outputPath(`booking-days-${width}-${theme}.png`) });
+            }
+        }
+
+        const wasChecked = await monday.isChecked();
+        await monday.focus();
+        await page.keyboard.press('Space');
+        await expect(monday).toBeFocused();
+        await expect(monday).toBeChecked({ checked: !wasChecked });
+    });
+}
+
+test('independent mechanic workspace is usable in both themes', async ({ page }, testInfo) => {
+    test.setTimeout(90000);
+    await signIn(page, 'mechanic');
+    await expect(page.getByRole('heading', { name: 'Mechanic dashboard' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Parts inventory' })).toHaveCount(0);
+    if (testInfo.project.name !== 'desktop') {
+        await expect(page.getByRole('navigation', { name: 'Quick navigation' }).getByRole('link', { name: 'Chat', exact: true })).toBeVisible();
+    }
+    await captureWorkspaceThemes(page, testInfo, 'mechanic-dashboard');
+    for (const section of ['availability', 'coverage', 'tools', 'portfolio', 'earnings']) {
+        await page.goto('/shop/mobile-work/' + section);
+        await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toBeVisible();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+    }
+    await page.goto('/shop/mobile-work/availability');
+    const availability = page.getByLabel('Availability', { exact: true });
+    await availability.focus();
+    await expect(availability).toBeFocused();
+    await availability.selectOption('0');
+    await page.getByRole('main').getByRole('button', { name: 'Save changes' }).click();
+    await expect(availability).toHaveValue('0');
+    await availability.selectOption('1');
+    await page.getByRole('main').getByRole('button', { name: 'Save changes' }).click();
+    await expect(availability).toHaveValue('1');
+});
+
+test('customer reviews a mobile mechanic quote before submitting', async ({ page }, testInfo) => {
+    test.setTimeout(90000);
+    await page.route('https://maps.googleapis.com/**', route => route.abort());
+    const fixture = await signIn(page, 'customer');
+    await page.goto('/customer/appointments/create?shop_id=' + fixture.mechanic);
+    await page.getByLabel('Region', { exact: true }).selectOption({ label: 'Davao Region' });
+    await page.getByLabel('Province or area').selectOption({ label: 'Davao del Sur' });
+    await page.getByLabel('City / municipality').selectOption({ label: 'City of Digos' });
+    await page.getByLabel('Barangay', { exact: true }).selectOption({ label: 'Aplaya' });
+    await page.getByLabel('Street / house number').fill('Mobile test address');
+    await page.getByLabel('Latitude', { exact: true }).fill('6.75');
+    await page.getByLabel('Longitude', { exact: true }).fill('125.36');
+    await page.getByRole('button', { name: 'Continue to services' }).click();
+    await page.locator(`#booking-services input[data-shop-id="${fixture.mechanic}"][value="${fixture.service}"]`).check();
+    await page.getByRole('button', { name: 'Continue to schedule' }).click();
+    const dayOffset = 5 + ['desktop', 'mobile', 'small-mobile'].indexOf(testInfo.project.name);
+    await page.locator('#appointment_date').fill(new Date(Date.now() + dayOffset * 86400000).toISOString().slice(0, 10));
+    await page.locator('#appointment_time').fill('10:00');
+    await expect(page.locator('#slot-feedback')).toContainText('The shop still needs to confirm');
+    await page.getByRole('button', { name: 'Review your request' }).click();
+    await page.getByRole('button', { name: 'Review mobile service price' }).click();
+    const quote = page.locator('#mobile-quote-summary');
+    await expect(quote).toContainText('Home service fee');
+    await expect(quote).toContainText('Total before additional repairs');
+    await expect(page.locator('#booking-estimate')).toHaveText(await quote.locator('dd').last().textContent());
+    await expect(quote.locator('dd').last()).toBeInViewport();
+    await page.screenshot({ path: testInfo.outputPath('mechanic-mobile-quote.png') });
+    await page.getByRole('button', { name: 'Request appointment' }).click();
+    await expect(page).toHaveURL(/customer\/appointments$/);
+    await expect(page.getByText('Mobile test address', { exact: false }).first()).toBeVisible();
+});
+
 const pages = {
     customer: ['dashboard', 'customer/vehicles', 'customer/appointments', 'customer/appointments/create', 'customer/quotations', 'customer/repairs', 'customer/invoices', 'customer/reminders', 'customer/messages', 'customer/reviews', 'customer/notifications', 'customer/inspections', 'customer/emergency-requests', 'customer/ai-assistant', 'customer/profile', 'customer/favorites', 'customer/service-history', 'customer/services', 'customer/service-cases'],
     shop_owner: ['shop/dashboard', 'shop/profile', 'shop/services', 'shop/appointments', 'shop/repair-jobs', 'shop/quotations', 'shop/invoices', 'shop/inventory', 'shop/technicians', 'shop/messages', 'shop/reviews', 'shop/reports', 'shop/emergency-requests', 'shop/notifications', 'shop/today-work', 'shop/service-cases'],
@@ -383,12 +481,22 @@ test('shop can send itemized estimate, start approved repair, and issue its invo
     await expect(page.getByText('PHP 1,250.00', { exact: true })).toBeVisible();
 });
 
+async function closePendingRoadsideRequest(page) {
+    await page.goto('/customer/emergency-requests');
+    const cancel = page.getByRole('region', { name: 'Active roadside request' }).getByRole('button', { name: 'Cancel request' });
+    if (await cancel.isVisible()) {
+        page.once('dialog', dialog => dialog.accept());
+        await cancel.click();
+    }
+    await expect(page.getByRole('button', { name: 'Send assistance request' })).toBeVisible();
+}
+
 test('customer can share location and see the assigned roadside shop', async ({ page }, testInfo) => {
     test.setTimeout(90000);
     await signIn(page, 'customer');
     await page.context().grantPermissions(['geolocation']);
     await page.context().setGeolocation({ latitude: 6.7493, longitude: 125.3552 });
-    await page.goto('/customer/emergency-requests');
+    await closePendingRoadsideRequest(page);
     await page.getByRole('button', { name: 'Use my current location' }).click();
     await expect(page.locator('#location-status')).toContainText('Location ready');
     await page.getByText('Add vehicle or pickup details (optional)', { exact: true }).click();
@@ -398,6 +506,7 @@ test('customer can share location and see the assigned roadside shop', async ({ 
     await page.getByLabel('Barangay', { exact: true }).selectOption({ label: 'Aplaya' });
     const landmark = 'Browser roadside ' + testInfo.project.name;
     await page.getByLabel('Landmark (optional)').fill(landmark);
+    await page.getByLabel(/Share this pickup location/).check();
     await page.getByRole('button', { name: 'Send assistance request' }).click();
     const request = page.getByRole('article', { name: 'breakdown request' }).filter({ hasText: landmark });
     await expect(request).toContainText('Browser Test AutoCare');
@@ -429,6 +538,7 @@ test('roadside manual pickup works when GPS permission is denied', async ({ page
     });
     await page.route('https://maps.googleapis.com/**', route => route.abort());
     await signIn(page, 'customer');
+    await closePendingRoadsideRequest(page);
 
     for (const [width, theme] of [[360, 'light'], [360, 'dark'], [768, 'light'], [768, 'dark'], [1440, 'light'], [1440, 'dark']]) {
         await page.setViewportSize({ width, height: 850 });
@@ -447,6 +557,7 @@ test('roadside manual pickup works when GPS permission is denied', async ({ page
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
         await page.screenshot({ path: testInfo.outputPath('roadside-' + width + '-' + theme + '.png'), fullPage: true });
     }
+    await page.getByLabel(/Share this pickup location/).check();
     await page.getByRole('button', { name: 'Send assistance request' }).click();
     const request = page.getByRole('region', { name: 'Active roadside request' });
     await expect(request).toContainText('Browser Test AutoCare');
@@ -457,13 +568,15 @@ test('roadside manual pickup works when GPS permission is denied', async ({ page
 });
 
 test('assigned roadside responder sees route and turn steps inside the page', async ({ page, context }, testInfo) => {
+    test.setTimeout(90000);
     await installDirectionsMapStub(page);
     await signIn(page, 'customer');
     await context.grantPermissions(['geolocation']);
     await context.setGeolocation({ latitude: 6.7493, longitude: 125.3552 });
-    await page.goto('/customer/emergency-requests');
+    await closePendingRoadsideRequest(page);
     await page.getByRole('button', { name: 'Use my current location' }).click();
     await expect(page.locator('#location-status')).toContainText('Location ready');
+    await page.getByLabel(/Share this pickup location/).check();
     await page.getByRole('button', { name: 'Send assistance request' }).click();
 
     await context.clearCookies();

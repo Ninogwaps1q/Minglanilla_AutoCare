@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\EmergencyRequest;
 use App\Models\Shop;
 use App\Services\EmergencyDispatchService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +21,7 @@ class EmergencyRequestController extends Controller
     {
         $shop = $this->shop($request);
 
-        return view('shop.emergency-requests.index', ['shop' => $shop, 'requests' => $shop->emergencyRequests()
+        return view('shop.emergency-requests.index', ['shop' => $shop, 'canShareLocation' => $shop->isIndependentMechanic() && $shop->mechanicEntitlements()['live_tracking'], 'requests' => $shop->emergencyRequests()
             ->when($request->integer('focus') > 0, fn ($query) => $query->whereKey($request->integer('focus')))
             ->with(['customer', 'vehicle', 'barangay.municipality.province.region'])->latest('requested_at')->get()]);
     }
@@ -44,7 +45,7 @@ class EmergencyRequestController extends Controller
             }
             $timestamps = match ($attributes['status']) {
                 'accepted' => ['responded_at' => $emergencyRequest->responded_at ?? now()],
-                'completed' => ['completed_at' => now()],
+                'completed' => ['completed_at' => now(), 'responder_location' => null],
                 default => [],
             };
             $emergencyRequest->update([...$attributes, ...$timestamps]);
@@ -58,6 +59,48 @@ class EmergencyRequestController extends Controller
         });
 
         return back()->with('status', 'Emergency request updated.');
+    }
+
+    public function location(Request $request, EmergencyRequest $emergencyRequest): JsonResponse
+    {
+        $shop = $this->shop($request);
+        abort_unless($shop->isIndependentMechanic() && $shop->owner_id === $request->user()->id, 403);
+        $attributes = $request->validate([
+            'action' => ['required', 'in:share,stop,arrive'],
+            'consent' => ['accepted_if:action,share'],
+            'latitude' => ['required_if:action,share', 'numeric', 'between:-90,90'],
+            'longitude' => ['required_if:action,share', 'numeric', 'between:-180,180'],
+        ]);
+        DB::transaction(function () use ($shop, $emergencyRequest, $attributes): void {
+            $emergencyRequest = $shop->emergencyRequests()->lockForUpdate()->findOrFail($emergencyRequest->id);
+            if ($attributes['action'] === 'stop') {
+                $emergencyRequest->update(['responder_location' => null]);
+
+                return;
+            }
+            abort_unless($emergencyRequest->status === 'en_route', 409);
+            if ($attributes['action'] === 'arrive') {
+                if ($emergencyRequest->arrived_at === null) {
+                    $emergencyRequest->update(['arrived_at' => now(), 'responder_location' => null]);
+                    $emergencyRequest->customer->notifications()->create([
+                        'type' => 'emergency_status', 'title' => 'Roadside responder arrived',
+                        'message' => 'The assigned responder has marked their arrival.',
+                        'data' => ['emergency_request_id' => $emergencyRequest->id],
+                    ]);
+                }
+
+                return;
+            }
+            abort_if($emergencyRequest->arrived_at !== null, 409);
+            abort_unless($shop->mechanicEntitlements()['live_tracking'], 403);
+            $emergencyRequest->update(['responder_location' => [
+                'latitude' => round((float) $attributes['latitude'], 5),
+                'longitude' => round((float) $attributes['longitude'], 5),
+                'time' => now()->timestamp,
+            ]]);
+        });
+
+        return response()->json(['success' => true])->header('Cache-Control', 'private, no-store');
     }
 
     private function shop(Request $request): Shop

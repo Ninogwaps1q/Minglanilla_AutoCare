@@ -15,6 +15,10 @@ class ReassignUnansweredEmergencyRequests extends Command
 
     public function handle(EmergencyDispatchService $dispatchService): int
     {
+        EmergencyRequest::query()->whereNotNull('responder_location')
+            ->where('responder_location->time', '<=', now()->subMinutes(2)->timestamp)
+            ->update(['responder_location' => null]);
+
         $reassigned = 0;
         $cutoff = now()->subMinutes(15);
 

@@ -24,7 +24,7 @@ abstract class CustomerWorkflowNotification extends Notification
         if ($user->email && $user->receivesEventVia($stage, 'email')) {
             $channels[] = 'mail';
         }
-        if (filled(config('services.semaphore.api_key')) && $user->receivesEventVia($stage, 'sms')
+        if (app(SmsService::class)->configured() && $user->receivesEventVia($stage, 'sms')
             && app(SmsService::class)->phone($user->phone)) {
             $channels[] = WorkflowSmsChannel::class;
         }
