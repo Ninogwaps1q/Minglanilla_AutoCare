@@ -18,7 +18,9 @@ it('stores a supported account locale and applies it to the customer workspace',
     $this->actingAs($user)->post(route('language.update'), ['locale' => 'fil'])->assertRedirect();
     expect($user->fresh()->locale)->toBe('fil');
 
-    $this->get(route('customer.appointments.create'))->assertOk()->assertSee('Mag-book ng serbisyo');
+    $this->get(route('customer.appointments.create'))->assertOk()
+        ->assertSee('Mag-book ng serbisyo')
+        ->assertSee('aria-label="Mabilis na nabigasyon"', false);
     $user->notifications()->create([
         'type' => 'appointment_status', 'title' => 'Appointment status updated',
         'message' => 'Your appointment is now confirmed.', 'data' => ['status' => 'confirmed'],

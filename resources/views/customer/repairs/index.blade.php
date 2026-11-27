@@ -1,74 +1,140 @@
 <x-layouts.app :title="__('ui.' . 'My repairs')">
     <div class="page-heading">
         <h1>{{ __('ui.' . 'My repairs') }}</h1>
-        <p>Review estimates, approve work, and track your vehicle's repair status.</p>
+        <p>{{ __('repair_display.tracking_intro') }}</p>
     </div>
     @if (request()->integer('appointment_id') > 0 || request()->integer('repair_job_id') > 0)<p><a href="{{ route('customer.repairs.index') }}">{{ __('ui.' . 'View all repairs') }}</a></p>@endif
     <x-form-errors />
     @forelse ($repairJobs as $repairJob)
-        <article id="repair-{{ $repairJob->id }}" class="surface p-4 mb-3" aria-labelledby="repair-title-{{ $repairJob->id }}">
-            <div class="d-flex flex-column flex-md-row justify-content-between gap-2 mb-3">
-                <div>
-                    <h2 id="repair-title-{{ $repairJob->id }}" class="h5 mb-1">{{ $repairJob->job_number }}</h2>
-                    <p class="text-secondary mb-0">{{ $repairJob->shop->name }} · {{ $repairJob->vehicle->plate_number }}</p>
+        @php
+            $invoice = $repairJob->invoice;
+            $estimate = $repairJob->quotation;
+            $revision = $repairJob->pendingSupplementalQuotation;
+            $needsApproval = $estimate?->documentStatus() === 'sent' && ! $revision && ! in_array($repairJob->status, ['cancelled', 'completed', 'released'], true);
+            $approvedEstimate = in_array($estimate?->status, ['accepted', 'approved'], true) ? $estimate : null;
+            $estimateAvailable = $estimate && $estimate->status !== 'draft';
+            $latestInspection = $repairJob->inspections->sortBy([['inspection_date', 'desc'], ['id', 'desc']])->first();
+            $attentionItems = $latestInspection?->items->whereIn('condition', ['Needs Attention', 'Critical'])->count() ?? 0;
+            $pendingCheckout = $invoice?->payments->contains('status', 'checkout_pending');
+            $paymentUnderReview = $invoice?->payments->contains('status', 'pending');
+            $canPayOnline = filled(config('services.paymongo.secret_key')) && filled(config('services.paymongo.webhook_secret'));
+            $balance = $invoice && $invoice->status !== 'paid' ? $invoice->remainingBalance() : 0;
+            $reserved = (float) $invoice?->payments->whereIn('status', ['pending', 'checkout_pending'])->sum('amount');
+            $availableBalance = max(0, round($balance - $reserved, 2));
+            $publicPickup = ! $repairJob->shop->trashed() && $repairJob->shop->verification_status === 'approved'
+                && $repairJob->shop->shop_status === 'active' && $repairJob->shop->owner?->status === 'active'
+                && ! $repairJob->shop->isIndependentMechanic() && $repairJob->shop->publicMapPosition();
+            $canReview = $repairJob->appointment?->status === 'completed' && ! $repairJob->review && ! $repairJob->appointment->review;
+            $stage = match (true) {
+                $repairJob->status === 'cancelled' => 'cancelled',
+                $repairJob->status === 'released' => 'released',
+                $revision !== null => 'revision',
+                $repairJob->status === 'completed' && $invoice?->status === 'paid' => 'pickup',
+                $repairJob->status === 'completed' && $pendingCheckout => 'checkout_pending',
+                $repairJob->status === 'completed' && $paymentUnderReview && $availableBalance <= 0 => 'payment_review',
+                $repairJob->status === 'completed' && $invoice !== null => 'payment',
+                $repairJob->status === 'completed' => 'invoice_wait',
+                $needsApproval => 'approve',
+                $estimate?->documentStatus() === 'expired' => 'expired',
+                $repairJob->status === 'waiting_parts' => 'parts',
+                in_array($repairJob->status, ['repairing', 'in_progress'], true) => 'repair',
+                $approvedEstimate !== null => 'approved',
+                $repairJob->inspections->isNotEmpty() || $repairJob->status === 'waiting_approval' => 'estimate_wait',
+                default => 'inspection',
+            };
+        @endphp
+        <article id="repair-{{ $repairJob->id }}" class="customer-repair-card mb-4" aria-labelledby="repair-title-{{ $repairJob->id }}">
+            <header class="surface repair-task-header p-3 p-md-4">
+                <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
+                    <div class="text-break">
+                        <p class="small text-secondary mb-1">{{ __('repair_display.job_number', ['number' => $repairJob->job_number]) }}</p>
+                        <h2 id="repair-title-{{ $repairJob->id }}" class="mb-1">{{ $repairJob->vehicle->make }} {{ $repairJob->vehicle->model }} · {{ $repairJob->vehicle->plate_number }}</h2>
+                        <p class="text-secondary mb-0">{{ $repairJob->shop->name }}</p>
+                    </div>
+                    <span class="badge text-bg-{{ in_array($stage, ['pickup', 'released'], true) ? 'success' : (in_array($stage, ['approve', 'revision', 'payment', 'checkout_pending', 'payment_review', 'parts', 'expired'], true) ? 'warning' : 'info') }}">{{ __('repair_display.stage.'.$stage) }}</span>
                 </div>
-                <div><span class="badge {{ in_array($repairJob->status, ['completed', 'released'], true) ? 'text-bg-success' : 'text-bg-secondary' }} text-capitalize">{{ str_replace('_', ' ', $repairJob->status) }}</span></div>
-            </div>
-            <p>{{ $repairJob->description }}</p>
-            @php
-                $nextAction = $repairJob->nextAction();
-                $approvedEstimate = in_array($repairJob->quotation?->status, ['accepted', 'approved'], true) ? $repairJob->quotation : null;
-            @endphp
-            <p class="repair-next-step mb-3"><strong>{{ $nextAction['actor'] === 'None' ? __('ui.Status') : __('ui.Next step for :actor', ['actor' => __('ui.'.$nextAction['actor'])]) }}:</strong> {{ __('ui.'.$nextAction['action']) }}</p>
-              @if($repairJob->pendingSupplementalQuotation)
-                  <a class="btn btn-primary btn-sm mb-3" href="{{ route('customer.quotations.index', ['focus' => $repairJob->pendingSupplementalQuotation->id]) }}">{{ __('ui.' . 'Review revised estimate') }}</a>
-              @endif
+
+                <section class="repair-task-next p-3" aria-labelledby="repair-next-{{ $repairJob->id }}">
+                    <h3 class="task-section-title" id="repair-next-{{ $repairJob->id }}">{{ __('repair_display.next.'.$stage) }}</h3>
+                    @if ($needsApproval && $attentionItems > 0)
+                        <p class="mb-1">{{ trans_choice('repair_display.attention_count', $attentionItems) }}</p>
+                    @endif
+                    @if ($needsApproval && $estimate->valid_until)
+                        <p class="mb-2 text-secondary">{{ __('repair_display.valid_until', ['date' => $estimate->valid_until->format('M j, Y')]) }}</p>
+                    @elseif ($stage === 'payment' && $invoice->due_date)
+                        <p class="mb-2 text-secondary">{{ __('repair_display.due_date', ['date' => $invoice->due_date->format('M j, Y')]) }}</p>
+                    @endif
+                        @if ($needsApproval)
+                            <form method="POST" action="{{ route('customer.quotations.update', $estimate) }}" id="repair-approval-{{ $repairJob->id }}" class="repair-approval-actions">
+                                @csrf @method('PATCH')
+                                <button class="btn btn-accent" name="status" value="accepted" aria-label="{{ __('repair_display.approve_estimate', ['amount' => number_format($estimate->total, 2)]) }}">{{ __('repair_display.approve_amount', ['amount' => number_format($estimate->total, 2)]) }}</button>
+                                <a class="btn btn-outline-primary" href="{{ route('customer.messages.show', $repairJob->shop) }}">{{ __('repair_display.ask_question') }}</a>
+                            </form>
+                        @elseif ($stage === 'revision')
+                            <a class="btn btn-accent" href="{{ route('customer.quotations.index', ['focus' => $revision->id]) }}">{{ __('ui.Review revised estimate') }}</a>
+                        @elseif (in_array($stage, ['payment', 'checkout_pending', 'payment_review'], true))
+                            <a class="btn btn-{{ $stage === 'payment' && $canPayOnline && $availableBalance >= 1 ? 'accent' : 'primary' }}" href="{{ route('customer.invoices.index', ['focus' => $invoice->id]) }}">{{ $stage === 'payment' && $canPayOnline && $availableBalance >= 1 ? __('repair_display.pay_amount', ['amount' => number_format($availableBalance, 2)]) : __('ui.Review bill and payment options') }}</a>
+                        @elseif ($stage === 'pickup')
+                            @if ($publicPickup)
+                                <a class="btn btn-accent" href="{{ route('shops.show', $repairJob->shop) }}#shop-directions">{{ __('repair_display.directions') }}</a>
+                            @else
+                                <a class="btn btn-primary" href="{{ route('customer.messages.show', $repairJob->shop) }}">{{ __('repair_display.coordinate_pickup') }}</a>
+                            @endif
+                        @elseif ($stage === 'released' && $canReview)
+                            <a class="btn btn-primary" href="{{ route('customer.reviews.index', ['job' => $repairJob->id]) }}">{{ __('repair_display.leave_review') }}</a>
+                        @elseif ($stage === 'expired')
+                            <a class="btn btn-outline-primary" href="{{ route('customer.messages.show', $repairJob->shop) }}">{{ __('repair_display.ask_question') }}</a>
+                        @endif
+                </section>
+            </header>
             @if ($repairJob->appointment)
-                <p class="small text-secondary mb-3"><strong>Booked services:</strong> {{ $repairJob->appointment->bookedServices->isNotEmpty() ? $repairJob->appointment->bookedServices->pluck('service.name')->filter()->implode(', ') : ($repairJob->appointment->service?->name ?? 'Service') }} · {{ $repairJob->appointment->appointment_date->format('M j, Y') }} at {{ $repairJob->appointment->appointment_time->format('g:i A') }}</p>
+                <p class="small text-secondary mt-3 mb-3"><strong>Booked services:</strong> {{ $repairJob->appointment->bookedServices->isNotEmpty() ? $repairJob->appointment->bookedServices->pluck('service.name')->filter()->implode(', ') : ($repairJob->appointment->service?->name ?? 'Service') }} · {{ $repairJob->appointment->appointment_date->format('M j, Y') }} at {{ $repairJob->appointment->appointment_time->format('g:i A') }}</p>
                 @if ($repairJob->appointment->service_price !== null)
                     <p class="small mb-2"><strong>Booked price: PHP {{ number_format($repairJob->appointment->service_price, 2) }}</strong> · Labor: {{ $repairJob->appointment->service_labor_included === null ? 'ask shop' : ($repairJob->appointment->service_labor_included ? 'included' : 'quoted separately') }} · Parts: {{ $repairJob->appointment->service_parts_included === null ? 'ask shop' : ($repairJob->appointment->service_parts_included ? 'included' : 'quoted separately') }}</p>
                     @if ($repairJob->appointment->service_scope)<p class="small text-secondary mb-3">{{ $repairJob->appointment->service_scope }}</p>@endif
                 @endif
             @endif
-            @if ($repairJob->quotation?->status === 'sent' && ! $repairJob->quotation->valid_until?->isBefore(today()))
-                <div class="alert alert-info mb-3">
-                    <strong>Your approval is needed before work starts.</strong>
-                    <p class="mb-2">Review the estimate of PHP {{ number_format($repairJob->quotation->total, 2) }}@if ($repairJob->quotation->valid_until) (valid until {{ $repairJob->quotation->valid_until->format('M j, Y') }})@endif.</p>
-                    @if ($repairJob->quotation->discount > 0)<p class="small">{{ __('extensions.promo.savings', ['amount' => number_format($repairJob->quotation->discount, 2)]) }}</p>@endif
-                    <ul class="mb-3">@foreach ($repairJob->quotation->items as $item)<li>{{ $item->description }}: {{ $item->quantity }} × PHP {{ number_format($item->unit_price, 2) }}</li>@endforeach</ul>
-                    <form method="POST" action="{{ route('customer.quotations.update', $repairJob->quotation) }}" class="d-flex flex-wrap gap-2">
-                        @csrf @method('PATCH')
-                        <button class="btn btn-primary" name="status" value="accepted">{{ __('ui.' . 'Approve estimate') }}</button>
-                        <button class="btn btn-outline-danger" name="status" value="rejected">{{ __('ui.' . 'Decline estimate') }}</button>
-                    </form>
-                </div>
-            @elseif ($repairJob->status === 'waiting_approval')
-                <p class="text-secondary">{{ $repairJob->quotation?->status === 'sent' ? 'This estimate has expired. Ask the shop for an updated estimate.' : 'Waiting for the shop to send an estimate.' }}</p>
-            @elseif ($repairJob->status === 'approved')
-                <p class="text-secondary">You approved the estimate. The shop will start the repair next; no work has been marked as started yet.</p>
+            @if ($estimateAvailable)
+                <section class="repair-task-section" aria-label="{{ __('repair_display.estimate') }}">
+                    <h3 class="task-section-title">{{ __('repair_display.estimate') }}</h3>
+                    <div class="surface p-3 p-md-4">
+                        <x-estimate-breakdown :quotation="$estimate" :show-expiry="! $needsApproval" />
+                        @if ($needsApproval)
+                            <button type="submit" form="repair-approval-{{ $repairJob->id }}" name="status" value="rejected" class="btn btn-link text-danger p-0">{{ __('ui.Decline estimate') }}</button>
+                        @endif
+                    </div>
+                </section>
             @endif
-            @if ($repairJob->invoice && $repairJob->status === 'completed' && $repairJob->invoice->status !== 'paid')
-                <p><a class="btn btn-primary" href="{{ route('customer.invoices.show', $repairJob->invoice) }}">{{ __('ui.' . 'Review bill and payment options') }}</a></p>
+
+            @if ($repairJob->inspections->isNotEmpty() || $repairJob->photos->isNotEmpty() || filled($repairJob->diagnosis))
+                <section class="repair-task-section" aria-label="{{ __('repair_display.inspection_results') }}">
+                    <h3 class="task-section-title">{{ __('repair_display.inspection_results') }}</h3>
+                    <div class="surface p-3 p-md-4">
+                        @if ($repairJob->diagnosis)<p class="mb-3">{{ $repairJob->diagnosis }}</p>@endif
+                        @foreach ($repairJob->inspections as $inspection)
+                            <x-inspection-checklist :inspection="$inspection" />
+                        @endforeach
+                        @if ($repairJob->photos->isNotEmpty())
+                            <h4 class="task-section-title mt-3">{{ __('repair_display.evidence') }}</h4>
+                            <div class="repair-evidence-grid">
+                                @foreach ($repairJob->photos as $photo)
+                                    <figure class="mb-0">
+                                        <a href="{{ route('repair-photos.show', $photo) }}" target="_blank" rel="noopener">
+                                            <img class="repair-evidence-image" src="{{ route('repair-photos.show', $photo) }}" alt="{{ $photo->caption ?: __('repair_display.photo_alt', ['stage' => ucfirst($photo->stage)]) }}" loading="lazy" decoding="async">
+                                        </a>
+                                        <figcaption class="small mt-1">{{ $photo->caption ?: __('repair_display.photo_alt', ['stage' => ucfirst($photo->stage)]) }}</figcaption>
+                                    </figure>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+                </section>
             @endif
-            <x-service-journey :repair-job="$repairJob" />
-            @if ($repairJob->diagnosis)
-                <p><strong>Diagnosis:</strong> {{ $repairJob->diagnosis }}</p>
-            @endif
-            @foreach ($repairJob->inspections as $inspection)
-                <details class="repair-details mb-3"><summary>Inspection checklist · {{ $inspection->inspection_date->format('M j, Y') }}</summary>
-                    <ul class="mt-3 mb-0">@foreach ($inspection->items as $item)<li><strong>{{ $item->category }}: {{ $item->item_name }}</strong> — {{ $item->condition }}@if ($item->recommendation) · {{ $item->recommendation }}@endif</li>@endforeach</ul>
-                </details>
-            @endforeach
-            @if ($approvedEstimate)
-                <dl class="repair-approved-prices mb-3" aria-label="{{ __('repair_display.approved_total') }}">
-                    @if ($approvedEstimate->discount > 0)
-                        <div><dt>{{ __('repair_display.work_subtotal') }}</dt><dd>PHP {{ number_format($approvedEstimate->workSubtotal(), 2) }}</dd></div>
-                        <div><dt>{{ __('repair_display.discount') }}</dt><dd>−PHP {{ number_format($approvedEstimate->discount, 2) }}</dd></div>
-                    @endif
-                    <div><dt>{{ __('repair_display.approved_total') }}</dt><dd class="fw-semibold">PHP {{ number_format($approvedEstimate->total, 2) }}</dd></div>
-                </dl>
-            @endif
+
+            <x-service-journey :repair-job="$repairJob" detailed />
             @if ($repairJob->items->isNotEmpty())
+                <details class="repair-details my-3" @unless ($estimateAvailable) open @endunless>
+                <summary>{{ __('repair_display.breakdown') }}</summary>
                 <div class="table-responsive mb-2" tabindex="0" role="region" aria-label="{{ __('repair_display.breakdown') }}">
                     <table class="table table-sm align-middle">
                         <caption class="caption-top">{{ __('repair_display.breakdown') }}</caption>
@@ -86,6 +152,7 @@
                     </table>
                 </div>
                 <p class="small text-secondary mb-3">The booked service has its own price. Additional parts or labor appear as separate charges and need your approval in the estimate.</p>
+                </details>
             @endif
             @if ($repairJob->technicianAssignments->isNotEmpty())
                 <p class="mb-3"><strong>Technician{{ $repairJob->technicianAssignments->count() > 1 ? 's' : '' }}:</strong> {{ $repairJob->technicianAssignments->pluck('technician.name')->unique()->implode(', ') }}</p>
@@ -107,9 +174,6 @@
                     </form>
                 </details>
             @endif
-            @if($repairJob->photos->isNotEmpty())
-                <details class="repair-details mb-3"><summary>Damage and repair photos · {{ $repairJob->photos->count() }}</summary><div class="repair-evidence-grid mt-3">@foreach($repairJob->photos as $photo)<figure class="mb-0"><a href="{{ route('repair-photos.show', $photo) }}" target="_blank" rel="noopener"><img class="repair-evidence-image" src="{{ route('repair-photos.show', $photo) }}" alt="{{ ucfirst($photo->stage) }} repair photo: {{ $photo->caption ?: $repairJob->vehicle->plate_number }}" loading="lazy"></a><figcaption class="small mt-1"><strong>{{ ucfirst($photo->stage) }}</strong>@if($photo->caption) · {{ $photo->caption }}@endif</figcaption></figure>@endforeach</div></details>
-            @endif
             @if(in_array($repairJob->status, ['completed', 'released'], true))
                 <section class="border rounded p-3 mb-3" aria-label="Warranty and aftercare">
                     <h3 class="h6">Warranty & aftercare</h3>
@@ -130,15 +194,16 @@
                     </details>
                 </section>
             @endif
+            <p class="mb-3 text-break">{{ $repairJob->description }}</p>
             <dl class="row mb-0">
                 <dt class="col-sm-4">Estimated cost</dt>
-                <dd class="col-sm-8">{{ $repairJob->estimated_cost !== null ? 'PHP '.number_format($repairJob->estimated_cost, 2) : 'Awaiting estimate' }}</dd>
+                <dd class="col-sm-8">{{ $repairJob->estimated_cost !== null ? '₱'.number_format($repairJob->estimated_cost, 2) : 'Awaiting estimate' }}</dd>
                 <dt class="col-sm-4">Actual cost</dt>
-                <dd class="col-sm-8">{{ in_array($repairJob->status, ['completed', 'released'], true) && $repairJob->actual_cost !== null ? 'PHP '.number_format($repairJob->actual_cost, 2) : 'Not finalized' }}</dd>
+                <dd class="col-sm-8">{{ in_array($repairJob->status, ['completed', 'released'], true) && $repairJob->actual_cost !== null ? '₱'.number_format($repairJob->actual_cost, 2) : 'Not finalized' }}</dd>
                 <dt class="col-sm-4">Started</dt>
-                <dd class="col-sm-8">{{ $repairJob->started_at?->format('M j, Y g:i A') ?? 'Not started' }}</dd>
+                <dd class="col-sm-8">{{ $repairJob->started_at?->setTimezone(\App\Models\Appointment::TIMEZONE)->format('M j, Y g:i A') ?? 'Not started' }}</dd>
                 <dt class="col-sm-4">Completed</dt>
-                <dd class="col-sm-8">{{ $repairJob->completed_at?->format('M j, Y g:i A') ?? 'Not completed' }}</dd>
+                <dd class="col-sm-8">{{ $repairJob->completed_at?->setTimezone(\App\Models\Appointment::TIMEZONE)->format('M j, Y g:i A') ?? 'Not completed' }}</dd>
             </dl>
         </article>
     @empty

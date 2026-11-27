@@ -8,21 +8,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <x-theme-init />
     <title>{{ $title }} · {{ config('app.name') }}</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @vite('resources/css/app.css')
 </head>
 
-<body class="error-page">
+<body class="error-page autocare-ui">
     <main class="container py-4 py-lg-5">
         <section class="error-panel mx-auto" aria-labelledby="error-title">
             <p class="error-code">{{ $code }}</p>
             <h1 id="error-title">{{ $title }}</h1>
             <p class="error-message mb-4">{{ $message }}</p>
-            @if ((int) $code === 419 && ! auth()->check())
-                <a class="btn btn-primary" href="{{ route('login') }}">{{ __('account_ui.sign_in_again') }}</a>
-                <a class="btn btn-link" href="{{ route('home') }}">{{ __('account_ui.return_home') }}</a>
-            @else
-                <a class="btn btn-primary" href="{{ route('home') }}">{{ __('account_ui.return_home') }}</a>
-            @endif
+            <div class="d-flex flex-wrap gap-2">
+                @if ((int) $code === 419 && ! auth()->check())
+                    <a class="btn btn-primary" href="{{ route('login') }}">{{ __('account_ui.sign_in_again') }}</a>
+                    <a class="btn btn-outline-primary" href="{{ route('home') }}">{{ __('account_ui.return_home') }}</a>
+                @else
+                    <a class="btn btn-primary" href="{{ route('home') }}">{{ __('account_ui.return_home') }}</a>
+                @endif
+            </div>
         </section>
     </main>
 </body>

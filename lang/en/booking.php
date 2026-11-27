@@ -1,6 +1,21 @@
 <?php
 
 return [
+    'choose_vehicle' => 'Choose a vehicle',
+    'choose_services' => 'Choose services',
+    'to_services' => 'Continue to services',
+    'to_schedule' => 'Continue to schedule',
+    'to_review' => 'Review your request',
+    'change_vehicle' => 'Change vehicle',
+    'change' => 'Change',
+    'vehicle_needs' => 'What does your vehicle need?',
+    'pick_services_help' => 'Pick one or more services. The provider confirms the final price after inspection.',
+    'unspecified' => 'not specified',
+    'price_includes' => 'Labor :labor · Parts :parts',
+    'no_offers' => 'This provider has no services available for booking. Go back to choose another provider.',
+    'listed_estimate' => 'Listed estimate',
+    'service_count_one' => ':count service',
+    'service_count_many' => ':count services',
     'progress' => 'Step :step of :total',
     'continue' => 'Continue',
     'back' => 'Back',

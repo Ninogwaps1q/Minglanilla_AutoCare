@@ -1,6 +1,12 @@
 <?php
 
 return [
+    'Quick navigation' => 'Quick navigation',
+    'Primary navigation' => 'Primary navigation',
+    'Toggle navigation' => 'Toggle navigation',
+    'Dismiss notification' => 'Dismiss notification',
+    'Messages are temporarily unavailable. Try again in a moment' => 'Messages are temporarily unavailable. Try again in a moment.',
+    'Check the following fields' => 'Check the following fields',
     'Language' => 'Language',
     'Change language' => 'Change language',
     'workspace' => 'workspace',

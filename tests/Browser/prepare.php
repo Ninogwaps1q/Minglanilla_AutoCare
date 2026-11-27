@@ -120,6 +120,20 @@ $diagnosisJob->items()->createMany([
     ['type' => 'labor', 'description' => 'Brake labor', 'quantity' => 1, 'unit_price' => 500, 'subtotal' => 500],
     ['type' => 'part', 'description' => 'Brake pads', 'quantity' => 1, 'unit_price' => 750, 'subtotal' => 750],
 ]);
+$diagnosisJob->inspections()->create([
+    'vehicle_id' => $vehicle->id, 'shop_id' => $shop->id, 'overall_condition' => 'Needs Attention',
+    'inspection_date' => today(Appointment::TIMEZONE)->toDateString(),
+])->items()->createMany([
+    ['category' => 'Engine', 'item_name' => 'Oil level', 'condition' => 'Good'],
+    ['category' => 'Brakes', 'item_name' => 'Front brake pads', 'condition' => 'Needs Attention', 'recommendation' => 'Replace worn front pads.'],
+]);
+$evidencePath = 'repair-photos/browser-brake-evidence.png';
+if (! Storage::disk('local')->put($evidencePath, $logoContents)) {
+    throw new RuntimeException('Could not prepare the browser inspection photo.');
+}
+$diagnosisJob->photos()->create([
+    'uploaded_by' => $users['shop_owner']->id, 'stage' => 'before', 'path' => $evidencePath, 'caption' => 'Front brake pad photo',
+]);
 $browserComplaintCases = [];
 foreach (['desktop', 'mobile', 'small-mobile'] as $viewport) {
     foreach (['resolved', 'dismissed'] as $outcome) {

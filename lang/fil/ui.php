@@ -2,6 +2,12 @@
 
 // Machine-translated draft. Native-speaker review pending.
 return [
+    'Quick navigation' => 'Mabilis na nabigasyon',
+    'Primary navigation' => 'Pangunahing nabigasyon',
+    'Toggle navigation' => 'Buksan o isara ang menu',
+    'Dismiss notification' => 'Isara ang abiso',
+    'Messages are temporarily unavailable. Try again in a moment' => 'Pansamantalang hindi mabuksan ang mga mensahe. Subukan ulit mamaya.',
+    'Check the following fields' => 'Suriin ang mga sumusunod na field',
     'Language' => 'Wika',
     'Change language' => 'Palitan ang wika',
     'workspace' => 'workspace',

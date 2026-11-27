@@ -87,7 +87,7 @@ class AppointmentController extends Controller
                 ->where('shop_status', 'active')
                 ->whereHas('owner', fn ($query) => $query->where('status', 'active'))
                 ->withOnlineBookings()
-                ->with(['services.service'])
+                ->with(['services' => fn ($query) => $query->where('availability', true), 'services.service', 'barangay.municipality.province.region'])
                 ->orderBy('name')
                 ->get(),
             'vehicles' => $vehicles,

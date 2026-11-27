@@ -1,4 +1,4 @@
-export const createShopMapPopup = (shop, url, linkLabel) => {
+export const createShopMapPopup = (shop, url, linkLabel, copy = {}) => {
     const popup = document.createElement('div');
     popup.className = 'shop-map-popup';
 
@@ -21,11 +21,24 @@ export const createShopMapPopup = (shop, url, linkLabel) => {
     const name = document.createElement('strong');
     name.textContent = shop.name;
     const location = document.createElement('small');
-    location.textContent = shop.provider_type === 'independent_mechanic' ? 'Approximate service area' : 'Shop location';
+    location.textContent = shop.address || (shop.provider_type === 'independent_mechanic' ? 'Approximate service area' : 'Shop location');
     const link = document.createElement('a');
     link.href = url;
     link.textContent = linkLabel;
     details.append(name, location, link);
+    if (shop.booking_url || shop.directions_url) {
+        const actions = document.createElement('div');
+        actions.className = 'd-flex flex-wrap gap-2 mt-2';
+        for (const [href, label, style] of [[shop.booking_url, copy.book_short || 'Book', 'btn-primary'], [shop.directions_url, copy.directions || 'Directions', 'btn-outline-primary']]) {
+            if (!href) continue;
+            const action = document.createElement('a');
+            action.href = href;
+            action.className = `btn btn-sm ${style}`;
+            action.textContent = label;
+            actions.append(action);
+        }
+        details.append(actions);
+    }
     popup.append(logo, details);
 
     return popup;

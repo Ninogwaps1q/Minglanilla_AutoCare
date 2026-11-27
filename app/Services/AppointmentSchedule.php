@@ -75,6 +75,32 @@ class AppointmentSchedule
         return true;
     }
 
+    /** @return array{open: bool, time: string|null}|null */
+    public function directoryHours(Shop $shop, Carbon $now): ?array
+    {
+        if (! $shop->opening_time || ! $shop->closing_time) {
+            return null;
+        }
+
+        $date = $now->toDateString();
+        $time = $now->format('H:i');
+        $opening = substr($shop->opening_time, 0, 5);
+        $closing = substr($shop->closing_time, 0, 5);
+        $blocks = collect($shop->schedule_blocks ?? [])->where('date', $date);
+
+        if ($this->isAvailable($shop, $date, $time, 1)) {
+            $until = $blocks->pluck('start')->map(fn (string $start): string => substr($start, 0, 5))
+                ->filter(fn (string $start): bool => $start > $time && $start < $closing)->min() ?? $closing;
+
+            return ['open' => true, 'time' => Carbon::parse($until)->format('g:i A')];
+        }
+
+        $next = $blocks->pluck('end')->push($opening)->map(fn (string $end): string => substr($end, 0, 5))
+            ->filter(fn (string $end): bool => $end > $time && $this->isAvailable($shop, $date, $end, 1))->min();
+
+        return ['open' => false, 'time' => $next ? Carbon::parse($next)->format('g:i A') : null];
+    }
+
     public function assertRescheduleAvailable(Shop $shop, Appointment $appointment, string $date, string $time): void
     {
         if ($shop->shop_status !== 'active' || $shop->verification_status !== 'approved') {

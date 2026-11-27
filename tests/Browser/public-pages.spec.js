@@ -305,6 +305,8 @@ test('password visibility control and error recovery work in both themes', async
             const home = page.getByRole('link', { name: 'Return home' });
             await home.focus();
             await expect(home).toBeFocused();
+            expect((await home.boundingBox()).height).toBeGreaterThanOrEqual(44);
+            await expect(home).toHaveCSS('outline-style', 'solid');
             await page.screenshot({ path: testInfo.outputPath('recovery-' + width + '-' + theme + '.png') });
         }
     }
@@ -417,13 +419,14 @@ test('shop directory remains usable when the map provider is unavailable', async
     test.setTimeout(90000);
     await stubOpenStreetMap(page);
     await page.route('https://maps.googleapis.com/maps/api/js*', route => route.abort());
+    await page.setViewportSize({ width: 360, height: 850 });
     await page.goto('/shops');
     await expect(page.locator('#shop-map')).toBeHidden();
     await page.getByRole('link', { name: 'Map', exact: true }).click();
     await expect(page.locator('#shop-map iframe')).toBeVisible();
     await page.getByRole('link', { name: 'List', exact: true }).click();
     await expect(page.locator('#shop-results')).toContainText('Browser Test AutoCare');
-    await expect(page.locator('#shop-results').getByRole('link', { name: 'View shop' })).toBeVisible();
+    await expect(page.locator('#shop-results').getByRole('link', { name: 'Book this shop' })).toBeVisible();
     for (const [width, theme] of [[360, 'light'], [360, 'dark'], [768, 'light'], [768, 'dark'], [1440, 'light'], [1440, 'dark']]) {
         await page.setViewportSize({ width, height: 850 });
         await page.evaluate(value => localStorage.setItem('autocare-theme', value), theme);
@@ -432,6 +435,12 @@ test('shop directory remains usable when the map provider is unavailable', async
         const mapLink = page.getByRole('link', { name: 'Map', exact: true });
         await mapLink.focus();
         await expect(mapLink).toBeFocused();
+        if (width >= 992) {
+            await expect(page.locator('#shop-map iframe')).toBeVisible();
+            await expect(page.locator('#shop-results')).toBeVisible();
+        } else {
+            await expect(page.locator('#shop-map')).toBeHidden();
+        }
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
         await page.screenshot({ path: testInfo.outputPath('directory-' + width + '-' + theme + '.png'), fullPage: true });
     }
@@ -439,12 +448,27 @@ test('shop directory remains usable when the map provider is unavailable', async
 
 test('directory filter submits and can be cleared', async ({ page }) => {
     await page.goto('/shops');
-    await page.getByLabel('Provider or city').fill('no-such-shop-browser-check');
+    await page.getByLabel('Shop, service, or area').fill('no-such-shop-browser-check');
     await page.getByRole('button', { name: 'Find providers', exact: true }).click();
     await expect(page).toHaveURL(/search=no-such-shop-browser-check/);
     await expect(page.getByRole('heading', { name: 'No providers match these filters' })).toBeVisible();
     await page.getByRole('link', { name: 'Clear filters', exact: true }).click();
-    await expect(page.getByLabel('Provider or city')).toHaveValue('');
+    await expect(page.getByLabel('Shop, service, or area')).toHaveValue('');
+});
+
+test('directory marker selects the matching result and provides booking and directions', async ({ page }, testInfo) => {
+    test.skip(process.env.BROWSER_ISOLATED !== '1' || testInfo.project.name !== 'desktop', 'Requires the disposable desktop fixture');
+    const fixture = JSON.parse(process.env.BROWSER_FIXTURE);
+    await installDirectionsMapStub(page);
+    await page.goto('/shops');
+
+    const row = page.locator(`[data-provider-row="${fixture.shop}"]`);
+    const marker = page.locator('.test-google-marker-icon').filter({ visible: true }).first();
+    await marker.click();
+    await expect(row.getByRole('link', { name: 'Show Browser Test AutoCare on map' })).toHaveAttribute('aria-current', 'location');
+    const popup = page.locator('#shop-map .shop-map-popup');
+    await expect(popup.getByRole('link', { name: 'Book', exact: true })).toHaveAttribute('href', new RegExp(`shop_id=${fixture.shop}$`));
+    await expect(popup.getByRole('link', { name: 'Directions' })).toHaveAttribute('href', /#shop-directions$/);
 });
 
 test('public shop profile guides customers to booking and messaging', async ({ page }) => {

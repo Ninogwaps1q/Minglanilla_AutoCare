@@ -11,7 +11,8 @@
             @foreach ($workflowEvents as $event)
                 <li class="list-group-item px-0 d-flex flex-wrap justify-content-between gap-2">
                     <span><strong>{{ $event['label'] }}</strong><span class="text-secondary small d-block">{{ $event['actor'] }}</span></span>
-                    <time class="small text-secondary" datetime="{{ $event['at']->toIso8601String() }}">{{ $event['at']->format('M j, Y · g:i A') }}</time>
+                    @php($manila = $event['at']->copy()->setTimezone(\App\Models\Appointment::TIMEZONE))
+                    <time class="small text-secondary" datetime="{{ $manila->toIso8601String() }}">{{ $manila->format('M j, Y · g:i A') }}</time>
                 </li>
             @endforeach
         </ol>

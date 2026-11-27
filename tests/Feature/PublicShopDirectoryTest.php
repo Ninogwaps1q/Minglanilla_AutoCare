@@ -51,7 +51,7 @@ it('shows shops and independent mechanics together in one provider directory', f
         ->assertSee('Shared Directory Garage')
         ->assertSee('Shared Directory Mechanic')
         ->assertSee('Shop and mechanic results')
-        ->assertSee('Swipe or scroll sideways to compare shops and mechanics.');
+        ->assertSee('2 providers found');
 });
 
 it('applies the same rating and open hours filters to the list and map', function () {
@@ -241,6 +241,26 @@ it('sorts the same filtered shop cards by distance when a location is supplied',
 
 it('rejects incomplete location coordinates instead of silently changing nearby results', function () {
     $this->get(route('shops.index', ['latitude' => 10.2443]))->assertSessionHasErrors('longitude');
+});
+
+it('filters nearby providers by service name and radius and shares their real prices with the map', function () {
+    $public = ['verification_status' => 'approved', 'shop_status' => 'active', 'plan_slug' => 'basic', 'plan_expires_at' => now()->addMonth()];
+    $near = Shop::factory()->create([...$public, 'name' => 'Near Garage', 'latitude' => 6.75, 'longitude' => 125.35]);
+    $far = Shop::factory()->create([...$public, 'name' => 'Far Garage', 'latitude' => 6.85, 'longitude' => 125.35]);
+    $brakes = Service::factory()->create(['name' => 'Motorcycle brake check']);
+    $oil = Service::factory()->create(['name' => 'Oil check']);
+    ShopService::query()->create(['shop_id' => $near->id, 'service_id' => $oil->id, 'price' => 250, 'availability' => true]);
+    foreach ([$near, $far] as $shop) {
+        ShopService::query()->create(['shop_id' => $shop->id, 'service_id' => $brakes->id, 'price' => 500, 'availability' => true]);
+    }
+
+    $this->get(route('shops.index', ['search' => 'brake check', 'service' => $brakes->id, 'motorcycle' => 1, 'radius' => 5, 'latitude' => 6.75, 'longitude' => 125.35]))
+        ->assertOk()
+        ->assertSee('Near Garage')
+        ->assertSee('₱500.00')
+        ->assertDontSee('Far Garage')
+        ->assertDontSee('₱250.00')
+        ->assertViewHas('mapShops', fn ($pins): bool => $pins->pluck('id')->all() === [$near->id] && $pins->first()['price'] === '₱500.00');
 });
 
 it('does not expose non-public shop profiles', function () {

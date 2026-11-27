@@ -968,48 +968,184 @@ h4 {
     font-size: 2rem;
 }
 
-.shop-directory-grid {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: min(80vw, 19rem);
-    gap: 1rem;
-    overflow-x: auto;
+.directory-chips {
+    display: flex;
+    gap: .5rem;
+    overflow: auto;
+    padding-block: .25rem;
     overscroll-behavior-inline: contain;
-    scroll-snap-type: x proximity;
-    scrollbar-color: var(--bs-link-color) transparent;
-    scrollbar-width: thin;
-    padding: .25rem .25rem 1rem;
 }
 
-.shop-directory-grid > div {
-    scroll-snap-align: start;
+.directory-chip {
+    flex: 0 0 auto;
+    color: var(--ink);
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.directory-chip span {
+    display: flex;
+    align-items: center;
+    min-height: var(--control-min-height);
+    padding-inline: .875rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-pill);
+    white-space: nowrap;
+}
+
+.directory-chip[aria-current] span,
+.directory-chip input:checked + span,
+.directory-chip:hover span {
+    color: var(--ink);
+    background: var(--info-bg);
+    border-color: var(--bs-primary);
+}
+
+.directory-chip input:focus-visible + span {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: -2px;
+}
+
+.directory-split {
+    display: grid;
+    gap: 1rem;
+}
+
+.directory-split > section {
     min-width: 0;
 }
 
-.shop-directory-grid:focus-visible {
-    outline: 2px solid var(--bs-link-color);
-    outline-offset: 2px;
+.directory-rows {
+    background: var(--surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-surface);
 }
 
-.shop-directory-grid-empty {
-    display: block;
-    overflow: visible;
+.directory-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: .75rem;
+    padding: 1rem;
 }
 
-.shop-directory-cover {
-    width: 100%;
-    height: 6rem;
+.directory-row.is-selected {
+    background: var(--info-bg);
+    box-shadow: inset 2px 0 var(--bs-primary);
+}
+
+.directory-row-logo {
+    display: grid;
+    width: 3rem;
+    height: 3rem;
+    place-items: center;
+    overflow: hidden;
+    border-radius: var(--radius-subtle);
+    background: var(--surface-subtle);
+    color: var(--bs-primary);
+    font-weight: 700;
+}
+
+.directory-row-logo > * {
+    grid-area: 1 / 1;
+}
+
+.directory-row-logo img {
+    color: transparent;
     object-fit: cover;
-    font-size: 2rem;
+}
+
+.directory-row-main {
+    overflow-wrap: anywhere;
+}
+
+.directory-row-main h3 a {
+    color: var(--ink);
+    text-decoration: none;
+}
+
+.directory-row-main h3 a:hover {
+    text-decoration: underline;
+}
+
+.directory-row-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .375rem .625rem;
+}
+
+.directory-map-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--control-min-height);
+}
+
+.directory-row-action {
+    display: grid;
+    gap: .25rem;
+    justify-items: start;
+    grid-column: 2;
+}
+
+.directory-row-action .price {
+    font-size: 1.125rem;
+}
+
+.directory-pin-label {
+    padding: .3rem .6rem;
+    color: var(--ink) !important;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-pill);
+    background: var(--surface);
+    font-weight: 600 !important;
+    translate: 0 -2.125rem;
+}
+
+.directory-pin-label.is-selected {
+    color: var(--on-primary) !important;
+    background: var(--bs-primary);
+    border-color: var(--bs-primary);
+}
+
+@media (max-width: 991.98px) {
+    .directory-split[data-directory-mode="list"] #shop-map-panel,
+    .directory-split[data-directory-mode="map"] #shop-results {
+        display: none;
+    }
+}
+
+@media (min-width: 992px) {
+    .directory-split {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        --directory-pane-height: max(26rem, 60vh);
+    }
+
+    .directory-rows {
+        max-height: var(--directory-pane-height);
+        overflow: auto;
+        overscroll-behavior: contain;
+    }
+
+    .directory-split .shop-directory-map {
+        height: var(--directory-pane-height);
+    }
+}
+
+@media (min-width: 1280px) {
+    .directory-row {
+        grid-template-columns: auto minmax(0, 1fr) minmax(0, 9.5rem);
+    }
+
+    .directory-row-action {
+        grid-column: auto;
+        justify-items: end;
+        text-align: end;
+    }
 }
 
 .shop-directory-map {
     height: clamp(24rem, 42vw, 27rem);
-}
-
-.shop-directory-location-link {
-    color: var(--bs-link-color);
-    text-underline-offset: .2em;
 }
 
 .shop-directory-map .leaflet-popup-content-wrapper,
@@ -1070,6 +1206,14 @@ h4 {
 }
 
 @media (max-width: 991.98px) {
+    html:has(.customer-mobile-nav) {
+        scroll-padding-block-end: var(--mobile-nav-clearance);
+    }
+
+    .portal-shell:has(.customer-mobile-nav) {
+        --sticky-action-offset: var(--mobile-nav-clearance);
+    }
+
     .roadside-request-main {
         grid-template-columns: minmax(0, 1fr);
     }
@@ -1085,7 +1229,7 @@ h4 {
     color: var(--ink);
 }
 
-.shop-map-popup a {
+.shop-map-popup a:not(.btn) {
     justify-self: start;
     color: var(--bs-link-color);
     text-underline-offset: .2em;
@@ -1205,45 +1349,11 @@ html[data-theme="dark"] :is(#shop-map, #landing-shop-map) .gm-ui-hover-effect sp
     }
 }
 
-.shop-directory-logo,
 .shop-public-logo,
 .technician-avatar {
     flex: 0 0 auto;
     object-fit: cover;
     background: white;
-}
-
-.shop-directory-logo {
-    width: 2.75rem;
-    height: 2.75rem;
-    border: 1px solid #e2e8f0;
-    border-radius: .75rem;
-    font-size: 1.2rem;
-}
-
-.shop-directory-identity {
-    display: flex;
-    align-items: flex-start;
-    gap: .625rem;
-    min-width: 0;
-}
-
-.shop-directory-identity-content {
-    min-width: 0;
-    flex: 1;
-}
-
-.shop-directory-identity h3 {
-    font-size: 1.0625rem;
-    line-height: 1.25;
-    overflow-wrap: anywhere;
-}
-
-.shop-directory-rating {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: .25rem .6rem;
 }
 
 .shop-public-heading {
@@ -2573,12 +2683,12 @@ html[data-theme="dark"] :is(#shop-map, #landing-shop-map) .gm-ui-hover-effect sp
         inset: auto .75rem .75rem;
         z-index: 1035;
         display: grid;
-        grid-template-columns: repeat(5, 1fr);
-        padding: .4rem;
-        background: #0b1220;
-        border-radius: 1rem;
-        box-shadow: 0 .8rem 2rem rgb(11 18 32 / 30%);
-        padding-bottom: max(.4rem, env(safe-area-inset-bottom));
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        padding: .375rem;
+        background: var(--sidebar);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-surface);
+        padding-bottom: max(.375rem, env(safe-area-inset-bottom));
     }
 
     .customer-mobile-nav a {
@@ -2587,10 +2697,14 @@ html[data-theme="dark"] :is(#shop-map, #landing-shop-map) .gm-ui-hover-effect sp
         min-width: 0;
         min-height: 3.5rem;
         color: #b8c5d8;
-        border-radius: .7rem;
+        border-radius: var(--radius-control);
         place-items: center;
         align-content: center;
-        font-size: .68rem;
+        padding: .25rem;
+        font-size: .72rem;
+        line-height: 1.2;
+        text-align: center;
+        overflow-wrap: anywhere;
         text-decoration: none;
     }
 
@@ -2603,17 +2717,8 @@ html[data-theme="dark"] :is(#shop-map, #landing-shop-map) .gm-ui-hover-effect sp
         background: #243653;
     }
 
-    .customer-mobile-nav .customer-mobile-book {
-        margin-top: -1.15rem;
-    }
-
-    .customer-mobile-nav .customer-mobile-book:not(.active) {
-        color: var(--ink-on-accent);
-        background: var(--accent);
-    }
-
-    .customer-mobile-nav .customer-mobile-book i {
-        font-size: 1.35rem;
+    .customer-mobile-nav a:focus-visible {
+        outline-offset: -2px;
     }
 
     .ai-floating-button {
@@ -3098,6 +3203,23 @@ html[data-theme=dark] .ai-suggestions button:focus-visible {
     --surface-subtle: #eef3f8;
     --border-color: #d6dee9;
     --shadow-color: 27 46 72;
+    --sidebar: #0b1220;
+    --primary-hover: #1d4ed8;
+    --on-primary: var(--surface);
+    --on-accent: #1a0d02;
+    --success: #15803d;
+    --success-bg: #e7f5ec;
+    --warning: #b45309;
+    --warning-bg: #fdf0dc;
+    --info-bg: #e6efff;
+    --radius-control: .625rem;
+    --radius-surface: .875rem;
+    --radius-subtle: .75rem;
+    --radius-pill: 999px;
+    --control-min-height: 2.75rem;
+    --mobile-nav-clearance: calc(5.5rem + env(safe-area-inset-bottom));
+    --sticky-action-offset: 0px;
+    --heading-font: Poppins, Inter, system-ui, sans-serif;
     color-scheme: light;
 }
 
@@ -3128,6 +3250,13 @@ html[data-theme="dark"] {
     --accent-dark: #fdba74;
     --border-color: #30415b;
     --shadow-color: 2 8 23;
+    --primary-hover: #a9ceff;
+    --on-primary: var(--sidebar);
+    --success: #6ee7a0;
+    --success-bg: #12352a;
+    --warning: #fdba74;
+    --warning-bg: #3a2a14;
+    --info-bg: #1b2f52;
     color-scheme: dark;
 }
 
@@ -3263,24 +3392,114 @@ body {
     margin-top: .875rem;
 }
 
-.booking-sticky-summary {
-    position: sticky;
-    top: 5rem;
-    z-index: 2;
-    overflow-wrap: anywhere;
+.booking-step-track {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: .375rem;
+    margin-bottom: .5rem;
+}
+
+.page-heading.booking-page-heading {
+    flex-flow: row nowrap;
+}
+
+.booking-page-heading .btn {
+    flex: 0 0 var(--control-min-height);
+    padding-inline: 0;
+}
+
+.booking-step-track span {
+    height: .25rem;
+    border-radius: var(--radius-pill);
+    background: var(--border-color);
+}
+
+.booking-step-track .is-complete {
+    background: var(--bs-primary);
+}
+
+.booking-vehicle-summary {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: .625rem;
+    padding: .75rem;
     border: 1px solid var(--border-color);
+    border-radius: var(--radius-surface);
+    overflow-wrap: anywhere;
 }
 
-.booking-sticky-summary p {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    overflow: hidden;
+.booking-vehicle-summary i {
+    color: var(--bs-primary);
+    font-size: 1.25rem;
 }
 
-[data-booking-step] :is(h2, input, select, button, textarea) {
-    scroll-margin-block-start: 12rem;
-    scroll-margin-block-end: 6rem;
+.booking-service-choice {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: .75rem;
+    align-items: start;
+    min-height: var(--control-min-height);
+    padding: .875rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-surface);
+    cursor: pointer;
+}
+
+.booking-service-choice:has(input:checked) {
+    background: var(--info-bg);
+    border-color: var(--bs-primary);
+}
+
+.booking-service-choice:has(input:focus-visible) {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: 2px;
+}
+
+.booking-service-description {
+    display: grid;
+    gap: .25rem;
+    overflow-wrap: anywhere;
+}
+
+.booking-action-bar {
+    position: sticky;
+    bottom: var(--sticky-action-offset);
+    z-index: 2;
+    display: grid;
+    gap: .75rem;
+    padding-block: .75rem;
+    background: var(--surface);
+    border-block-start: 1px solid var(--border-color);
+}
+
+.booking-action-totals {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+}
+
+.booking-action-totals .price {
+    font-size: 1.35rem;
+}
+
+.booking-action-controls .btn-accent {
+    flex: 1 1 auto;
+}
+
+.booking-action-controls .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.booking-form [data-booking-step] :is(h2, input, select, button, textarea) {
+    scroll-margin-block: 5.5rem 7rem;
+}
+
+.booking-vehicle-summary .btn {
+    padding-inline: .375rem;
 }
 
 [data-roadside-pickup] :is(input, select, button, summary) {
@@ -3938,6 +4157,250 @@ html:not([data-theme="dark"]) .report-date-presets .btn.active {
 
 .error-message {
     color: var(--muted);
+}
+
+.autocare-ui :is(.btn, .form-control, .form-select, .navbar-toggler, .theme-toggle) {
+    min-height: var(--control-min-height);
+    border-radius: var(--radius-control);
+}
+
+.autocare-ui :is(.navbar-toggler, .theme-toggle, .portal-menu-trigger) {
+    min-width: var(--control-min-height);
+}
+
+.autocare-ui .btn-primary {
+    --bs-btn-color: var(--on-primary);
+    --bs-btn-bg: var(--bs-primary);
+    --bs-btn-border-color: var(--bs-primary);
+    --bs-btn-hover-color: var(--on-primary);
+    --bs-btn-hover-bg: var(--primary-hover);
+    --bs-btn-hover-border-color: var(--primary-hover);
+    --bs-btn-active-color: var(--on-primary);
+    --bs-btn-active-bg: var(--primary-hover);
+    --bs-btn-active-border-color: var(--primary-hover);
+    --bs-btn-disabled-color: var(--on-primary);
+    --bs-btn-disabled-bg: var(--bs-primary);
+    --bs-btn-disabled-border-color: var(--bs-primary);
+}
+
+.autocare-ui .btn-accent {
+    --bs-btn-color: var(--on-accent);
+    --bs-btn-hover-color: var(--on-accent);
+    --bs-btn-active-color: var(--on-accent);
+    --bs-btn-active-bg: var(--accent-dark);
+    --bs-btn-active-border-color: var(--accent-dark);
+    --bs-btn-disabled-color: var(--on-accent);
+    --bs-btn-disabled-bg: var(--accent);
+    --bs-btn-disabled-border-color: var(--accent);
+}
+
+.autocare-ui :is(.surface, .error-panel, .alert) {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-surface);
+    box-shadow: none;
+}
+
+.autocare-ui .badge {
+    border-radius: var(--radius-pill);
+    line-height: 1.2;
+    white-space: normal;
+}
+
+.autocare-ui :is(.alert-success, .badge.text-bg-success) {
+    --status-tint: var(--success-bg);
+    --status-line: var(--success);
+}
+
+.autocare-ui :is(.alert-warning, .badge.text-bg-warning) {
+    --status-tint: var(--warning-bg);
+    --status-line: var(--warning);
+}
+
+.autocare-ui :is(.alert-info, .badge.text-bg-info) {
+    --status-tint: var(--info-bg);
+    --status-line: var(--bs-primary);
+}
+
+.autocare-ui :is(.alert-success, .alert-warning, .alert-info, .badge.text-bg-success, .badge.text-bg-warning, .badge.text-bg-info) {
+    color: var(--ink) !important;
+    background-color: var(--status-tint) !important;
+    border: 1px solid var(--status-line);
+}
+
+.autocare-ui .form-label {
+    color: var(--ink);
+    font-size: .9rem;
+    font-weight: 600;
+}
+
+.autocare-ui .price {
+    font-family: var(--heading-font);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.autocare-ui .task-section-title {
+    font-family: var(--heading-font);
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.autocare-ui .divided-rows > * + * {
+    border-block-start: 1px solid var(--border-color);
+}
+
+.autocare-ui :focus-visible,
+.autocare-ui .btn:focus-visible {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: 2px;
+}
+
+.autocare-ui .customer-mobile-nav a:focus-visible {
+    outline-offset: -2px;
+}
+
+.autocare-ui .public-navbar .nav-link[aria-current="page"] {
+    color: var(--bs-primary);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: .35em;
+}
+
+.autocare-ui .error-panel h1 {
+    font: 700 clamp(1.65rem, 3vw, 2.25rem)/1.2 var(--heading-font);
+}
+
+.customer-repair-card {
+    max-width: 56rem;
+    margin-inline: auto;
+}
+
+.repair-task-header h2 {
+    font: 700 clamp(1.25rem, 2.5vw, 1.75rem)/1.2 var(--heading-font);
+}
+
+.repair-task-next {
+    background: var(--info-bg);
+    border: 1px solid var(--bs-primary);
+    border-radius: var(--radius-subtle);
+}
+
+.repair-task-next h3:last-child {
+    margin-bottom: 0;
+}
+
+.repair-approval-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+}
+
+.repair-approval-actions .btn {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    padding-inline: .625rem;
+}
+
+.repair-task-section {
+    margin-block: 1.5rem;
+}
+
+.repair-price-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: .75rem;
+}
+
+.repair-estimate-total {
+    border-top: 1px solid var(--border-color);
+    margin-top: .5rem;
+    padding-top: .75rem;
+}
+
+.estimate-breakdown-totals {
+    padding: 0;
+    background: transparent;
+}
+
+.repair-estimate-total .price {
+    font-size: 1.25rem;
+}
+
+.repair-inspection + .repair-inspection {
+    border-top: 1px solid var(--border-color);
+    margin-top: 1rem;
+    padding-top: 1rem;
+}
+
+.repair-inspection-note {
+    padding: .625rem .75rem;
+    border-radius: var(--radius-control);
+    background: var(--warning-bg);
+    color: var(--ink);
+}
+
+.repair-task-section .repair-evidence-grid {
+    grid-template-columns: repeat(auto-fill, minmax(5rem, 7rem));
+}
+
+.service-journey-detailed {
+    border-radius: var(--radius-surface);
+    background: var(--surface);
+}
+
+.service-journey-detailed .service-journey-steps {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+}
+
+.service-journey-detailed .service-journey-steps li {
+    position: relative;
+    align-items: start;
+    padding: .625rem 0;
+    border: 0;
+    background: none;
+    color: var(--ink);
+}
+
+.service-journey-detailed .service-journey-steps li::after {
+    position: absolute;
+    inset: 1.875rem auto 0 .625rem;
+    width: 1px;
+    background: var(--border-color);
+    content: "";
+}
+
+.service-journey-detailed .service-journey-steps li:last-child::after {
+    display: none;
+}
+
+.service-journey-detailed .service-journey-marker {
+    display: grid;
+    width: 1.25rem;
+    height: 1.25rem;
+    place-items: center;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-pill);
+    color: var(--muted);
+}
+
+.service-journey-detailed .is-complete .service-journey-marker {
+    border-color: var(--success);
+    background: var(--success-bg);
+    color: var(--ink);
+}
+
+.service-journey-detailed .is-current .service-journey-marker {
+    border-color: var(--warning);
+    background: var(--warning-bg);
+    color: var(--warning);
+}
+
+.service-journey-detailed .is-upcoming .service-journey-marker i {
+    visibility: hidden;
 }
 
 @media (max-width: 991.98px) {
@@ -4738,6 +5201,15 @@ html[data-theme="dark"] .alert-warning {
 html[data-theme="dark"] .alert-info {
     color: #d9edff;
     background: #183a59;
+}
+
+html[data-theme="dark"] .autocare-ui :is(.surface, .error-panel) {
+    box-shadow: none;
+}
+
+html[data-theme="dark"] .autocare-ui :is(.portal-topbar, .public-navbar) {
+    background: var(--surface);
+    box-shadow: none;
 }
 
 html[data-theme="dark"] .btn-close {

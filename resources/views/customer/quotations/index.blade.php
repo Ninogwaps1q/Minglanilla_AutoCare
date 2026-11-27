@@ -8,13 +8,11 @@
             <p>{{ $quotation->vehicle->plate_number }} · <strong>{{ __('extensions.estimate.status.'.$quotation->documentStatus()) }}</strong></p>
             <p class="text-break">{{ $quotation->notes }}</p>
             @if ($quotation->status !== 'draft')
-                @if ($quotation->discount > 0)<p class="small mb-1">{{ __('extensions.promo.savings', ['amount' => number_format($quotation->discount, 2)]) }}</p>@endif
-                <a class="btn btn-outline-primary mb-3" href="{{ route('customer.quotations.pdf', $quotation) }}">{{ __('extensions.estimate.download') }}</a>
-                <ul>@foreach ($quotation->items as $item)<li>{{ $item->description }} · {{ $item->quantity }} × PHP {{ number_format($item->unit_price, 2) }}</li>@endforeach</ul>
-                <p><strong>Total: PHP {{ number_format($quotation->total, 2) }}</strong>@if ($quotation->valid_until) · Valid until {{ $quotation->valid_until->format('M j, Y') }}@endif</p>
+                <x-estimate-breakdown :quotation="$quotation" />
+                <a class="btn btn-outline-primary my-3" href="{{ route('customer.quotations.pdf', $quotation) }}">{{ __('extensions.estimate.download') }}</a>
             @endif
             @if ($quotation->status === 'sent' && ! $quotation->valid_until?->isBefore(today()))
-                <form method="POST" action="{{ route('customer.quotations.update', $quotation) }}" class="d-flex gap-2">@csrf @method('PATCH')<button class="btn btn-success" name="status" value="accepted">Approve estimate</button><button class="btn btn-outline-danger" name="status" value="rejected">Decline estimate</button></form>
+                <form method="POST" action="{{ route('customer.quotations.update', $quotation) }}" class="d-flex flex-wrap gap-2">@csrf @method('PATCH')<button class="btn btn-accent" name="status" value="accepted" aria-label="{{ __('repair_display.approve_estimate', ['amount' => number_format($quotation->total, 2)]) }}">{{ __('repair_display.approve_amount', ['amount' => number_format($quotation->total, 2)]) }}</button><button class="btn btn-outline-danger" name="status" value="rejected">{{ __('ui.Decline estimate') }}</button></form>
             @endif
         </article>
     @empty

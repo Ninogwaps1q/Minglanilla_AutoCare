@@ -7,12 +7,17 @@
         };
         $shopId = $bookingValue('shop_id', $selectedShopId);
         $selectedServices = (array) old('service_ids', $bookingDraft['service_ids'] ?? []);
+        $selectedProvider = $shops->firstWhere('id', $shopId);
         $vehicleFormErrors = $errors->hasAny(['plate_number', 'vehicle_type', 'vehicle_make_id', 'vehicle_model_id', 'make', 'model', 'year', 'variant', 'variant_other', 'color', 'current_mileage']);
     @endphp
     <div class="col-lg-9 mx-auto">
-        <div class="page-heading">
-            <h1>{{ __('ui.' . 'Book a service') }}</h1>
-            <p>{{ __('ui.' . 'Choose a verified shop or mobile mechanic, then request a time. The provider will confirm your visit.') }}</p>
+        <div class="page-heading booking-page-heading d-flex align-items-start gap-3">
+            <a class="btn btn-outline-secondary" id="booking-exit" href="{{ route('customer.appointments.index') }}" aria-label="{{ __('ui.Back to appointments') }}"><i class="bi bi-chevron-left" aria-hidden="true"></i></a>
+            <button class="btn btn-outline-secondary" type="button" id="booking-prev" aria-label="{{ __('booking.back') }}" hidden><i class="bi bi-chevron-left" aria-hidden="true"></i></button>
+            <div class="text-break">
+                <h1 id="booking-provider-summary">{{ $selectedProvider?->name ?? __('ui.Book a service') }}</h1>
+                <p id="booking-provider-area" class="mb-0" @unless ($selectedProvider) hidden @endunless>{{ $selectedProvider?->barangay?->areaLabel() }}</p>
+            </div>
         </div>
 
         @if ($vehicles->isEmpty())
@@ -37,65 +42,93 @@
 
         <form method="POST" action="{{ route('customer.appointments.store') }}" class="surface booking-form p-3 p-lg-4" data-booking-form>
             @csrf
-            <p id="booking-progress" class="small text-secondary mb-2" hidden></p>
-            @if ($errors->any() && ! $vehicleFormErrors)<x-form-errors />@endif
-            <div class="booking-summary booking-sticky-summary mb-3" aria-live="polite">
-                <p class="fw-semibold mb-0" id="booking-provider-summary"></p>
-                <p class="small mb-0" id="booking-service-summary">{{ __('booking.summary_empty') }}</p>
+            <div class="booking-step-header mb-3" hidden data-booking-progress>
+                <div class="booking-step-track" aria-hidden="true">
+                    @for ($step = 0; $step < 4; $step++) <span></span> @endfor
+                </div>
+                <p id="booking-progress" class="small text-secondary mb-0"></p>
             </div>
-            <section class="row g-3 mb-3" data-booking-step aria-labelledby="booking-service-heading">
+            @if ($errors->any() && ! $vehicleFormErrors)<x-form-errors />@endif
+            <section class="row g-3 mb-3" data-booking-step data-step-label="{{ __('booking.choose_vehicle') }}" data-step-action="{{ __('booking.to_services') }}" aria-labelledby="booking-vehicle-heading" @if ($errors->hasAny(['shop_id', 'vehicle_id', 'service_barangay_id', 'service_street', 'service_landmark'])) data-step-error @endif>
             <div class="col-12 booking-form-section-head">
-                <h2 id="booking-service-heading" tabindex="-1">{{ __('ui.' . 'Choose your service') }}</h2>
-                <p>{{ __('ui.' . 'Pick a provider, the work you need, and the vehicle being serviced.') }}</p>
+                <h2 id="booking-vehicle-heading" tabindex="-1">{{ __('booking.choose_vehicle') }}</h2>
             </div>
             <div class="col-md-6">
                 <label for="shop_id" class="form-label">{{ __('ui.' . 'Service provider') }}</label>
                 <select id="shop_id" class="form-select @error('shop_id') is-invalid @enderror" name="shop_id" required>
                     <option value="">{{ __('ui.' . 'Choose a shop or mechanic') }}</option>
                     @foreach ($shops as $shop)
-                        <option value="{{ $shop->id }}" data-provider-type="{{ $shop->provider_type }}" data-shop-name="{{ $shop->name }}" @selected($shopId == $shop->id)>{{ $shop->name }} · {{ $shop->providerLabel() }}</option>
+                        <option value="{{ $shop->id }}" data-provider-type="{{ $shop->provider_type }}" data-shop-name="{{ $shop->name }}" data-shop-area="{{ $shop->barangay?->areaLabel() }}" @selected($shopId == $shop->id)>{{ $shop->name }} · {{ $shop->providerLabel() }}</option>
                     @endforeach
                 </select>
                 @error('shop_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 <p class="form-text" id="booking-policy" aria-live="polite"></p>
                 <div class="form-text">Need to compare providers? <a href="{{ route('shops.index') }}">{{ __('ui.' . 'Browse the directory') }}</a>.</div>
             </div>
-            <fieldset class="col-12" aria-describedby="service-help">
-                <legend class="h5">{{ __('ui.' . 'Services') }}</legend>
-                <p id="service-help" class="form-text">{{ __('ui.' . 'Choose one or more services. Prices and time are combined below.') }}</p>
+            <div class="col-md-6">
+                <label for="vehicle_id" class="form-label">{{ __('ui.' . 'Vehicle') }}</label>
+                <select id="vehicle_id" class="form-select @error('vehicle_id') is-invalid @enderror" name="vehicle_id" required>
+                    <option value="">{{ __('ui.' . 'Choose a vehicle') }}</option>
+                    @foreach ($vehicles as $vehicle)
+                        <option value="{{ $vehicle->id }}" data-vehicle-name="{{ $vehicle->make }} {{ $vehicle->model }} {{ $vehicle->variant ? '· '.$vehicle->variant : '' }} {{ $vehicle->year ? '· '.$vehicle->year : '' }}" data-plate="{{ $vehicle->plate_number }}" @selected(old('vehicle_id', $selectedVehicleId) == $vehicle->id)>{{ $vehicle->plate_number }} — {{ $vehicle->make }} {{ $vehicle->model }}</option>
+                    @endforeach
+                </select>
+                @error('vehicle_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+            </div>
+            <div class="col-12" id="service-address-field" @if(! $selectedProvider?->isIndependentMechanic()) hidden @endif>
+                <h2 class="h5">{{ __('ui.' . 'Where should the mechanic meet you?') }}</h2>
+                <x-address-picker prefix="service" barangay-name="service_barangay_id" street-name="service_street" landmark-name="service_landmark" :selected-barangay="$bookingValue('service_barangay_id', auth()->user()->barangay_id)" :street="$bookingValue('service_street', auth()->user()->address)" :landmark="$bookingValue('service_landmark', auth()->user()->landmark)" :street-max="255" :required="$selectedProvider?->isIndependentMechanic()" />
+            </div>
+            </section>
+            <section class="row g-3 mb-3" data-booking-step data-step-label="{{ __('booking.choose_services') }}" data-step-action="{{ __('booking.to_schedule') }}" aria-labelledby="booking-service-heading" @if ($errors->has('service_ids') || $errors->get('service_ids.*') !== []) data-step-error @endif>
+                <div class="col-12 booking-vehicle-summary" id="booking-vehicle-summary" hidden>
+                    <i class="bi bi-car-front" aria-hidden="true"></i>
+                    <div><strong id="booking-vehicle-name"></strong><span class="small text-secondary d-block" id="booking-vehicle-plate"></span></div>
+                    <button class="btn btn-link" type="button" id="booking-change-vehicle" aria-label="{{ __('booking.change_vehicle') }}">{{ __('booking.change') }}</button>
+                </div>
+                <div class="col-12 booking-form-section-head">
+                    <h2 id="booking-service-heading" tabindex="-1">{{ __('booking.vehicle_needs') }}</h2>
+                </div>
+            <fieldset class="col-12" aria-describedby="service-help booking-service-error">
+                <legend class="visually-hidden">{{ __('ui.Services') }}</legend>
+                <p id="service-help" class="form-text">{{ __('booking.pick_services_help') }}</p>
                 <div class="row g-2" id="booking-services">
                     @foreach ($shops as $shop)
                         @foreach ($shop->services->where('availability', true) as $offer)
-                            <div class="col-sm-6" data-service-shop="{{ $shop->id }}" @if($shopId != $shop->id) hidden @endif>
-                                <label class="form-check surface p-3 h-100 d-flex gap-2">
+                            <div class="col-12" data-service-shop="{{ $shop->id }}" @if($shopId != $shop->id) hidden @endif>
+                                <label class="booking-service-choice">
                                     <input class="form-check-input mt-1" type="checkbox" name="service_ids[]" value="{{ $offer->service_id }}" data-shop-id="{{ $shop->id }}" data-price="{{ $offer->price }}" data-service-name="{{ $offer->service->name }}" data-labor-included="{{ $offer->labor_included === null ? '' : (int) $offer->labor_included }}" data-parts-included="{{ $offer->parts_included === null ? '' : (int) $offer->parts_included }}" data-scope="{{ $offer->description }}" @disabled($shopId != $shop->id) @checked($shopId == $shop->id && in_array($offer->service_id, $selectedServices))>
-                                    <span>{{ $offer->service->name }} <span class="text-secondary">· PHP {{ number_format($offer->price, 2) }}</span></span>
+                                    <span class="booking-service-description">
+                                        <strong>{{ $offer->service->name }}</strong>
+                                        @if ($offer->description)
+                                            <span class="text-secondary small">{{ $offer->description }}</span>
+                                        @endif
+                                        @if ($offer->labor_included !== null || $offer->parts_included !== null)
+                                            <span class="text-secondary small">{{ __('booking.price_includes', [
+                                                'labor' => __($offer->labor_included === null ? 'booking.unspecified' : ($offer->labor_included ? 'booking.included' : 'booking.separate')),
+                                                'parts' => __($offer->parts_included === null ? 'booking.unspecified' : ($offer->parts_included ? 'booking.included' : 'booking.separate')),
+                                            ]) }}</span>
+                                        @endif
+                                    </span>
+                                    <strong class="price text-end">₱{{ number_format($offer->price, 2) }}</strong>
                                 </label>
                             </div>
                         @endforeach
                     @endforeach
                 </div>
                 <p class="text-danger small mt-2 mb-0" id="booking-service-error" role="status" hidden>{{ __('booking.service_required') }}</p>
-                @error('service_ids')<div class="text-danger small mt-2">{{ $message }}</div>@enderror
-                @error('service_ids.*')<div class="text-danger small mt-2">{{ $message }}</div>@enderror
-            </fieldset>
-            <div class="col-md-6">
-                <label for="vehicle_id" class="form-label">{{ __('ui.' . 'Vehicle') }}</label>
-                <select id="vehicle_id" class="form-select @error('vehicle_id') is-invalid @enderror" name="vehicle_id" required>
-                    <option value="">{{ __('ui.' . 'Choose a vehicle') }}</option>
-                    @foreach ($vehicles as $vehicle)
-                        <option value="{{ $vehicle->id }}" @selected(old('vehicle_id', $selectedVehicleId) == $vehicle->id)>{{ $vehicle->plate_number }} — {{ $vehicle->make }} {{ $vehicle->model }}</option>
+                @foreach ($errors->get('service_ids') as $message)
+                    <p class="text-danger small mt-2 mb-0">{{ $message }}</p>
+                @endforeach
+                @foreach ($errors->get('service_ids.*') as $messages)
+                    @foreach ($messages as $message)
+                        <p class="text-danger small mt-2 mb-0">{{ $message }}</p>
                     @endforeach
-                </select>
-                @error('vehicle_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
-            </div>
-            @php($selectedProvider = $shops->firstWhere('id', $shopId))
-            <div class="col-12" id="service-address-field" @if(! $selectedProvider?->isIndependentMechanic()) hidden @endif>
-                <h2 class="h5">{{ __('ui.' . 'Where should the mechanic meet you?') }}</h2>
-                <x-address-picker prefix="service" barangay-name="service_barangay_id" street-name="service_street" landmark-name="service_landmark" :selected-barangay="$bookingValue('service_barangay_id', auth()->user()->barangay_id)" :street="$bookingValue('service_street', auth()->user()->address)" :landmark="$bookingValue('service_landmark', auth()->user()->landmark)" :street-max="255" :required="$selectedProvider?->isIndependentMechanic()" />
-            </div>
+                @endforeach
+                <p class="text-secondary mb-0" id="booking-no-offers" hidden>{{ __('booking.no_offers') }}</p>
+            </fieldset>
             </section>
-            <section class="row g-3 mb-3" data-booking-step aria-labelledby="booking-time-heading">
+            <section class="row g-3 mb-3" data-booking-step data-step-label="{{ __('ui.Choose a visit time') }}" data-step-action="{{ __('booking.to_review') }}" aria-labelledby="booking-time-heading" @if ($errors->hasAny(['appointment_date', 'appointment_time'])) data-step-error @endif>
             <div class="col-12 booking-form-section-head">
                 <h2 id="booking-time-heading" tabindex="-1">{{ __('ui.' . 'Choose a visit time') }}</h2>
                 <p>{{ __('booking.manila_time') }}</p>
@@ -113,7 +146,7 @@
                 <div id="time-suggestions" class="booking-time-suggestions d-flex flex-wrap gap-2 mt-2" aria-label="{{ __('booking.slot_suggestions') }}"></div>
             </div>
             </section>
-            <section class="row g-3 mb-3" data-booking-step aria-labelledby="booking-review-heading">
+            <section class="row g-3 mb-3" data-booking-step data-step-label="{{ __('ui.Review your request') }}" aria-labelledby="booking-review-heading" @if ($errors->hasAny(['reason', 'promo_code'])) data-step-error @endif>
             <div class="col-12 booking-form-section-head">
                 <h2 id="booking-review-heading" tabindex="-1">{{ __('ui.' . 'Review your request') }}</h2>
                 <p>{{ __('ui.' . 'Add a short note if needed, then check the listed price before sending.') }}</p>
@@ -126,6 +159,7 @@
             <div class="col-12">
                 <div class="booking-summary" aria-live="polite">
                     <h3 class="h6 mb-2">{{ __('ui.' . 'Price and confirmation') }}</h3>
+                    <p class="mb-1" id="booking-review-summary"></p>
                     <p class="mb-1" id="booking-inclusions">{{ __('booking.inclusions_empty') }}</p>
                     <p class="mb-0 text-secondary">{{ __('booking.confirmation') }}</p>
                 </div>
@@ -136,11 +170,15 @@
                 @error('promo_code')<p class="text-danger small mt-1">{{ $message }}</p>@enderror
             </div>
             </section>
-            <div class="border-top pt-3 d-flex flex-wrap align-items-center gap-2">
-                    <button class="btn btn-primary" type="button" id="booking-next" hidden>{{ __('booking.continue') }}</button>
-                    <button class="btn btn-primary" type="submit" id="booking-submit" @disabled($vehicles->isEmpty() || $shops->isEmpty())>{{ __('ui.' . 'Request appointment') }}</button>
-                    <button class="btn btn-outline-secondary" type="button" id="booking-prev" hidden>{{ __('booking.back') }}</button>
-                    <a class="btn btn-link" id="booking-exit" href="{{ route('customer.appointments.index') }}">{{ __('ui.' . 'Back to appointments') }}</a>
+            <div class="booking-action-bar">
+                <div class="booking-action-totals" aria-live="polite" hidden>
+                    <div><span id="booking-service-summary"></span><span class="small text-secondary d-block">{{ __('booking.listed_estimate') }}</span></div>
+                    <strong class="price" id="booking-estimate"></strong>
+                </div>
+                <div class="booking-action-controls d-flex flex-wrap align-items-center gap-2">
+                    <button class="btn btn-accent" type="button" id="booking-next" hidden>{{ __('booking.continue') }}</button>
+                    <button class="btn btn-accent" type="submit" id="booking-submit" @disabled($vehicles->isEmpty() || $shops->isEmpty())>{{ __('ui.' . 'Request appointment') }}</button>
+                </div>
             </div>
         </form>
     </div>
@@ -156,8 +194,14 @@
         const slotFeedback = document.querySelector('#slot-feedback');
         const timeSuggestions = document.querySelector('#time-suggestions');
         const serviceSummary = document.querySelector('#booking-service-summary');
+        const estimate = document.querySelector('#booking-estimate');
+        const reviewSummary = document.querySelector('#booking-review-summary');
+        const vehicleSelect = document.querySelector('#vehicle_id');
+        const vehicleSummary = document.querySelector('#booking-vehicle-summary');
         const bookingInclusions = document.querySelector('#booking-inclusions');
         const providerSummary = document.querySelector('#booking-provider-summary');
+        const providerArea = document.querySelector('#booking-provider-area');
+        const defaultHeading = @js(__('ui.Book a service'));
         const priceFormatter = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' });
         const bookingCopy = @js(trans('booking'));
         const shopPolicies = @js($shops->mapWithKeys(fn ($shop) => [$shop->id => trans_choice('extensions.appointments.policy', $shop->cancellation_notice_hours, ['count' => $shop->cancellation_notice_hours])])->all());
@@ -174,15 +218,20 @@
         const updateSummary = () => {
             const selected = selectedServices();
             const total = selected.reduce((sum, input) => sum + Number(input.dataset.price), 0);
-            providerSummary.textContent = shopSelect.selectedOptions[0]?.dataset.shopName ?? '';
-            serviceSummary.textContent = selected.length
+            const provider = shopSelect.selectedOptions[0];
+            providerSummary.textContent = provider?.dataset.shopName ?? defaultHeading;
+            providerArea.textContent = provider?.dataset.shopArea ?? '';
+            providerArea.hidden = !providerArea.textContent;
+            serviceSummary.textContent = bookingText(selected.length === 1 ? 'service_count_one' : 'service_count_many', { count: selected.length });
+            estimate.textContent = priceFormatter.format(total);
+            reviewSummary.textContent = selected.length
                 ? bookingText('summary', { count: selected.length, names: selected.map(input => input.dataset.serviceName).join(', '), total: priceFormatter.format(total) })
                 : bookingText('summary_empty');
             bookingInclusions.textContent = selected.length
                 ? selected.map(input => bookingText('inclusions', {
                     name: input.dataset.serviceName,
-                    labor: bookingText(input.dataset.laborIncluded === '1' ? 'included' : 'separate'),
-                    parts: bookingText(input.dataset.partsIncluded === '1' ? 'included' : 'separate'),
+                    labor: bookingText(input.dataset.laborIncluded === '' ? 'unspecified' : (input.dataset.laborIncluded === '1' ? 'included' : 'separate')),
+                    parts: bookingText(input.dataset.partsIncluded === '' ? 'unspecified' : (input.dataset.partsIncluded === '1' ? 'included' : 'separate')),
                 })).join(' | ')
                 : bookingText('inclusions_empty');
         };
@@ -303,6 +352,7 @@
                 input.disabled = unavailable;
                 if (unavailable) input.checked = false;
             });
+            document.querySelector('#booking-no-offers').hidden = serviceChecks.some(input => !input.disabled);
             updateSummary();
             refreshAvailability();
         };
@@ -328,7 +378,16 @@
             currentStep = index;
             vehicleForm.closest('details').hidden = index !== 0;
             steps.forEach((step, position) => { step.hidden = position !== index; });
-            progress.textContent = bookingText('progress', { step: index + 1, total: steps.length });
+            progress.textContent = bookingText('progress', { step: index + 1, total: steps.length }) + ' · ' + steps[index].dataset.stepLabel;
+            document.querySelectorAll('.booking-step-track span').forEach((segment, position) => {
+                segment.classList.toggle('is-complete', position <= index);
+            });
+            document.querySelector('.booking-action-totals').hidden = index === 0;
+            next.textContent = steps[index].dataset.stepAction ?? '';
+            const vehicle = vehicleSelect.selectedOptions[0];
+            vehicleSummary.hidden = !vehicle?.value;
+            document.querySelector('#booking-vehicle-name').textContent = vehicle?.dataset.vehicleName ?? '';
+            document.querySelector('#booking-vehicle-plate').textContent = vehicle?.dataset.plate ?? '';
             next.hidden = index === lastStep;
             submit.hidden = index !== lastStep;
             previous.hidden = index === 0;
@@ -343,12 +402,12 @@
                 invalid.reportValidity();
                 return;
             }
-            if (currentStep === 0 && !selectedServices().length) {
+            if (currentStep === 1 && !selectedServices().length) {
                 serviceError.hidden = false;
                 serviceChecks.find(field => !field.disabled)?.focus();
                 return;
             }
-            if (currentStep === 1 && slotFeedback.classList.contains('text-danger')) {
+            if (currentStep === 2 && slotFeedback.classList.contains('text-danger')) {
                 timeInput.focus();
                 return;
             }
@@ -358,6 +417,10 @@
         shopSelect.addEventListener('change', () => { serviceError.hidden = true; });
         next.addEventListener('click', advance);
         previous.addEventListener('click', () => showStep(currentStep - 1));
+        document.querySelector('#booking-change-vehicle').addEventListener('click', () => {
+            showStep(0, false);
+            vehicleSelect.focus();
+        });
         bookingForm.addEventListener('invalid', event => {
             const index = steps.indexOf(event.target.closest('[data-booking-step]'));
             if (index >= 0 && index !== currentStep) showStep(index, false);
@@ -376,8 +439,12 @@
                 }
             }
         });
-        const errorStep = steps.findIndex(step => step.querySelector('.is-invalid'));
-        progress.hidden = false;
+        const errorStep = steps.findIndex(step => step.hasAttribute('data-step-error'));
+        progress.closest('[data-booking-progress]').hidden = false;
         showStep(errorStep < 0 ? 0 : errorStep, false);
+        if (errorStep >= 0) {
+            const field = steps[errorStep].querySelector('.is-invalid, [aria-invalid="true"]');
+            (field ?? steps[errorStep].querySelector('h2')).focus();
+        }
     </script>
 </x-layouts.app>

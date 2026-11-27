@@ -35,7 +35,11 @@
                 <div class="list-group list-group-flush">
                     @forelse ($shop->services->where('availability', true) as $offer)
                         <div class="list-group-item px-0 d-flex flex-wrap justify-content-between gap-2">
-                            <span>{{ $offer->service->name }}</span><strong>PHP {{ number_format($offer->price, 2) }}</strong>
+                            <div>
+                                <span>{{ $offer->service->name }}</span>
+                                <a class="small d-block" href="{{ route('services.compare', $offer->service) }}">{{ __('directory.compare_prices') }}</a>
+                            </div>
+                            <strong class="price">₱{{ number_format($offer->price, 2) }}</strong>
                         </div>
                     @empty
                         <div class="text-secondary">No active services listed. Message the provider to ask what is available.</div>
@@ -83,6 +87,11 @@
                                 <p class="small text-secondary mb-0">This provider is listed for discovery and is not accepting online bookings right now.</p>
                             @endif
                             <a class="btn btn-outline-primary" href="{{ route('customer.messages.show', $shop) }}">Message {{ $shop->isIndependentMechanic() ? 'mechanic' : 'shop' }}</a>
+                            <form method="POST" action="{{ route($isFavorite ? 'customer.favorites.destroy' : 'customer.favorites.store', $shop) }}">
+                                @csrf
+                                @if ($isFavorite) @method('DELETE') @endif
+                                <button class="btn btn-link" type="submit">{{ __($isFavorite ? 'directory.remove_saved_provider' : 'directory.save_provider') }}</button>
+                            </form>
                         @endif
                     @else
                         @if ($shop->services->contains('availability', true) && $shop->hasPlanAtLeast('basic'))
@@ -99,7 +108,7 @@
                 <h3 class="h6">Contact</h3>
                 <p class="mb-0">{{ $shop->phone }}<br>{{ $shop->email }}</p>
                 @if (! $shop->isIndependentMechanic() && $shop->latitude !== null && $shop->longitude !== null)
-                    <x-driving-directions class="mt-4 pt-4 border-top" :latitude="$shop->latitude" :longitude="$shop->longitude" :destination-label="$shop->name" title="Route to this shop" />
+                    <x-driving-directions id="shop-directions" class="mt-4 pt-4 border-top" :latitude="$shop->latitude" :longitude="$shop->longitude" :destination-label="$shop->name" title="Route to this shop" />
                 @endif
             </div>
         </aside>

@@ -55,7 +55,7 @@ it('shows inspection results only to the vehicle owner and escapes notes', funct
     $fixture = inspectionFixture();
     $this->actingAs($fixture['owner'])->post(route('shop.inspections.store', $fixture['job']), inspectionPayload())->assertRedirect();
     $this->actingAs($fixture['customer'])->get(route('customer.inspections.index'))->assertOk()
-        ->assertSee('Brake pads')->assertSee('Replace worn pads')
+        ->assertSee('Brake pads')->assertSee('Needs attention')->assertSee('Replace worn pads')
         ->assertSee('&lt;script&gt;', false)->assertDontSee('<script>alert(1)</script>', false);
     $otherCustomer = User::factory()->create(['role' => 'customer']);
     $this->actingAs($otherCustomer)->get(route('customer.inspections.index'))->assertOk()->assertDontSee('Brake pads')->assertSee('No vehicle inspections recorded yet.');

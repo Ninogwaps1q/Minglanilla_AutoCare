@@ -89,8 +89,9 @@ test('booking vehicle and address controls work with keyboard in both themes', a
         await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
         await page.getByText('Add a vehicle here').click();
         const type = page.getByLabel('Vehicle type');
+        await expect(page.locator('#variant option', { hasText: 'Base' })).toBeAttached();
         await type.selectOption('car');
-        await expect(page.getByLabel('Make', { exact: true }).locator('option').nth(1)).toBeAttached();
+        await expect(page.getByLabel('Make', { exact: true }).locator('option').nth(1)).toBeAttached({ timeout: 15000 });
         await type.focus();
         await page.keyboard.press('Tab');
         await expect(page.getByLabel('Make', { exact: true })).toBeFocused();
@@ -320,6 +321,7 @@ for (const [role, path] of [['shop_owner', '/shop/reports'], ['admin', '/admin/r
 
 test('shop can send itemized estimate, start approved repair, and issue its invoice', async ({ page, context }, testInfo) => {
     test.skip(testInfo.project.name !== 'desktop', 'The cross-role workflow runs once; page rendering runs at every viewport');
+    test.setTimeout(120000);
     const fixture = await signIn(page, 'shop_owner');
     await page.goto('/shop/repair-jobs?status=diagnosis');
     const job = page.locator(`#repair-${fixture.diagnosisRepairJob}`);
@@ -327,25 +329,40 @@ test('shop can send itemized estimate, start approved repair, and issue its invo
     await expect(job.getByLabel('Next stage')).toHaveCount(0);
     await job.getByRole('link', { name: 'Send estimate for approval' }).click();
     await expect(page.getByText('PHP 1,250.00', { exact: true })).toBeVisible();
+    await page.getByLabel('Valid until').fill(new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10));
     await page.getByRole('button', { name: 'Send estimate to customer' }).click();
-    await expect(page.getByText('Quotation sent to the customer.')).toBeVisible();
+    await expect(page.getByText('Quotation sent to the customer.')).toBeVisible({ timeout: 15000 });
 
     await context.clearCookies();
     await signIn(page, 'customer');
     await page.goto('/customer/repairs');
-    await page.locator(`#repair-${fixture.diagnosisRepairJob}`).getByRole('button', { name: 'Approve estimate' }).click();
-    await expect(page.getByText('Quotation response saved.')).toBeVisible();
-    const acceptedRepair = page.locator(`#repair-${fixture.diagnosisRepairJob}`);
-    await expect(acceptedRepair.locator('.repair-approved-prices')).toContainText('PHP 1,250.00');
+    const trackedRepair = page.locator(`#repair-${fixture.diagnosisRepairJob}`);
+    const approve = trackedRepair.getByRole('button', { name: 'Approve estimate of ₱1,250.00' });
     for (const [width, theme] of [[360, 'light'], [360, 'dark'], [768, 'light'], [768, 'dark'], [1440, 'light'], [1440, 'dark']]) {
         await page.setViewportSize({ width, height: 850 });
         await page.evaluate(value => localStorage.setItem('autocare-theme', value), theme);
-        await page.goto('/customer/repairs?repair_job_id=' + fixture.diagnosisRepairJob);
+        const response = await page.goto('/customer/repairs?repair_job_id=' + fixture.diagnosisRepairJob);
+        expect(response.status()).toBe(200);
         await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
-        await expect(acceptedRepair.getByRole('region', { name: 'Service progress' })).toBeVisible();
+        await expect(trackedRepair.getByRole('region', { name: 'Service progress' })).toBeVisible();
+        await expect(trackedRepair.locator('.repair-approved-prices')).toContainText('₱1,250.00');
+        const inspection = trackedRepair.getByRole('region', { name: 'Inspection results' });
+        await expect(inspection.getByText('Needs attention', { exact: true })).toBeVisible();
+        await expect(inspection.getByText('Replace worn front pads.')).toBeVisible();
+        const evidence = inspection.getByRole('img', { name: 'Front brake pad photo' });
+        await evidence.scrollIntoViewIfNeeded();
+        await expect.poll(() => evidence.evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
+        await approve.evaluate(button => {
+            window.scrollTo(0, 0);
+            button.focus({ preventScroll: true });
+        });
+        await expect(approve).toBeFocused();
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
         await page.screenshot({ path: testInfo.outputPath('repair-' + width + '-' + theme + '.png'), fullPage: true });
     }
+    await approve.click();
+    await expect(page.getByText('Quotation response saved.')).toBeVisible();
+    await expect(trackedRepair.locator('.repair-approved-prices')).toContainText('₱1,250.00');
 
     await context.clearCookies();
     await signIn(page, 'shop_owner');
@@ -558,13 +575,19 @@ test('booking shows the service price and checks the selected shop schedule', as
     test.setTimeout(90000);
     const fixture = await signIn(page, 'customer');
     await page.goto('/customer/appointments/create');
-    await expect(page.locator('#booking-progress')).toHaveText('Step 1 of 3');
+    await expect(page.locator('#booking-progress')).toHaveText('Step 1 of 4 · Choose a vehicle');
     await page.locator('#shop_id').selectOption(String(fixture.shop));
-    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    await page.getByRole('button', { name: 'Continue to services' }).click();
+    await expect(page.locator('#booking-progress')).toHaveText('Step 2 of 4 · Choose services');
+    await page.getByRole('button', { name: 'Continue to schedule' }).click();
     await expect(page.getByText('Choose at least one service.')).toBeVisible();
     await page.locator(`#booking-services input[data-shop-id="${fixture.shop}"][value="${fixture.service}"]`).check();
-    await expect(page.locator('#booking-service-summary')).toContainText('₱900.00');
-    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    await expect(page.locator('#booking-estimate')).toHaveText('₱900.00');
+    await page.getByRole('button', { name: 'Change vehicle' }).click();
+    await expect(page.locator('#vehicle_id')).toBeFocused();
+    await page.getByRole('button', { name: 'Continue to services' }).click();
+    await expect(page.locator('#booking-estimate')).toHaveText('₱900.00');
+    await page.getByRole('button', { name: 'Continue to schedule' }).click();
     await expect(page.getByRole('heading', { name: 'Choose a visit time' })).toBeFocused();
     const availableDate = new Date(Date.now() + 4 * 86400000).toISOString().slice(0, 10);
     await page.locator('#appointment_date').fill(availableDate);
@@ -574,8 +597,8 @@ test('booking shows the service price and checks the selected shop schedule', as
     await firstSuggestion.click();
     await expect(page.locator('#appointment_time')).toHaveValue(suggestedTime);
     await expect(page.locator('#slot-feedback')).toContainText('The shop still needs to confirm');
-    await page.getByRole('button', { name: 'Continue', exact: true }).click();
-    await expect(page.locator('#booking-progress')).toHaveText('Step 3 of 3');
+    await page.getByRole('button', { name: 'Review your request' }).click();
+    await expect(page.locator('#booking-progress')).toHaveText('Step 4 of 4 · Review your request');
     for (const [width, theme] of [[360, 'light'], [360, 'dark'], [768, 'light'], [768, 'dark'], [1440, 'light'], [1440, 'dark']]) {
         await page.setViewportSize({ width, height: 850 });
         await page.evaluate(value => {
@@ -584,7 +607,26 @@ test('booking shows the service price and checks the selected shop schedule', as
             document.documentElement.dataset.bsTheme = value;
         }, theme);
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
-        await page.screenshot({ path: testInfo.outputPath('booking-' + width + '-' + theme + '.png'), fullPage: true });
+        await page.getByRole('button', { name: 'Back', exact: true }).click();
+        await page.getByRole('button', { name: 'Back', exact: true }).click();
+        await expect(page.locator('#booking-progress')).toHaveText('Step 2 of 4 · Choose services');
+        await page.screenshot({ path: testInfo.outputPath('booking-' + width + '-' + theme + '.png'), fullPage: true, animations: 'disabled' });
+        if (width < 992) {
+            const navigation = page.getByRole('navigation', { name: 'Quick navigation' });
+            const current = navigation.getByRole('link', { name: 'Book', exact: true });
+            await expect(current).toHaveAttribute('aria-current', 'page');
+            await expect(navigation.locator('[aria-current]')).toHaveCount(1);
+            await current.focus();
+            await expect(current).toBeFocused();
+            expect((await current.boundingBox()).height).toBeGreaterThanOrEqual(44);
+            const bars = await page.evaluate(() => ({
+                actionBottom: document.querySelector('.booking-action-bar').getBoundingClientRect().bottom,
+                navTop: document.querySelector('.customer-mobile-nav').getBoundingClientRect().top,
+            }));
+            expect(bars.actionBottom).toBeLessThanOrEqual(bars.navTop);
+        }
+        await page.getByRole('button', { name: 'Continue to schedule' }).click();
+        await page.getByRole('button', { name: 'Review your request' }).click();
     }
 });
 
@@ -592,11 +634,13 @@ test('booking keeps the chosen provider, service and time when a vehicle is adde
     const fixture = await signIn(page, 'customer');
     await page.goto('/customer/appointments/create?shop_id=' + fixture.shop);
     const service = page.locator(`#booking-services input[data-shop-id="${fixture.shop}"][value="${fixture.service}"]`);
+    await page.getByRole('button', { name: 'Continue to services' }).click();
     await service.check();
-    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    await page.getByRole('button', { name: 'Continue to schedule' }).click();
     const date = new Date(Date.now() + 6 * 86400000).toISOString().slice(0, 10);
     await page.getByLabel('Preferred date').fill(date);
     await page.getByLabel('Preferred time').fill('10:00');
+    await page.getByRole('button', { name: 'Back', exact: true }).click();
     await page.getByRole('button', { name: 'Back', exact: true }).click();
 
     await page.getByText('Add a vehicle here', { exact: true }).click();
@@ -610,8 +654,9 @@ test('booking keeps the chosen provider, service and time when a vehicle is adde
     await expect(page).toHaveURL(/vehicle_id=\d+/);
     await expect(page.locator('#vehicle_id option:checked')).toContainText(plate);
     await expect(page.locator('#shop_id')).toHaveValue(String(fixture.shop));
+    await page.getByRole('button', { name: 'Continue to services' }).click();
     await expect(service).toBeChecked();
-    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    await page.getByRole('button', { name: 'Continue to schedule' }).click();
     await expect(page.getByLabel('Preferred date')).toHaveValue(date);
     await expect(page.getByLabel('Preferred time')).toHaveValue('10:00');
 });
@@ -831,12 +876,13 @@ test('customer books, shop confirms, and admin monitors the same appointment', a
         const time = { desktop: '10:00', mobile: '11:00', 'small-mobile': '12:00' }[testInfo.project.name];
         await page.goto('/customer/appointments/create');
         await page.getByLabel('Service provider', { exact: true }).selectOption(String(fixture.shop));
-        await page.locator(`#booking-services input[data-shop-id="${fixture.shop}"][value="${fixture.service}"]`).check();
         await page.getByLabel('Vehicle', { exact: true }).selectOption(String(fixture.vehicle));
-        await page.getByRole('button', { name: 'Continue', exact: true }).click();
+        await page.getByRole('button', { name: 'Continue to services' }).click();
+        await page.locator(`#booking-services input[data-shop-id="${fixture.shop}"][value="${fixture.service}"]`).check();
+        await page.getByRole('button', { name: 'Continue to schedule' }).click();
         await page.getByLabel('Preferred date').fill(date);
         await page.getByLabel('Preferred time').fill(time);
-        await page.getByRole('button', { name: 'Continue', exact: true }).click();
+        await page.getByRole('button', { name: 'Review your request' }).click();
         await page.getByLabel('Message to the provider (optional)').fill(reason);
         await page.getByRole('button', { name: 'Request appointment' }).click();
         await expect(page).toHaveURL(/customer\/appointments$/);

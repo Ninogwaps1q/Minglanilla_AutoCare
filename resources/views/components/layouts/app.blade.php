@@ -31,6 +31,32 @@
         }
         $roleLabel = match ($role) { 'shop_owner' => 'Shop owner', 'mechanic' => 'Independent mechanic', 'shop_staff' => ucfirst(auth()->user()->staff_role ?? 'Shop staff'), 'admin' => 'Administration', default => 'Customer'};
         $dashboardRoute = match ($role) { 'shop_owner', 'mechanic', 'shop_staff' => 'shop.dashboard', 'admin' => 'admin.dashboard', default => 'dashboard'};
+        $quickLinks = match ($role) {
+            'customer' => [
+                ['dashboard', 'Home', 'house', ['dashboard']],
+                ['shops.index', 'Find', 'geo-alt', ['shops.*']],
+                ['customer.appointments.create', 'Book', 'plus-lg', ['customer.appointments.create']],
+                ['customer.vehicles.index', 'My Vehicle', 'car-front', ['customer.vehicles.*']],
+                ['customer.services.index', 'My services', 'tools', ['customer.services.*', 'customer.appointments.index', 'customer.repairs.*', 'customer.quotations.*', 'customer.invoices.*', 'customer.service-cases.*']],
+            ],
+            'shop_owner', 'mechanic' => [
+                ['shop.dashboard', 'Home', 'house', ['shop.dashboard']],
+                ['shop.appointments.index', 'Bookings', 'calendar-check', ['shop.appointments.*']],
+                $ownerShop?->hasPlanAtLeast('basic')
+                    ? ['shop.repair-jobs.create', 'New job', 'plus-lg', ['shop.repair-jobs.create']]
+                    : ['shop.pricing', 'Plans', 'tags', ['shop.pricing']],
+                ['shop.repair-jobs.index', 'Repairs', 'tools', ['shop.repair-jobs.index']],
+                ['shop.today-work.index', 'Today', 'list-task', ['shop.today-work.*']],
+            ],
+            'admin' => [
+                ['admin.dashboard', 'Overview', 'house', ['admin.dashboard']],
+                ['admin.shops.index', 'Shops', 'shop', ['admin.shops.*']],
+                ['admin.monitoring.index', 'Monitor', 'activity', ['admin.monitoring.*']],
+                ['admin.users.index', 'Users', 'people', ['admin.users.*']],
+                ['admin.reports.index', 'Reports', 'bar-chart', ['admin.reports.*']],
+            ],
+            default => [],
+        };
         $navigationLinks = collect($navigation)->flatMap(fn(array $group): array => $group[1]);
         $currentNavigationItem = $navigationLinks->first(fn(array $link): bool => request()->routeIs($link[0]))
             ?? $navigationLinks->first(function (array $link): bool {
@@ -58,7 +84,7 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
 
-    <body class="portal-shell role-{{ $role }}" @if (in_array($role, ['customer', 'shop_owner', 'mechanic'], true))
+    <body class="portal-shell autocare-ui role-{{ $role }}" @if (in_array($role, ['customer', 'shop_owner', 'mechanic'], true))
         data-activity-counts-url="{{ route($role === 'customer' ? 'customer.notifications.counts' : 'shop.notifications.counts') }}"
     @endif>
         <a class="skip-link" href="#main-content">{{ __('ui.' . 'Skip to content') }}</a>
@@ -184,13 +210,13 @@
             <main class="portal-content" id="main-content" tabindex="-1">
                 @if (session('status'))
                     <div class="alert alert-success alert-dismissible fade show" role="status">{{ session('status') }}<button
-                            type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Dismiss notification"></button>
+                            type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{ __('ui.Dismiss notification') }}"></button>
                     </div>
                 @endif
                 @if ($messagesUnavailable ?? false)
                     <div class='alert alert-warning' role='alert'>
                         <i class='bi bi-exclamation-triangle me-2' aria-hidden='true'></i>
-                        Messages are temporarily unavailable. Your other account features are still available.
+                        {{ __('ui.Messages are temporarily unavailable. Try again in a moment') }}
                     </div>
                 @endif
                 @if (
@@ -221,62 +247,21 @@
                 <x-language-switcher prefix="portal-language" />
             </footer>
         </div>
-        @if ($role === 'customer')
-            <nav class="customer-mobile-nav" aria-label="Customer quick navigation">
-                <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'active' : '' }}"><i
-                        class="bi bi-house" aria-hidden="true"></i><span>{{ __('ui.' . 'Home') }}</span></a>
-                <a href="{{ route('shops.index') }}" class="{{ request()->routeIs('shops.index') ? 'active' : '' }}"><i
-                        class="bi bi-geo-alt" aria-hidden="true"></i><span>{{ __('ui.' . 'Find') }}</span></a>
-                <a href="{{ route('customer.appointments.create') }}"
-                    class="customer-mobile-book {{ request()->routeIs('customer.appointments.create') ? 'active' : '' }}"><i
-                        class="bi bi-plus-lg" aria-hidden="true"></i><span>{{ __('ui.' . 'Book') }}</span></a>
-                <a href="{{ route('customer.vehicles.index') }}"
-                    class="{{ request()->routeIs('customer.vehicles.*') ? 'active' : '' }}"><i class="bi bi-car-front"
-                        aria-hidden="true"></i><span>{{ __('ui.' . 'My Vehicle') }}</span></a>
-                <a href="{{ route('customer.services.index') }}"
-                    class="{{ request()->routeIs('customer.services.*', 'customer.appointments.index', 'customer.repairs.*', 'customer.quotations.*', 'customer.invoices.*', 'customer.service-cases.*') ? 'active' : '' }}"
-                    @if (request()->routeIs('customer.services.*', 'customer.appointments.index', 'customer.repairs.*', 'customer.quotations.*', 'customer.invoices.*', 'customer.service-cases.*')) aria-current="page" @endif><i
-                        class="bi bi-tools" aria-hidden="true"></i><span>{{ __('ui.' . 'My services') }}</span></a>
+        @if ($quickLinks !== [])
+            <nav @class(['customer-mobile-nav', 'shop-mobile-nav' => in_array($role, ['shop_owner', 'mechanic'], true), 'admin-mobile-nav' => $role === 'admin'])
+                aria-label="{{ __('ui.Quick navigation') }}">
+                @foreach ($quickLinks as [$route, $label, $icon, $activeRoutes])
+                    @php($active = request()->routeIs(...$activeRoutes))
+                    <a href="{{ route($route) }}" @class(['active' => $active]) @if ($active) aria-current="page" @endif>
+                        <i class="bi bi-{{ $icon }}" aria-hidden="true"></i><span>{{ __('ui.'.$label) }}</span>
+                    </a>
+                @endforeach
             </nav>
+        @endif
+        @if ($role === 'customer')
             @unless (request()->routeIs('customer.ai-assistant.*', 'customer.messages.show', 'customer.emergency-requests.*', 'customer.appointments.create', 'customer.repairs.*', 'preferences.notifications.edit'))
                 <x-ai-chat-widget />
             @endunless
-        @elseif (in_array($role, ['shop_owner', 'mechanic'], true))
-            <nav class="customer-mobile-nav shop-mobile-nav" aria-label="{{ $roleLabel }} quick navigation">
-                <a href="{{ route('shop.dashboard') }}" class="{{ request()->routeIs('shop.dashboard') ? 'active' : '' }}"><i
-                        class="bi bi-house" aria-hidden="true"></i><span>{{ __('ui.' . 'Home') }}</span></a>
-                <a href="{{ route('shop.appointments.index') }}"
-                    class="{{ request()->routeIs('shop.appointments.*') ? 'active' : '' }}"><i class="bi bi-calendar-check"
-                        aria-hidden="true"></i><span>{{ __('ui.' . 'Bookings') }}</span></a>
-                @if ($ownerShop?->hasPlanAtLeast('basic'))
-                    <a href="{{ route('shop.repair-jobs.create') }}"
-                        class="customer-mobile-book {{ request()->routeIs('shop.repair-jobs.create') ? 'active' : '' }}"><i
-                            class="bi bi-plus-lg" aria-hidden="true"></i><span>{{ __('ui.' . 'New job') }}</span></a>
-                @else
-                    <a href="{{ route('shop.pricing') }}" class="customer-mobile-book {{ request()->routeIs('shop.pricing') ? 'active' : '' }}"><i class="bi bi-tags" aria-hidden="true"></i><span>{{ __('ui.' . 'Plans') }}</span></a>
-                @endif
-                <a href="{{ route('shop.repair-jobs.index') }}"
-                    class="{{ request()->routeIs('shop.repair-jobs.index') ? 'active' : '' }}"><i class="bi bi-tools"
-                        aria-hidden="true"></i><span>{{ __('ui.' . 'Repairs') }}</span></a>
-                <a href="{{ route('shop.today-work.index') }}"
-                    class="{{ request()->routeIs('shop.today-work.*') ? 'active' : '' }}"><i class="bi bi-list-task"
-                        aria-hidden="true"></i><span>{{ __('ui.' . 'Today') }}</span></a>
-            </nav>
-        @elseif ($role === 'admin')
-            <nav class="customer-mobile-nav admin-mobile-nav" aria-label="Admin quick navigation">
-                <a href="{{ route('admin.dashboard') }}" class="{{ request()->routeIs('admin.dashboard') ? 'active' : '' }}"><i
-                        class="bi bi-house" aria-hidden="true"></i><span>{{ __('ui.' . 'Overview') }}</span></a>
-                <a href="{{ route('admin.shops.index') }}" class="{{ request()->routeIs('admin.shops.*') ? 'active' : '' }}"><i
-                        class="bi bi-shop" aria-hidden="true"></i><span>{{ __('ui.' . 'Shops') }}</span></a>
-                <a href="{{ route('admin.monitoring.index') }}"
-                    class="customer-mobile-book {{ request()->routeIs('admin.monitoring.*') ? 'active' : '' }}"><i
-                        class="bi bi-activity" aria-hidden="true"></i><span>{{ __('ui.' . 'Monitor') }}</span></a>
-                <a href="{{ route('admin.users.index') }}" class="{{ request()->routeIs('admin.users.*') ? 'active' : '' }}"><i
-                        class="bi bi-people" aria-hidden="true"></i><span>{{ __('ui.' . 'Users') }}</span></a>
-                <a href="{{ route('admin.reports.index') }}"
-                    class="{{ request()->routeIs('admin.reports.*') ? 'active' : '' }}"><i class="bi bi-bar-chart"
-                        aria-hidden="true"></i><span>{{ __('ui.' . 'Reports') }}</span></a>
-            </nav>
         @endif
         @stack('scripts')
     </body>

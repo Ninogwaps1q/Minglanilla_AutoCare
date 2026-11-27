@@ -2,6 +2,21 @@
 
 // Machine-translated draft. Native-speaker review pending.
 return [
+    'choose_vehicle' => 'Pumili ng sasakyan',
+    'choose_services' => 'Pumili ng mga serbisyo',
+    'to_services' => 'Magpatuloy sa mga serbisyo',
+    'to_schedule' => 'Magpatuloy sa iskedyul',
+    'to_review' => 'Suriin ang request mo',
+    'change_vehicle' => 'Palitan ang sasakyan',
+    'change' => 'Palitan',
+    'vehicle_needs' => 'Ano ang kailangan ng sasakyan mo?',
+    'pick_services_help' => 'Pumili ng isa o higit pang serbisyo. Kukumpirmahin ng provider ang huling presyo pagkatapos ng inspeksyon.',
+    'unspecified' => 'hindi tinukoy',
+    'price_includes' => 'Trabaho :labor · Piyesa :parts',
+    'no_offers' => 'Walang serbisyong puwedeng i-book dito. Bumalik para pumili ng ibang provider.',
+    'listed_estimate' => 'Tinatayang presyo',
+    'service_count_one' => ':count serbisyo',
+    'service_count_many' => ':count serbisyo',
     'progress' => 'Hakbang :step sa :total',
     'continue' => 'Magpatuloy',
     'back' => 'Bumalik',

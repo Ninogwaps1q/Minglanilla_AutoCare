@@ -17,7 +17,7 @@ it('keeps old map links working and shows only approved active shops in the comb
     $this->get(route('map.index'))->assertRedirect(route('shops.index', ['view' => 'map']).'#shop-map');
 
     $this->get(route('shops.index'))
-        ->assertSee('Matching providers on the map')
+        ->assertSee('Map of matching shops and mechanic service areas')
         ->assertSee('Approved Demo Shop', false)
         ->assertDontSee('Pending Demo Shop', false);
 });

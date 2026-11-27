@@ -31,26 +31,8 @@ document.querySelectorAll('.public-navbar a[href^="#"]').forEach((link) => {
 if (document.querySelector('#landing-shop-map')) {
     import('./landing-map.js');
 }
-const directoryMap = document.querySelector('#shop-map-panel');
-if (directoryMap) {
-    const showLegacyMap = () => {
-        directoryMap.hidden = false;
-        document.querySelector('#shop-results').hidden = true;
-        document.querySelector('#shop-filters [name="view"]').value = 'map';
-        document.querySelectorAll('[data-directory-view]').forEach(link => {
-            const selected = link.dataset.directoryView === 'map';
-            link.classList.toggle('btn-primary', selected);
-            link.classList.toggle('btn-outline-primary', !selected);
-            if (selected) link.setAttribute('aria-current', 'true');
-            else link.removeAttribute('aria-current');
-        });
-        import('./shop-directory-map.js');
-    };
-    if (!directoryMap.hidden) {
-        import('./shop-directory-map.js');
-    } else if (location.hash === '#shop-map') {
-        showLegacyMap();
-    }
+if (document.querySelector('#shop-map-panel')) {
+    import('./shop-directory-map.js');
 }
 if (document.querySelector('#location-picker-map')) {
     import('./location-picker.js');

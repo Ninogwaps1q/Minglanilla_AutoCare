@@ -284,6 +284,11 @@ it('guides an itemized diagnosis through estimate approval, repair start, comple
 
     expect($job->fresh()->invoice->total)->toBe('1250.00');
     expect($job->fresh()->invoice->status)->toBe('unpaid');
+    config(['services.paymongo.secret_key' => 'test-key', 'services.paymongo.webhook_secret' => 'test-webhook']);
+    $this->actingAs($fixture['customer'])->get(route('customer.repairs.index', ['repair_job_id' => $job->id]))
+        ->assertOk()
+        ->assertSee('Pay ₱1,250.00')
+        ->assertSee(route('customer.invoices.index', ['focus' => $job->fresh()->invoice->id]), false);
     $this->assertDatabaseHas('vehicle_service_records', [
         'repair_job_id' => $job->id,
         'parts_used' => '1 x Brake pads',
@@ -352,7 +357,8 @@ it('shows the estimate approval on the repair page and prevents other customers 
     $quotation->items()->create(['description' => 'Brake service', 'quantity' => 1, 'unit_price' => 850, 'subtotal' => 850]);
     $fixture['repairJob']->update(['quotation_id' => $quotation->id, 'status' => 'waiting_approval']);
 
-    $this->actingAs($fixture['customer'])->get(route('customer.repairs.index'))->assertOk()->assertSee('Approve estimate')->assertSee('Brake service');
+    $this->actingAs($fixture['customer'])->get(route('customer.repairs.index'))->assertOk()
+        ->assertSee('Approve ₱850.00')->assertSee('Brake service')->assertSee('Ask the shop');
     $this->actingAs(User::factory()->create(['role' => 'customer']))->patch(route('customer.quotations.update', $quotation), ['status' => 'accepted'])->assertNotFound();
     $this->actingAs($fixture['customer'])->patch(route('customer.quotations.update', $quotation), ['status' => 'accepted'])->assertRedirect();
 

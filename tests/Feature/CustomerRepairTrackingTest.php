@@ -41,6 +41,6 @@ it('shows the customers repair costs and status while hiding other customers rep
 
     $this->actingAs($customer)->get('/customer/repairs')->assertOk()
         ->assertSee('RJ-VISIBLE')->assertDontSee('RJ-PRIVATE')
-        ->assertSee('PHP 1,250.00')->assertSee('Oct 7, 2026')
+        ->assertSee('₱1,250.00')->assertSee('Oct 7, 2026')->assertSee('5:00 PM')
         ->assertSee('&lt;script&gt;', false)->assertDontSee('<script>alert(1)</script>', false);
 });
